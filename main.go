@@ -4,34 +4,13 @@ import (
 	"fmt"
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/proxy"
-	"io"
 	"log"
-	"os"
 	"strings"
 )
 
-const JAVDB_ROOT_DOMAIN = "https://javdb.com"
-
-var (
-	filename    = "output.txt"
-	logFilename = "output-log.txt"
-	of          *os.File
-	logOf       *os.File
-)
+const JavdbRootDomain = "https://javdb.com"
 
 func main() {
-	of, err := os.OpenFile(filename, os.O_APPEND, 0666)
-	if err != nil {
-		panic(err)
-	}
-	defer of.Close()
-
-	logOf, err := os.OpenFile(logFilename, os.O_APPEND, 0666)
-	if err != nil {
-		panic(err)
-	}
-	defer logOf.Close()
-
 	c := colly.NewCollector()
 
 	// Rotate two socks5 proxies
@@ -62,7 +41,7 @@ func main() {
 
 	// 获取列表
 	c.OnHTML(".movie-list>div>a.box", func(e *colly.HTMLElement) {
-		pageUrl := JAVDB_ROOT_DOMAIN + e.Attr("href")
+		pageUrl := JavdbRootDomain + e.Attr("href")
 		fmt.Println(e.Attr("title"), pageUrl)
 		e.Request.Visit(pageUrl)
 	})
@@ -72,17 +51,8 @@ func main() {
 		torrentUrl := e.Attr("href")
 		aLinkText := strings.ReplaceAll(strings.ReplaceAll(e.Text, "\n", " "), "  ", " ")
 		if strings.Contains(aLinkText, "高清") && strings.Contains(aLinkText, "字幕") {
-			io.WriteString(of, torrentUrl)
-			io.WriteString(of, "\n")
-
-			io.WriteString(logOf, "高清字幕: "+torrentUrl)
-			io.WriteString(logOf, "\n")
-
 			fmt.Println("高清字幕: ", torrentUrl)
 		} else {
-			io.WriteString(logOf, "非高清字幕: "+torrentUrl+" "+aLinkText)
-			io.WriteString(logOf, "\n")
-
 			fmt.Println("非高清字幕: ", torrentUrl, " ", aLinkText)
 		}
 	})
