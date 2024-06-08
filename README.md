@@ -1,1 +1,1 @@
-# gmagnet
+# get-magnet

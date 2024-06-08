@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/proxy"
+	"gmagnet/core"
 	"log"
 	"strings"
 )
@@ -11,6 +12,9 @@ import (
 const JavdbRootDomain = "https://javdb.com"
 
 func main() {
+	gm := core.New()
+	gm.Run()
+
 	c := colly.NewCollector()
 
 	// Rotate two socks5 proxies
