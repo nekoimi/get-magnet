@@ -8,7 +8,8 @@ import (
 	"strings"
 )
 
-const StartUrl = "https://javdb.com/censored?vft=2&vst=2"
+const baseURL = "https://javdb.com/"
+const movieListUrl = "https://javdb.com/censored?vft=2&vst=2"
 
 type javDBProvider struct {
 	c            *colly.Collector
@@ -28,7 +29,7 @@ func New(proxy colly.ProxyFunc) provider.MagnetProvider {
 
 func (p *javDBProvider) RunGet() {
 	p.getListPage()
-	p.next(StartUrl)
+	p.next(movieListUrl)
 }
 
 // 执行下一页
@@ -41,7 +42,7 @@ func (p *javDBProvider) next(url string) {
 // 解析列表页
 // 再列表页判断是否需要继续下一页
 func (p *javDBProvider) getListPage() {
-	p.c.OnHTML("", func(e *colly.HTMLElement) {
+	p.c.OnHTML("section.section>div.container", func(e *colly.HTMLElement) {
 
 		// 获取下一页
 		p.next("")
