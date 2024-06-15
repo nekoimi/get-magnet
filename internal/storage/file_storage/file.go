@@ -16,14 +16,14 @@ type fileStorage struct {
 }
 
 func New(saveDir string) storage.Storage {
-	Init(saveDir)
+	initSaveDir(saveDir)
 	return &fileStorage{
 		m:       sync.Mutex{},
 		saveDir: saveDir,
 	}
 }
 
-func Init(saveDir string) {
+func initSaveDir(saveDir string) {
 	if exists, err := file.Exists(saveDir); err != nil {
 		log.Fatal(err.Error())
 	} else if !exists {

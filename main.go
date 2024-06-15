@@ -3,19 +3,33 @@ package main
 import (
 	"fmt"
 	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/debug"
 	"github.com/gocolly/colly/proxy"
-	"gmagnet/core"
+	"gmagnet/internal/storage/file_storage"
 	"log"
 	"strings"
+	"time"
 )
 
 const JavdbRootDomain = "https://javdb.com"
 
 func main() {
-	gm := core.New()
-	gm.Run()
+	//gm := core.New()
+	//gm.Run()
 
-	c := colly.NewCollector()
+	s := file_storage.New("output")
+
+	c := colly.NewCollector(
+		colly.Async(true),
+		colly.Debugger(&debug.LogDebugger{}),
+	)
+
+	// 限制速率
+	c.Limit(&colly.LimitRule{
+		DomainGlob:  "*javdb.*",
+		Parallelism: 2,
+		RandomDelay: 3 * time.Second,
+	})
 
 	// Rotate two socks5 proxies
 	rp, err := proxy.RoundRobinProxySwitcher("socks5://127.0.0.1:2080")
@@ -56,16 +70,16 @@ func main() {
 		aLinkText := strings.ReplaceAll(strings.ReplaceAll(e.Text, "\n", " "), "  ", " ")
 		if strings.Contains(aLinkText, "高清") && strings.Contains(aLinkText, "字幕") {
 			fmt.Println("高清字幕: ", torrentUrl)
+			s.Save(torrentUrl)
 		} else {
 			fmt.Println("非高清字幕: ", torrentUrl, " ", aLinkText)
 		}
 	})
 
-	//c.Visit("https://javdb.com/censored?vft=2&vst=2")
-	//c.Visit("https://javdb.com/censored?page=2&vft=2&vst=2")
-	//c.Visit("https://javdb.com/censored?page=3&vft=2&vst=2")
-	//c.Visit("https://javdb.com/censored?page=4&vft=2&vst=2")
-	//c.Visit("https://javdb.com/censored?page=5&vft=2&vst=2")
-	//c.Visit("https://javdb.com/censored?page=6&vft=2&vst=2")
-	//c.Visit("https://javdb.com/censored?page=7&vft=2&vst=2")
+	for i := range [11]int{} {
+		visitUrl := fmt.Sprintf("https://javdb.com/censored?page=%d&vft=2&vst=2", i+1)
+		c.Visit(visitUrl)
+	}
+
+	c.Wait()
 }
