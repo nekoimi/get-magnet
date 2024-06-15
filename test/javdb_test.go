@@ -7,8 +7,6 @@ import (
 	"testing"
 )
 
-const JavdbRootDomain = "https://javdb.com"
-
 func TestGetList(t *testing.T) {
 	fr, err := os.OpenFile("html/list.html", os.O_RDONLY, os.ModePerm)
 	if err != nil {
