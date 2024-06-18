@@ -1,7 +1,10 @@
 package main
 
-import "get-magnet/core"
+import "log"
+
+func init() {
+	log.SetFlags(log.Lshortfile | log.Ldate | log.Lmicroseconds)
+}
 
 func main() {
-	core.New().Run()
 }

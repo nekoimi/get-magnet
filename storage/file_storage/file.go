@@ -1,8 +1,8 @@
 package file_storage
 
 import (
-	"get-magnet/internal/storage"
 	"get-magnet/pkg/file"
+	"get-magnet/storage"
 	"log"
 	"os"
 	"path/filepath"

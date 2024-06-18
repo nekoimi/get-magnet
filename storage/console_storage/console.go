@@ -1,7 +1,7 @@
 package console_storage
 
 import (
-	"get-magnet/internal/storage"
+	"get-magnet/storage"
 	"log"
 )
 
