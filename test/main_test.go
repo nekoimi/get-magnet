@@ -2,10 +2,10 @@ package test
 
 import (
 	"fmt"
+	"get-magnet/internal/storage/file_storage"
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/gocolly/colly/proxy"
-	"gmagnet/internal/storage/file_storage"
 	"log"
 	"net/url"
 	"strings"

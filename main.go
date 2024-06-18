@@ -1,6 +1,6 @@
 package main
 
-import "gmagnet/core"
+import "get-magnet/core"
 
 func main() {
 	core.New().Run()

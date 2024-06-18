@@ -2,8 +2,8 @@ package javdb
 
 import (
 	"fmt"
+	"get-magnet/internal/provider"
 	"github.com/gocolly/colly"
-	"gmagnet/internal/provider"
 	"log"
 	"strings"
 )
