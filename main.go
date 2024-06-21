@@ -20,6 +20,20 @@ const (
 var detailsChan = make(chan string, 2)
 var stateChan = make(chan bool)
 
+// Magnet 磁力信息实体 magnets
+type Magnet struct {
+	Id          int
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Title       string
+	Number      string
+	OptimalLink string
+	Links       []string
+	ResHost     string
+	ResPath     string
+	Status      uint8
+}
+
 func init() {
 	log.SetFlags(log.Lshortfile | log.Ldate | log.Lmicroseconds)
 
@@ -86,52 +100,60 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	var detailsLinks []string
+	var detailsPathArr []string
 	doc.Find(".movie-list>div>a.box").Each(func(i int, s *goquery.Selection) {
 		href, _ := s.Attr("href")
-		fullLink, err := url.JoinPath(JavdbRootDomain, href)
+		fullPath, err := url.JoinPath(JavdbRootDomain, href)
 		if err != nil {
 			log.Fatalln(err)
 		}
 
-		log.Printf("idx: %d, fullLink: %s \n", i, fullLink)
+		log.Printf("idx: %d, fullPath: %s \n", i, fullPath)
 
-		detailsLinks = append(detailsLinks, href)
+		detailsPathArr = append(detailsPathArr, href)
 	})
 
+	if len(detailsPathArr) == 0 {
+		log.Println("Details path arr is empty！")
+		return
+	}
+
 	// 查询这些连接在数据库中是否存在
-	existsSql := "SELECT link FROM history WHERE link IN (?)"
-	rs, err := db.Query(existsSql, strings.Join(detailsLinks, ","))
+	selectExistsDetailsSql := "SELECT res_path FROM magnets WHERE res_path IN (?)"
+	rs, err := db.Query(selectExistsDetailsSql, strings.Join(detailsPathArr, ","))
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer rs.Close()
 
-	existsSet := make(map[string]bool)
+	existsPathSet := make(map[string]bool)
 	for rs.Next() {
-		var rLink string
-		err := rs.Scan(&rLink)
+		var resPath string
+		err := rs.Scan(&resPath)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("exists fullLink: %s \n", rLink)
+		log.Printf("exists path: %s \n", resPath)
 
-		existsSet[rLink] = true
+		existsPathSet[resPath] = true
 	}
 
 	// 判断是否需要继续解析执行下一页
-	if len(existsSet) == 0 {
+	// 当前新获取的path列表没有一个是存在于数据库记录的
+	if len(existsPathSet) == 0 {
 		// 不存在已经解析的link，继续下一页
 		nextHref, existsNext := doc.Find(".pagination>a.pagination-next").First().Attr("href")
 		if existsNext {
+			// 提交下一页的任务
 			log.Printf("Next: %s \n", nextHref)
 		}
 	}
 
 	// 解析详情页
-	for _, href := range detailsLinks {
-		if !existsSet[href] {
+	for _, href := range detailsPathArr {
+		if !existsPathSet[href] {
 			detailsChan <- href
+			// 提交详情页的任务
 			log.Printf("details: %s \n", href)
 		}
 	}
