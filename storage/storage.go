@@ -1,5 +1,7 @@
 package storage
 
+import "get-magnet/engine"
+
 type Storage interface {
-	Save(magnetLink string) error
+	Save(item engine.ParseItem) error
 }

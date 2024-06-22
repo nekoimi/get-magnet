@@ -20,20 +20,6 @@ const (
 var detailsChan = make(chan string, 2)
 var stateChan = make(chan bool)
 
-// Magnet 磁力信息实体 magnets
-type Magnet struct {
-	Id          int
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Title       string
-	Number      string
-	OptimalLink string
-	Links       []string
-	ResHost     string
-	ResPath     string
-	Status      uint8
-}
-
 func init() {
 	log.SetFlags(log.Lshortfile | log.Ldate | log.Lmicroseconds)
 

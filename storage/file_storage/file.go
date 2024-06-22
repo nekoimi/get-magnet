@@ -1,6 +1,7 @@
 package file_storage
 
 import (
+	"get-magnet/engine"
 	"get-magnet/pkg/file"
 	"get-magnet/storage"
 	"log"
@@ -37,7 +38,7 @@ func OutputFile() string {
 	return time.Now().Format("2006-01-02") + "." + "txt"
 }
 
-func (s *fileStorage) Save(magnetLink string) error {
+func (s *fileStorage) Save(item engine.ParseItem) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 
@@ -57,5 +58,5 @@ func (s *fileStorage) Save(magnetLink string) error {
 		return err
 	}
 
-	return file.WriteLine(f, magnetLink)
+	return file.WriteLine(f, item.OptimalLink)
 }
