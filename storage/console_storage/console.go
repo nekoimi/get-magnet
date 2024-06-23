@@ -14,7 +14,7 @@ func New() storage.Storage {
 	return &consoleStorage{}
 }
 
-func (s *consoleStorage) Save(item engine.ParseItem) error {
+func (s *consoleStorage) Save(item engine.MagnetItem) error {
 	log.Println(util.ToJson(item))
 	return nil
 }

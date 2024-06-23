@@ -8,11 +8,17 @@ import (
 // Task 任务信息
 type Task struct {
 	Url    string
-	Handle func(selection *goquery.Selection) (ParseItem, error)
+	Handle func(selection *goquery.Selection) (TaskOut, error)
 }
 
-// ParseItem 单个任务结果信息
-type ParseItem struct {
+// TaskOut 任务执行输出
+type TaskOut struct {
+	Tasks []Task
+	Items []any
+}
+
+// MagnetItem 单个任务结果信息
+type MagnetItem struct {
 	Title       string   `json:"title,omitempty"`
 	Number      string   `json:"number,omitempty"`
 	OptimalLink string   `json:"optimal_link,omitempty"`
@@ -27,5 +33,5 @@ type Magnet struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Status    uint8
-	ParseItem
+	MagnetItem
 }

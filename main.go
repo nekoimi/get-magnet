@@ -1,20 +1,14 @@
 package main
 
 import (
-	"database/sql"
+	"get-magnet/engine"
+	"get-magnet/handlers/javdb"
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
-	"strings"
 	"time"
-)
-
-const (
-	JavdbRootDomain = "https://javdb.com"
-	dsn             = "root:mysql#123456@(10.1.1.100:3306)/get_magnet_db"
 )
 
 var detailsChan = make(chan string, 2)
@@ -38,19 +32,12 @@ func loopDetails() {
 }
 
 func main() {
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer db.Close()
-
-	err = db.Ping()
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// Start details task
-	go loopDetails()
+	e := engine.Default()
+	e.Scheduler.Submit(engine.Task{
+		Url:    "https://javdb.com/censored?vft=2&vst=2",
+		Handle: javdb.ParseMovieList,
+	})
+	e.Run()
 
 	// http client
 	httpClient := &http.Client{
@@ -81,69 +68,8 @@ func main() {
 	//log.Println(body)
 
 	// 解析其实列表页
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	_, err = goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
 		log.Fatalln(err)
-	}
-
-	var detailsPathArr []string
-	doc.Find(".movie-list>div>a.box").Each(func(i int, s *goquery.Selection) {
-		href, _ := s.Attr("href")
-		fullPath, err := url.JoinPath(JavdbRootDomain, href)
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		log.Printf("idx: %d, fullPath: %s \n", i, fullPath)
-
-		detailsPathArr = append(detailsPathArr, href)
-	})
-
-	if len(detailsPathArr) == 0 {
-		log.Println("Details path arr is empty！")
-		return
-	}
-
-	// 查询这些连接在数据库中是否存在
-	selectExistsDetailsSql := "SELECT res_path FROM magnets WHERE res_path IN (?)"
-	rs, err := db.Query(selectExistsDetailsSql, strings.Join(detailsPathArr, ","))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer rs.Close()
-
-	existsPathSet := make(map[string]bool)
-	for rs.Next() {
-		var resPath string
-		err := rs.Scan(&resPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("exists path: %s \n", resPath)
-
-		existsPathSet[resPath] = true
-	}
-
-	// 判断是否需要继续解析执行下一页
-	// 当前新获取的path列表没有一个是存在于数据库记录的
-	if len(existsPathSet) == 0 {
-		// 不存在已经解析的link，继续下一页
-		nextHref, existsNext := doc.Find(".pagination>a.pagination-next").First().Attr("href")
-		if existsNext {
-			// 提交下一页的任务
-			log.Printf("Next: %s \n", nextHref)
-		}
-	}
-
-	// 解析详情页
-	for _, href := range detailsPathArr {
-		if !existsPathSet[href] {
-			detailsChan <- href
-			// 提交详情页的任务
-			log.Printf("details: %s \n", href)
-		}
-	}
-
-	for {
 	}
 }
