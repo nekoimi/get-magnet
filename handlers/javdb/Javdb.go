@@ -66,15 +66,12 @@ func ParseMovieList(meta *scheduler.TaskMeta, selection *goquery.Selection) (sch
 		nextHref, existsNext := selection.Find(".pagination>a.pagination-next").First().Attr("href")
 		if existsNext {
 			// 提交下一页的任务
-			fullNextUrl, err := url.JoinPath(JavdbRootDomain, nextHref)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			log.Printf("fullNextUrl: %s \n", fullNextUrl)
-			//keepTasks = append(keepTasks, scheduler.Task{
-			//	Url:    fullNextUrl,
-			//	Handle: ParseMovieList,
-			//})
+			fullNextUrl := JavdbRootDomain + nextHref
+			log.Printf("nextHref: %s, fullNextUrl: %s \n", nextHref, fullNextUrl)
+			keepTasks = append(keepTasks, scheduler.Task{
+				Url:    fullNextUrl,
+				Handle: ParseMovieList,
+			})
 		}
 	}
 

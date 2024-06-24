@@ -41,8 +41,7 @@ func handle(scheduler *Scheduler, task Task) {
 	s, err := downloader.Download(task.Url)
 	if err != nil {
 		// again
-		// TODO debug not submit
-		// scheduler.Submit(task)
+		scheduler.Submit(task)
 
 		log.Printf("Download (%s) err: %s \n", task.Url, err.Error())
 		return
