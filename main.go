@@ -19,11 +19,20 @@ func init() {
 func main() {
 	e := engine.Default()
 
-	e.Cron.AddFunc("*/1 * * * *", func() {
-		e.Scheduler.Submit(scheduler.Task{
-			Url:    "https://javdb.com/censored?vft=2&vst=2",
-			Handle: javdb.ParseMovieList,
-		})
+	//e.Cron.AddFunc("*/1 * * * *", func() {
+	//	e.Scheduler.Submit(scheduler.Task{
+	//		Url:    "https://javdb.com/censored?vft=2&vst=2",
+	//		Handle: javdb.ParseMovieList,
+	//	})
+	//})
+
+	e.Scheduler.Submit(scheduler.Task{
+		Url:    "https://javdb.com/censored?vft=2&vst=2",
+		Handle: javdb.ParseMovieList,
+		Meta: &scheduler.TaskMeta{
+			Host:    "https://javdb.com",
+			UrlPath: "/censored?vft=2&vst=2",
+		},
 	})
 
 	e.RunWait()

@@ -1,28 +1,37 @@
 package scheduler
 
 import (
+	"fmt"
 	"get-magnet/pkg/downloader"
 	"log"
 )
 
-type WorkerTaskQueue chan Task
+type Worker struct {
+	Id        int
+	taskQueue chan Task
+	scheduler *Scheduler
+}
 
-// StartWorker start worker
-func StartWorker(scheduler *Scheduler) {
-	workerTaskQueue := scheduler.NewTaskQueue()
-	go workerLoop(scheduler, workerTaskQueue)
+func NewWorker(id int, s *Scheduler) *Worker {
+	return &Worker{
+		Id:        id,
+		taskQueue: make(chan Task, s.workerNum*10),
+		scheduler: s,
+	}
+}
+
+func (w *Worker) Run() {
+	log.Printf("Start %s \n", w)
+	go workerLoop(w.scheduler, w.taskQueue)
 }
 
 // workerLoop 工作循环
 // Loop listen work queue
-func workerLoop(scheduler *Scheduler, workerTaskQueue WorkerTaskQueue) {
-	scheduler.WorkerReady(workerTaskQueue)
-	for {
-		select {
-		case task := <-workerTaskQueue:
-			handle(scheduler, task)
-			scheduler.WorkerReady(workerTaskQueue)
-		}
+func workerLoop(s *Scheduler, taskQueue chan Task) {
+	s.WorkerReady(taskQueue)
+	for task := range taskQueue {
+		handle(s, task)
+		s.WorkerReady(taskQueue)
 	}
 }
 
@@ -32,17 +41,22 @@ func handle(scheduler *Scheduler, task Task) {
 	s, err := downloader.Download(task.Url)
 	if err != nil {
 		// again
-		scheduler.Submit(task)
+		// TODO debug not submit
+		// scheduler.Submit(task)
 
 		log.Printf("Download (%s) err: %s \n", task.Url, err.Error())
 		return
 	}
 
 	// invoke parse handle
-	result, err := task.Handle(s)
+	result, err := task.Handle(task.Meta, s)
 	if err != nil {
 		log.Printf("Handle task (%s) err: %s \n", task.Url, err.Error())
 		return
 	}
 	scheduler.Done(result)
+}
+
+func (w *Worker) String() string {
+	return fmt.Sprintf("worker-%d", w.Id)
 }

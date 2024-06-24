@@ -11,12 +11,8 @@ import (
 
 const JavdbRootDomain = "https://javdb.com"
 
-const (
-	SelectDetailsHrefExistsSql = "SELECT res_path FROM magnets WHERE res_path IN (?)"
-)
-
 // ParseMovieList movie list parser
-func ParseMovieList(selection *goquery.Selection) (scheduler.TaskOut, error) {
+func ParseMovieList(meta *scheduler.TaskMeta, selection *goquery.Selection) (scheduler.TaskOut, error) {
 	var detailsHrefArr []string
 	selection.Find(".movie-list>div>a.box").Each(func(i int, s *goquery.Selection) {
 		href, _ := s.Attr("href")
@@ -28,31 +24,41 @@ func ParseMovieList(selection *goquery.Selection) (scheduler.TaskOut, error) {
 		return scheduler.TaskOut{}, nil
 	}
 
-	var keepTasks = make([]scheduler.Task, len(detailsHrefArr))
-	out := scheduler.TaskOut{
-		Tasks: keepTasks,
-		Items: nil,
-	}
-
 	// 判断是否需要继续解析执行下一页
 	// 需要判断details详情页是否处理过
-	existsPathSet := make(map[string]bool)
+	existsPathSet := make(map[string]int8)
 	// 查询这些连接在数据库中是否存在
-	rs, err := db.GetDb().Query(SelectDetailsHrefExistsSql, strings.Join(detailsHrefArr, ","))
+	var sqlArgs []any
+	for _, s := range detailsHrefArr {
+		sqlArgs = append(sqlArgs, s)
+	}
+	sql := "SELECT res_path FROM magnets WHERE res_path IN (?" + strings.Repeat(", ?", len(sqlArgs)-1) + ")"
+	rs, err := db.Db.Query(sql, sqlArgs...)
 	if err != nil {
-		log.Fatalln(err)
+		return scheduler.TaskOut{}, err
 	}
 	defer rs.Close()
 	for rs.Next() {
 		var resPath string
 		err := rs.Scan(&resPath)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("sql result err: %s \n", err.Error())
+			continue
 		}
 		log.Printf("exists path: %s \n", resPath)
 
-		existsPathSet[resPath] = true
+		existsPathSet[resPath] = 0
 	}
+
+	// 获取不存在的href列表
+	var notExistsPathArr []string
+	for _, href := range detailsHrefArr {
+		if _, ok := existsPathSet[href]; !ok {
+			notExistsPathArr = append(notExistsPathArr, href)
+		}
+	}
+
+	var keepTasks []scheduler.Task
 
 	// 当前新获取的path列表没有一个是存在于数据库记录的
 	if len(existsPathSet) == 0 {
@@ -65,32 +71,111 @@ func ParseMovieList(selection *goquery.Selection) (scheduler.TaskOut, error) {
 				log.Fatalln(err)
 			}
 			log.Printf("fullNextUrl: %s \n", fullNextUrl)
-			keepTasks = append(keepTasks, scheduler.Task{
-				Url:    fullNextUrl,
-				Handle: ParseMovieList,
-			})
+			//keepTasks = append(keepTasks, scheduler.Task{
+			//	Url:    fullNextUrl,
+			//	Handle: ParseMovieList,
+			//})
 		}
 	}
 
-	for _, href := range detailsHrefArr {
-		if !existsPathSet[href] {
-			fullDetailsUrl, err := url.JoinPath(JavdbRootDomain, href)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			log.Printf("fullDetailsUrl: %s \n", fullDetailsUrl)
-			// append task list
-			keepTasks = append(keepTasks, scheduler.Task{
-				Url:    fullDetailsUrl,
-				Handle: ParseMovieDetails,
-			})
+	for _, href := range notExistsPathArr {
+		fullDetailsUrl, err := url.JoinPath(JavdbRootDomain, href)
+		if err != nil {
+			log.Fatalln(err)
 		}
+		log.Printf("fullDetailsUrl: %s \n", fullDetailsUrl)
+		// append task list
+		keepTasks = append(keepTasks, scheduler.Task{
+			Url:    fullDetailsUrl,
+			Handle: ParseMovieDetails,
+			Meta: &scheduler.TaskMeta{
+				Host:    JavdbRootDomain,
+				UrlPath: href,
+			},
+		})
 	}
 
-	return out, nil
+	return scheduler.TaskOut{
+		Tasks: keepTasks,
+		Items: nil,
+	}, nil
 }
 
 // ParseMovieDetails movie detail parser
-func ParseMovieDetails(selection *goquery.Selection) (scheduler.TaskOut, error) {
-	return scheduler.TaskOut{}, nil
+func ParseMovieDetails(meta *scheduler.TaskMeta, s *goquery.Selection) (scheduler.TaskOut, error) {
+	ss := s.Find("section.section>div.container").First()
+
+	// Title
+	var title = s.Find("title").Text()
+	// Number
+	var number = ss.Find(".movie-panel-info>div.first-block>span.value").Text()
+	// Links
+	var linksMap = make(map[string]string)
+	ss.Find("#magnets-content>.item>div>a").Each(func(i int, as *goquery.Selection) {
+		if torrentUrl, exists := as.Attr("href"); exists {
+			torrentName := as.Find("span.name").Text()
+			tagsText := as.Find("div.tags").Text()
+			if strings.Contains(tagsText, "高清") && strings.Contains(tagsText, "字幕") {
+				log.Printf("高清字幕: %s => %s \n", torrentName, torrentUrl)
+				linksMap[torrentUrl] = strings.ToUpper(torrentName)
+			} else {
+				log.Printf("非高清字幕: %s => %s \n", torrentName, torrentUrl)
+			}
+		}
+	})
+
+	// Links clean
+	var links []string
+	for link, _ := range linksMap {
+		links = append(links, link)
+	}
+
+	if len(links) <= 0 {
+		// Ignore
+		return scheduler.TaskOut{}, nil
+	}
+
+	// optimalLink
+	var optimalLink string
+	for link, linkName := range linksMap {
+		if strings.Contains(linkName, "-UC") {
+			optimalLink = link
+			break
+		}
+	}
+	if len(optimalLink) <= 0 {
+		for link, linkName := range linksMap {
+			if strings.Contains(linkName, "-C") {
+				optimalLink = link
+				break
+			}
+		}
+		if len(optimalLink) <= 0 {
+			for link, linkName := range linksMap {
+				if strings.Contains(linkName, "-U") {
+					optimalLink = link
+					break
+				}
+			}
+
+			if len(optimalLink) <= 0 {
+				optimalLink = links[0]
+			}
+		}
+	}
+
+	var magnetItems []scheduler.MagnetItem
+	magnetItems = append(magnetItems, scheduler.MagnetItem{
+		Title:       title,
+		Number:      number,
+		OptimalLink: optimalLink,
+		Links:       links,
+		ResHost:     meta.Host,
+		ResPath:     meta.UrlPath,
+	})
+	log.Printf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
+	return scheduler.TaskOut{
+		Tasks: nil,
+		Items: magnetItems,
+	}, nil
 }

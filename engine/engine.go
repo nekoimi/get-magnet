@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"get-magnet/scheduler"
 	"get-magnet/storage"
-	"get-magnet/storage/console_storage"
+	"get-magnet/storage/db_storage"
 	"github.com/robfig/cron/v3"
 	"log"
 	"os"
@@ -13,7 +13,7 @@ import (
 	"syscall"
 )
 
-const DefaultWorkerNum = 5
+const DefaultWorkerNum = 1
 
 type Engine struct {
 	// Signal chan
@@ -44,7 +44,7 @@ func New(workerNum int) *Engine {
 		wg:         &sync.WaitGroup{},
 		Cron:       cron.New(),
 		Scheduler:  scheduler.New(workerNum),
-		Storage:    console_storage.New(),
+		Storage:    db_storage.New(),
 	}
 }
 
@@ -80,8 +80,8 @@ func (e *Engine) engineLoop() {
 // Run start Engine
 func (e *Engine) Run() {
 	for i := 0; i < e.workerNum; i++ {
-		scheduler.StartWorker(e.Scheduler)
-		log.Printf("Worker-%d Start...", i)
+		w := scheduler.NewWorker(i, e.Scheduler)
+		w.Run()
 	}
 
 	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
+	"log"
 	"net/http"
 	"time"
 )
@@ -17,6 +18,7 @@ func init() {
 }
 
 func Download(url string) (selection *goquery.Selection, err error) {
+	log.Printf("download url: %s \n", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err

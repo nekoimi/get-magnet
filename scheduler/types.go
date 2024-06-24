@@ -9,7 +9,14 @@ import (
 // Task 任务信息
 type Task struct {
 	Url    string
-	Handle func(selection *goquery.Selection) (TaskOut, error)
+	Handle func(meta *TaskMeta, selection *goquery.Selection) (TaskOut, error)
+	Meta   *TaskMeta
+}
+
+// TaskMeta 任务元信息
+type TaskMeta struct {
+	Host    string
+	UrlPath string
 }
 
 // TaskOut 任务执行输出
