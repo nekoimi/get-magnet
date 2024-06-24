@@ -3,6 +3,7 @@ package scheduler
 import "log"
 
 type Scheduler struct {
+	workerNum       int
 	workOutQueue    chan TaskOut
 	waitTaskChan    chan Task
 	readyWorkerChan chan WorkerTaskQueue
@@ -10,6 +11,7 @@ type Scheduler struct {
 
 func New(workerNum int) *Scheduler {
 	return &Scheduler{
+		workerNum:       workerNum,
 		workOutQueue:    make(chan TaskOut, workerNum*10),
 		waitTaskChan:    make(chan Task, workerNum*10),
 		readyWorkerChan: make(chan WorkerTaskQueue, workerNum),
@@ -17,7 +19,7 @@ func New(workerNum int) *Scheduler {
 }
 
 func (s *Scheduler) NewTaskQueue() WorkerTaskQueue {
-	return make(WorkerTaskQueue)
+	return make(WorkerTaskQueue, s.workerNum*10)
 }
 
 func (s *Scheduler) Submit(task Task) {

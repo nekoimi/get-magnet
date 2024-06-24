@@ -1,7 +1,7 @@
 package scheduler
 
 import (
-	"get-magnet/downloader"
+	"get-magnet/pkg/downloader"
 	"log"
 )
 
@@ -30,7 +30,7 @@ func workerLoop(scheduler *Scheduler, workerTaskQueue WorkerTaskQueue) {
 // download url raw data & parse html doc
 func handle(scheduler *Scheduler, task Task) {
 	s, err := downloader.Download(task.Url)
-	if s == nil || err != nil {
+	if err != nil {
 		// again
 		scheduler.Submit(task)
 
