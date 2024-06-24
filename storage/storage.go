@@ -1,7 +1,9 @@
 package storage
 
-import "get-magnet/engine"
+import (
+	"get-magnet/scheduler"
+)
 
 type Storage interface {
-	Save(item engine.MagnetItem) error
+	Save(item scheduler.MagnetItem) error
 }

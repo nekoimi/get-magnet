@@ -1,23 +1,21 @@
 package engine
 
-import "get-magnet/storage"
+import (
+	"get-magnet/scheduler"
+	"get-magnet/storage"
+	"get-magnet/storage/console_storage"
+	"log"
+)
 
-const DefaultWorkerNum = 10
+const DefaultWorkerNum = 5
 
 type Engine struct {
-	Scheduler Scheduler
-	WorkerNum int
-}
-
-type Scheduler interface {
-	Submit(task Task)
-}
-
-type SimpleScheduler struct {
-	requestChan chan string
-
-	// 存储接口
-	storage *storage.Storage
+	// worker 数量
+	workerNum int
+	// 任务调度器
+	Scheduler *scheduler.Scheduler
+	// 结果存储接口
+	Storage storage.Storage
 }
 
 // Default create default Engine
@@ -26,17 +24,36 @@ func Default() *Engine {
 }
 
 // New create new Engine instance
-// workerNum: worker num, default 10
+// workerNum: worker num, default value DefaultWorkerNum
 func New(workerNum int) *Engine {
 	return &Engine{
-		Scheduler: nil,
-		WorkerNum: workerNum,
+		workerNum: workerNum,
+		Scheduler: scheduler.New(workerNum),
+		Storage:   console_storage.New(),
 	}
 }
 
 // Run start Engine
 func (e *Engine) Run() {
-	for {
+	for i := 0; i < e.workerNum; i++ {
+		scheduler.StartWorker(e.Scheduler)
+		log.Printf("Worker-%d Start...", i)
+	}
 
+	go e.Scheduler.Dispatch()
+
+	for {
+		select {
+		case out := <-e.Scheduler.OutputChan():
+			for _, t := range out.Tasks {
+				e.Scheduler.Submit(t)
+			}
+			for _, item := range out.Items {
+				err := e.Storage.Save(item)
+				if err != nil {
+					log.Printf("Save item err: %s \n", err.Error())
+				}
+			}
+		}
 	}
 }

@@ -1,6 +1,7 @@
-package engine
+package scheduler
 
 import (
+	"get-magnet/pkg/util"
 	"github.com/PuerkitoBio/goquery"
 	"time"
 )
@@ -14,7 +15,7 @@ type Task struct {
 // TaskOut 任务执行输出
 type TaskOut struct {
 	Tasks []Task
-	Items []any
+	Items []MagnetItem
 }
 
 // MagnetItem 单个任务结果信息
@@ -29,9 +30,13 @@ type MagnetItem struct {
 
 // Magnet 磁力信息实体 magnets
 type Magnet struct {
-	Id        int
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Status    uint8
-	MagnetItem
+	Id         int       `json:"id,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	Status     uint8     `json:"status,omitempty"`
+	MagnetItem `json:"magnet_item"`
+}
+
+func (m *MagnetItem) String() string {
+	return util.ToJson(m)
 }

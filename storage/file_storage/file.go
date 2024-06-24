@@ -1,8 +1,8 @@
 package file_storage
 
 import (
-	"get-magnet/engine"
 	"get-magnet/pkg/file"
+	"get-magnet/scheduler"
 	"get-magnet/storage"
 	"log"
 	"os"
@@ -38,7 +38,7 @@ func OutputFile() string {
 	return time.Now().Format("2006-01-02") + "." + "txt"
 }
 
-func (s *fileStorage) Save(item engine.MagnetItem) error {
+func (s *fileStorage) Save(item scheduler.MagnetItem) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 

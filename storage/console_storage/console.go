@@ -1,8 +1,7 @@
 package console_storage
 
 import (
-	"get-magnet/engine"
-	"get-magnet/pkg/util"
+	"get-magnet/scheduler"
 	"get-magnet/storage"
 	"log"
 )
@@ -14,7 +13,7 @@ func New() storage.Storage {
 	return &consoleStorage{}
 }
 
-func (s *consoleStorage) Save(item engine.MagnetItem) error {
-	log.Println(util.ToJson(item))
+func (s *consoleStorage) Save(item scheduler.MagnetItem) error {
+	log.Println(item)
 	return nil
 }

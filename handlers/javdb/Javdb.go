@@ -1,8 +1,8 @@
 package javdb
 
 import (
-	"get-magnet/engine"
 	"get-magnet/pkg/db"
+	"get-magnet/scheduler"
 	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/url"
@@ -16,7 +16,7 @@ const (
 )
 
 // ParseMovieList movie list parser
-func ParseMovieList(selection *goquery.Selection) (engine.TaskOut, error) {
+func ParseMovieList(selection *goquery.Selection) (scheduler.TaskOut, error) {
 	var detailsHrefArr []string
 	selection.Find(".movie-list>div>a.box").Each(func(i int, s *goquery.Selection) {
 		href, _ := s.Attr("href")
@@ -25,11 +25,11 @@ func ParseMovieList(selection *goquery.Selection) (engine.TaskOut, error) {
 
 	if len(detailsHrefArr) == 0 {
 		log.Println("Details href arr is empty！")
-		return engine.TaskOut{}, nil
+		return scheduler.TaskOut{}, nil
 	}
 
-	var keepTasks = make([]engine.Task, len(detailsHrefArr))
-	out := engine.TaskOut{
+	var keepTasks = make([]scheduler.Task, len(detailsHrefArr))
+	out := scheduler.TaskOut{
 		Tasks: keepTasks,
 		Items: nil,
 	}
@@ -65,7 +65,7 @@ func ParseMovieList(selection *goquery.Selection) (engine.TaskOut, error) {
 				log.Fatalln(err)
 			}
 			log.Printf("fullNextUrl: %s \n", fullNextUrl)
-			keepTasks = append(keepTasks, engine.Task{
+			keepTasks = append(keepTasks, scheduler.Task{
 				Url:    fullNextUrl,
 				Handle: ParseMovieList,
 			})
@@ -80,7 +80,7 @@ func ParseMovieList(selection *goquery.Selection) (engine.TaskOut, error) {
 			}
 			log.Printf("fullDetailsUrl: %s \n", fullDetailsUrl)
 			// append task list
-			keepTasks = append(keepTasks, engine.Task{
+			keepTasks = append(keepTasks, scheduler.Task{
 				Url:    fullDetailsUrl,
 				Handle: ParseMovieDetails,
 			})
@@ -91,6 +91,6 @@ func ParseMovieList(selection *goquery.Selection) (engine.TaskOut, error) {
 }
 
 // ParseMovieDetails movie detail parser
-func ParseMovieDetails(selection *goquery.Selection) (engine.TaskOut, error) {
-	return engine.TaskOut{}, nil
+func ParseMovieDetails(selection *goquery.Selection) (scheduler.TaskOut, error) {
+	return scheduler.TaskOut{}, nil
 }
