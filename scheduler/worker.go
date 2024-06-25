@@ -22,38 +22,39 @@ func NewWorker(id int, s *Scheduler) *Worker {
 
 func (w *Worker) Run() {
 	log.Printf("Start %s \n", w)
-	go workerLoop(w.scheduler, w.taskQueue)
+	w.scheduler.WorkerReady(w.taskQueue)
+	go w.workerLoop()
 }
 
 // workerLoop 工作循环
 // Loop listen work queue
-func workerLoop(s *Scheduler, taskQueue chan Task) {
-	s.WorkerReady(taskQueue)
-	for task := range taskQueue {
-		handle(s, task)
-		s.WorkerReady(taskQueue)
+func (w *Worker) workerLoop() {
+	for task := range w.taskQueue {
+		w.handle(task)
 	}
 }
 
 // handle run worker handle
 // download url raw data & parse html doc
-func handle(scheduler *Scheduler, task Task) {
+func (w *Worker) handle(task Task) {
 	s, err := downloader.Download(task.Url)
 	if err != nil {
 		// again
-		scheduler.Submit(task)
+		w.scheduler.Submit(task)
 
-		log.Printf("Download (%s) err: %s \n", task.Url, err.Error())
+		log.Printf("[%s] Download (%s) err: %s \n", w, task.Url, err.Error())
 		return
 	}
 
 	// invoke parse handle
 	result, err := task.Handle(task.Meta, s)
 	if err != nil {
-		log.Printf("Handle task (%s) err: %s \n", task.Url, err.Error())
+		log.Printf("[%s] Handle task (%s) err: %s \n", w, task.Url, err.Error())
 		return
 	}
-	scheduler.Done(result)
+	w.scheduler.Done(result)
+	w.scheduler.WorkerReady(w.taskQueue)
+	log.Printf("[%s] Handle task done: %s \n", w, task.Url)
 }
 
 func (w *Worker) String() string {
