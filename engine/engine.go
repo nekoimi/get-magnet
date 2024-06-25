@@ -66,7 +66,7 @@ func (e *Engine) engineLoop() {
 		case s := <-e.signalChan:
 			switch s {
 			case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM:
-				fmt.Println("退出:", s)
+				e.Stop(s)
 			default:
 				fmt.Println("其他信号:", s)
 			}
@@ -96,4 +96,10 @@ func (e *Engine) RunWait() {
 	e.wg.Add(1)
 	e.Run()
 	e.wg.Wait()
+}
+
+// Stop shutdown engine
+func (e *Engine) Stop(s os.Signal) {
+	fmt.Println("退出:", s)
+	os.Exit(0)
 }
