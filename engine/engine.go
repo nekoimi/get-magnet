@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"fmt"
+	"context"
 	"get-magnet/scheduler"
 	"get-magnet/storage"
 	"get-magnet/storage/db_storage"
@@ -13,7 +13,7 @@ import (
 	"syscall"
 )
 
-const DefaultWorkerNum = 1
+const DefaultWorkerNum = 5
 
 type Engine struct {
 	// Signal chan
@@ -22,10 +22,13 @@ type Engine struct {
 	workerNum int
 	// WaitGroup
 	wg *sync.WaitGroup
-	// Cron
-	Cron *cron.Cron
+	// ctx
+	ctx    context.Context
+	cancel context.CancelFunc
+	// cron
+	cron *cron.Cron
 	// 任务调度器
-	Scheduler *scheduler.Scheduler
+	scheduler *scheduler.Scheduler
 	// 结果存储接口
 	Storage storage.Storage
 }
@@ -38,12 +41,15 @@ func Default() *Engine {
 // New create new Engine instance
 // workerNum: worker num, default value DefaultWorkerNum
 func New(workerNum int) *Engine {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Engine{
 		signalChan: make(chan os.Signal),
 		workerNum:  workerNum,
 		wg:         &sync.WaitGroup{},
-		Cron:       cron.New(),
-		Scheduler:  scheduler.New(workerNum),
+		ctx:        ctx,
+		cancel:     cancel,
+		cron:       cron.New(),
+		scheduler:  scheduler.New(workerNum),
 		Storage:    db_storage.New(),
 	}
 }
@@ -53,9 +59,14 @@ func New(workerNum int) *Engine {
 func (e *Engine) engineLoop() {
 	for {
 		select {
-		case out := <-e.Scheduler.OutputChan():
+		case <-e.ctx.Done():
+			// Done
+			e.wg.Done()
+			log.Printf("cancel engineLoop...")
+			return
+		case out := <-e.scheduler.OutputChan():
 			for _, t := range out.Tasks {
-				e.Scheduler.Submit(t)
+				e.scheduler.Submit(t)
 			}
 			for _, item := range out.Items {
 				err := e.Storage.Save(item)
@@ -68,38 +79,46 @@ func (e *Engine) engineLoop() {
 			case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM:
 				e.Stop(s)
 			default:
-				fmt.Println("其他信号:", s)
+				log.Println("Ignore Signal: ", s)
 			}
 		}
 	}
-
-	// Done
-	e.wg.Done()
 }
 
 // Run start Engine
 func (e *Engine) Run() {
+	e.wg.Add(1)
 	for i := 0; i < e.workerNum; i++ {
-		w := scheduler.NewWorker(i, e.Scheduler)
-		w.Run()
+		w := scheduler.NewWorker(i, e.scheduler)
+		w.Run(e.ctx)
 	}
 
 	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	go e.Cron.Run()
-	go e.Scheduler.Dispatch()
+	go e.cron.Run()
+	go e.scheduler.Dispatch(e.ctx)
 	go e.engineLoop()
+	e.wg.Wait()
 }
 
-// RunWait start Engine and Wait
-func (e *Engine) RunWait() {
-	e.wg.Add(1)
-	e.Run()
-	e.wg.Wait()
+// Submit add task to scheduler
+func (e *Engine) Submit(task scheduler.Task) {
+	e.scheduler.Submit(task)
+}
+
+// CronSubmit use cron func submit
+func (e *Engine) CronSubmit(cron string, task scheduler.Task) {
+	_, err := e.cron.AddFunc(cron, func() {
+		e.scheduler.Submit(task)
+	})
+	if err != nil {
+		log.Fatalf("Add cron submit err: %s \n", err.Error())
+	}
 }
 
 // Stop shutdown engine
 func (e *Engine) Stop(s os.Signal) {
-	fmt.Println("退出:", s)
-	os.Exit(0)
+	e.cron.Stop()
+	e.cancel()
+	log.Println("Shutdown...")
 }

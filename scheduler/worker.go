@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 	"get-magnet/pkg/downloader"
 	"log"
@@ -20,17 +21,23 @@ func NewWorker(id int, s *Scheduler) *Worker {
 	}
 }
 
-func (w *Worker) Run() {
-	log.Printf("Start %s \n", w)
-	w.scheduler.WorkerReady(w.taskQueue)
-	go w.workerLoop()
+func (w *Worker) Run(ctx context.Context) {
+	log.Printf("start %s \n", w)
+	w.scheduler.WorkerReady(w)
+	go w.workerLoop(ctx)
 }
 
 // workerLoop 工作循环
 // Loop listen work queue
-func (w *Worker) workerLoop() {
-	for task := range w.taskQueue {
-		w.handle(task)
+func (w *Worker) workerLoop(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Printf("cancel %s \n", w)
+			return
+		case task := <-w.taskQueue:
+			w.handle(task)
+		}
 	}
 }
 
@@ -53,7 +60,7 @@ func (w *Worker) handle(task Task) {
 		return
 	}
 	w.scheduler.Done(result)
-	w.scheduler.WorkerReady(w.taskQueue)
+	w.scheduler.WorkerReady(w)
 	log.Printf("[%s] Handle task done: %s \n", w, task.Url)
 }
 
