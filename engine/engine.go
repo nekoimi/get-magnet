@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"get-magnet/aria2"
 	"get-magnet/scheduler"
 	"get-magnet/storage"
 	"get-magnet/storage/db_storage"
@@ -25,6 +26,8 @@ type Engine struct {
 	// ctx
 	ctx    context.Context
 	cancel context.CancelFunc
+	// aria2
+	aria2 *aria2.Aria2
 	// cron
 	cron *cron.Cron
 	// 任务调度器
@@ -48,6 +51,7 @@ func New(workerNum int) *Engine {
 		wg:         &sync.WaitGroup{},
 		ctx:        ctx,
 		cancel:     cancel,
+		aria2:      aria2.New(),
 		cron:       cron.New(),
 		scheduler:  scheduler.New(workerNum),
 		Storage:    db_storage.New(),
@@ -73,6 +77,9 @@ func (e *Engine) engineLoop() {
 				if err != nil {
 					log.Printf("Save item err: %s \n", err.Error())
 				}
+
+				// submit the item to aria2 and start downloading
+				e.aria2.Submit(item)
 			}
 		case s := <-e.signalChan:
 			switch s {
@@ -96,6 +103,7 @@ func (e *Engine) Run() {
 	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	go e.cron.Run()
+	go e.aria2.Run(e.ctx)
 	go e.scheduler.Dispatch(e.ctx)
 	go e.engineLoop()
 	e.wg.Wait()
