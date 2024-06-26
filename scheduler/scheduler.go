@@ -11,7 +11,7 @@ import (
 
 type Scheduler struct {
 	workerNum       int
-	exit            chan bool
+	exit            chan struct{}
 	readyTaskChan   chan *task.Task
 	readyWorkerChan chan *Worker
 
@@ -25,7 +25,7 @@ func New(workerNum int) *Scheduler {
 	return &Scheduler{
 		workerNum: workerNum,
 
-		exit: make(chan bool, 1),
+		exit: make(chan struct{}),
 
 		readyTaskChan:   make(chan *task.Task, workerNum*10),
 		readyWorkerChan: make(chan *Worker, workerNum),
@@ -61,7 +61,7 @@ func (s *Scheduler) Run(ctx context.Context, wg *sync.WaitGroup) {
 				time.Sleep(1 * time.Second)
 			}
 
-			s.exit <- true
+			close(s.exit)
 			wg.Done()
 			return
 		default:
