@@ -3,21 +3,21 @@ package scheduler
 import (
 	"context"
 	"fmt"
-	"get-magnet/internal/model"
+	"get-magnet/internal/task"
 	"get-magnet/pkg/downloader"
 	"log"
 )
 
 type Worker struct {
 	Id        int
-	taskQueue chan model.Task
+	taskQueue chan *task.Task
 	scheduler *Scheduler
 }
 
 func NewWorker(id int, s *Scheduler) *Worker {
 	return &Worker{
 		Id:        id,
-		taskQueue: make(chan model.Task, s.workerNum*10),
+		taskQueue: make(chan *task.Task, s.workerNum*10),
 		scheduler: s,
 	}
 }
@@ -44,7 +44,7 @@ func (w *Worker) workerLoop(ctx context.Context) {
 
 // handle run worker handle
 // download url raw data & parse html doc
-func (w *Worker) handle(task model.Task) {
+func (w *Worker) handle(task *task.Task) {
 	s, err := downloader.Download(task.Url)
 	if err != nil {
 		// again

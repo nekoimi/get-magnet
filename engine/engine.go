@@ -3,7 +3,7 @@ package engine
 import (
 	"context"
 	"get-magnet/aria2"
-	"get-magnet/internal/model"
+	"get-magnet/internal/task"
 	"get-magnet/scheduler"
 	"get-magnet/storage"
 	"github.com/robfig/cron/v3"
@@ -38,12 +38,12 @@ type Engine struct {
 
 // Default create default Engine
 func Default() *Engine {
-	return New(DefaultWorkerNum)
+	return New(DefaultWorkerNum, storage.Console)
 }
 
 // New create new Engine instance
 // workerNum: worker num, default value DefaultWorkerNum
-func New(workerNum int) *Engine {
+func New(workerNum int, st storage.Type) *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Engine{
 		signalChan: make(chan os.Signal),
@@ -54,7 +54,7 @@ func New(workerNum int) *Engine {
 		aria2:      aria2.New(),
 		cron:       cron.New(),
 		scheduler:  scheduler.New(workerNum),
-		Storage:    storage.NewStorage(storage.Console),
+		Storage:    storage.NewStorage(st),
 	}
 }
 
@@ -110,12 +110,12 @@ func (e *Engine) Run() {
 }
 
 // Submit add task to scheduler
-func (e *Engine) Submit(task model.Task) {
+func (e *Engine) Submit(task *task.Task) {
 	e.scheduler.Submit(task)
 }
 
 // CronSubmit use cron func submit
-func (e *Engine) CronSubmit(cron string, task model.Task) {
+func (e *Engine) CronSubmit(cron string, task *task.Task) {
 	_, err := e.cron.AddFunc(cron, func() {
 		e.scheduler.Submit(task)
 	})

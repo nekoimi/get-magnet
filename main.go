@@ -2,15 +2,15 @@ package main
 
 import (
 	"get-magnet/engine"
-	"get-magnet/internal/model"
-	"get-magnet/test"
+	"get-magnet/handlers/douban"
+	"get-magnet/internal/task"
 	"log"
 )
 
 func init() {
 	log.SetFlags(log.Lshortfile | log.Ldate | log.Lmicroseconds)
 
-	//// tmp env
+	//// TODO Set temporary environment variables
 	//_ = os.Setenv("HTTP_PROXY", "socks5://127.0.0.1:2080")
 	//_ = os.Setenv("HTTPS_PROXY", "socks5://127.0.0.1:2080")
 }
@@ -18,32 +18,10 @@ func init() {
 func main() {
 	e := engine.Default()
 
-	//e.Submit(model.Task{
-	//	Url:    "https://javdb.com/censored?vft=2&vst=2",
-	//	Handle: javdb.ParseMovieList,
-	//	Meta: &model.TaskMeta{
-	//		Host:    "https://javdb.com",
-	//		UrlPath: "/censored?vft=2&vst=2",
-	//	},
-	//})
-	//
-	//e.CronSubmit("00 3 */3 * *", model.Task{
-	//	Url:    "https://javdb.com/censored?vft=2&vst=2",
-	//	Handle: javdb.ParseMovieList,
-	//	Meta: &model.TaskMeta{
-	//		Host:    "https://javdb.com",
-	//		UrlPath: "/censored?vft=2&vst=2",
-	//	},
-	//})
-	//
-	e.Submit(model.Task{
-		Url:    "https://movie.douban.com/top250",
-		Handle: test.DouBanTop250List,
-		Meta: &model.TaskMeta{
-			Host:    "https://movie.douban.com",
-			UrlPath: "/top250",
-		},
-	})
+	//e.Submit(task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.ParseMovieList))
+	//e.CronSubmit("00 3 */3 * *", task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.ParseMovieList))
+
+	e.Submit(task.NewTask("https://movie.douban.com/top250", douban.Top250List))
 
 	e.Run()
 }
