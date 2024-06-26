@@ -2,8 +2,6 @@ package main
 
 import (
 	"get-magnet/engine"
-	"get-magnet/handlers/douban"
-	"get-magnet/internal/task"
 	"log"
 )
 
@@ -21,7 +19,7 @@ func main() {
 	//e.Submit(task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.ParseMovieList))
 	//e.CronSubmit("00 3 */3 * *", task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.ParseMovieList))
 
-	e.Submit(task.NewTask("https://movie.douban.com/top250", douban.Top250List))
+	// e.Submit(task.NewTask("https://movie.douban.com/top250", douban.Top250List))
 
 	e.Run()
 }
