@@ -1,9 +1,8 @@
-package file_storage
+package storage
 
 import (
 	"get-magnet/internal/model"
 	"get-magnet/pkg/file"
-	"get-magnet/storage"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,7 +15,7 @@ type fileStorage struct {
 	saveDir string // save dir
 }
 
-func New(saveDir string) storage.Storage {
+func newFile(saveDir string) Storage {
 	initSaveDir(saveDir)
 	return &fileStorage{
 		m:       sync.Mutex{},
@@ -38,7 +37,7 @@ func OutputFile() string {
 	return time.Now().Format("2006-01-02") + "." + "txt"
 }
 
-func (s *fileStorage) Save(item model.MagnetItem) error {
+func (s *fileStorage) Save(item *model.MagnetItem) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 

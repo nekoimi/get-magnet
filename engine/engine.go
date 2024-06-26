@@ -6,7 +6,6 @@ import (
 	"get-magnet/internal/model"
 	"get-magnet/scheduler"
 	"get-magnet/storage"
-	"get-magnet/storage/db_storage"
 	"github.com/robfig/cron/v3"
 	"log"
 	"os"
@@ -55,7 +54,7 @@ func New(workerNum int) *Engine {
 		aria2:      aria2.New(),
 		cron:       cron.New(),
 		scheduler:  scheduler.New(workerNum),
-		Storage:    db_storage.New(),
+		Storage:    storage.NewStorage(storage.Console),
 	}
 }
 
@@ -79,8 +78,8 @@ func (e *Engine) engineLoop() {
 					log.Printf("Save item err: %s \n", err.Error())
 				}
 
-				// submit the item to aria2 and start downloading
-				e.aria2.Submit(item)
+				// TODO submit the item to aria2 and start downloading
+				// e.aria2.Submit(item)
 			}
 		case s := <-e.signalChan:
 			switch s {

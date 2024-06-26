@@ -18,5 +18,5 @@ type TaskMeta struct {
 // TaskOut 任务执行输出
 type TaskOut struct {
 	Tasks []Task
-	Items []MagnetItem
+	Items []*MagnetItem
 }

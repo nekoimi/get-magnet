@@ -1,4 +1,4 @@
-package file_storage
+package storage
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ func TestOutputFile(t *testing.T) {
 }
 
 func TestFileStorage_Save(t *testing.T) {
-	s := New("test")
+	s := newFile("test")
 
 	wg := sync.WaitGroup{}
 	wg.Add(5)
@@ -23,7 +23,7 @@ func TestFileStorage_Save(t *testing.T) {
 		index := i
 		go func() {
 			for ci := range [100]int{} {
-				if err := s.Save(model.MagnetItem{
+				if err := s.Save(&model.MagnetItem{
 					OptimalLink: fmt.Sprintf("go-%d-w-%d", index, ci),
 				}); err != nil {
 					log.Println(err.Error())

@@ -9,20 +9,20 @@ import (
 
 type Aria2 struct {
 	client     *arigo.Client
-	magnetChan chan model.MagnetItem
+	magnetChan chan *model.MagnetItem
 	closeChan  chan string
 }
 
 func New() *Aria2 {
 	aria := &Aria2{
-		magnetChan: make(chan model.MagnetItem),
+		magnetChan: make(chan *model.MagnetItem),
 		closeChan:  make(chan string, 2),
 	}
 	aria.connect()
 	return aria
 }
 
-func (aria *Aria2) Submit(item model.MagnetItem) {
+func (aria *Aria2) Submit(item *model.MagnetItem) {
 	aria.magnetChan <- item
 }
 

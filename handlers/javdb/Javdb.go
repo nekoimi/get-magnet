@@ -161,8 +161,8 @@ func ParseMovieDetails(meta *model.TaskMeta, s *goquery.Selection) (model.TaskOu
 		}
 	}
 
-	var magnetItems []model.MagnetItem
-	magnetItems = append(magnetItems, model.MagnetItem{
+	var magnetItems []*model.MagnetItem
+	magnetItems = append(magnetItems, &model.MagnetItem{
 		Title:       title,
 		Number:      number,
 		OptimalLink: optimalLink,

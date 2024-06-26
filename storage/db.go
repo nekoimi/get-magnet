@@ -1,11 +1,10 @@
-package db_storage
+package storage
 
 import (
 	"database/sql"
 	"get-magnet/internal/model"
 	"get-magnet/pkg/db"
 	"get-magnet/pkg/util"
-	"get-magnet/storage"
 	"log"
 )
 
@@ -15,13 +14,13 @@ type dbStorage struct {
 	db *sql.DB
 }
 
-func New() storage.Storage {
+func newDb() Storage {
 	return &dbStorage{
 		db: db.Db,
 	}
 }
 
-func (ds *dbStorage) Save(item model.MagnetItem) error {
+func (ds *dbStorage) Save(item *model.MagnetItem) error {
 	stmt, err := ds.db.Prepare(InsertSql)
 	if err != nil {
 		log.Printf("sql err: %s \n", err.Error())
