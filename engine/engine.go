@@ -22,7 +22,8 @@ type Engine struct {
 	// worker 数量
 	workerNum int
 	// WaitGroup
-	wg *sync.WaitGroup
+	wg  *sync.WaitGroup
+	swg *sync.WaitGroup
 	// ctx
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -48,7 +49,8 @@ func New(workerNum int, st storage.Type) *Engine {
 	return &Engine{
 		signalChan: make(chan os.Signal),
 		workerNum:  workerNum,
-		wg:         &sync.WaitGroup{},
+		wg:         new(sync.WaitGroup),
+		swg:        new(sync.WaitGroup),
 		ctx:        ctx,
 		cancel:     cancel,
 		aria2:      aria2.New(),
@@ -58,17 +60,36 @@ func New(workerNum int, st storage.Type) *Engine {
 	}
 }
 
+// Run start Engine
+func (e *Engine) Run() {
+	e.wg.Add(1)
+	for i := 0; i < e.workerNum; i++ {
+		w := scheduler.NewWorker(i, e.scheduler)
+		w.Run()
+	}
+
+	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	go e.cron.Run()
+	go e.aria2.Run()
+
+	// start scheduler
+	e.swg.Add(1)
+	go e.scheduler.Run(e.ctx, e.swg)
+
+	// start engine loop
+	go e.engineLoop()
+
+	e.wg.Wait()
+}
+
 // engineLoop Loop handle output
 // or resubmit task
 func (e *Engine) engineLoop() {
 	for {
 		select {
-		case <-e.ctx.Done():
-			// Done
-			e.wg.Done()
-			log.Printf("cancel engineLoop...")
-			return
-		case out := <-e.scheduler.OutputChan():
+		case out := <-e.scheduler.OutputQueue:
+			log.Printf("scheduler.OutputQueue: %v \n", out)
 			for _, t := range out.Tasks {
 				e.scheduler.Submit(t)
 			}
@@ -92,23 +113,6 @@ func (e *Engine) engineLoop() {
 	}
 }
 
-// Run start Engine
-func (e *Engine) Run() {
-	e.wg.Add(1)
-	for i := 0; i < e.workerNum; i++ {
-		w := scheduler.NewWorker(i, e.scheduler)
-		w.Run(e.ctx)
-	}
-
-	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	go e.cron.Run()
-	go e.aria2.Run(e.ctx)
-	go e.scheduler.Dispatch(e.ctx)
-	go e.engineLoop()
-	e.wg.Wait()
-}
-
 // Submit add task to scheduler
 func (e *Engine) Submit(task *task.Task) {
 	e.scheduler.Submit(task)
@@ -126,7 +130,11 @@ func (e *Engine) CronSubmit(cron string, task *task.Task) {
 
 // Stop shutdown engine
 func (e *Engine) Stop(s os.Signal) {
-	e.cron.Stop()
 	e.cancel()
-	log.Println("Shutdown...")
+	// wait scheduler
+	e.swg.Wait()
+	e.cron.Stop()
+	e.aria2.Stop()
+	e.wg.Done()
+	log.Println("exit engine")
 }

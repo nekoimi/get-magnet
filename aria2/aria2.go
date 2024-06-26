@@ -1,7 +1,6 @@
 package aria2
 
 import (
-	"context"
 	"get-magnet/internal/model"
 	"github.com/siku2/arigo"
 	"log"
@@ -26,18 +25,11 @@ func (aria *Aria2) Submit(item *model.MagnetItem) {
 	aria.magnetChan <- item
 }
 
-func (aria *Aria2) Run(ctx context.Context) {
+func (aria *Aria2) Run() {
 	go aria.waitDisconnection()
 
 	for {
 		select {
-		case <-ctx.Done():
-			log.Println("aria2 client close...")
-			err := aria.client.Close()
-			if err != nil {
-				log.Printf("aria2 client close err: %s \n", err.Error())
-			}
-			return
 		case item := <-aria.magnetChan:
 			magnetUri := item.OptimalLink
 			g, err := aria.client.AddURI(arigo.URIs(magnetUri), nil)
@@ -48,6 +40,14 @@ func (aria *Aria2) Run(ctx context.Context) {
 				log.Printf("StartEvent#%s \n", g.GID)
 			})
 		}
+	}
+}
+
+func (aria *Aria2) Stop() {
+	log.Println("aria2 client close...")
+	err := aria.client.Close()
+	if err != nil {
+		log.Printf("aria2 client close err: %s \n", err.Error())
 	}
 }
 

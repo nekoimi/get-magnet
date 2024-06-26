@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"context"
 	"fmt"
 	"get-magnet/internal/task"
 	"get-magnet/pkg/downloader"
@@ -22,47 +21,41 @@ func NewWorker(id int, s *Scheduler) *Worker {
 	}
 }
 
-func (w *Worker) Run(ctx context.Context) {
+func (w *Worker) Run() {
 	log.Printf("start %s \n", w)
-	w.scheduler.WorkerReady(w)
-	go w.workerLoop(ctx)
+	w.scheduler.ReadyWorker(w)
+	go w.workerLoop()
 }
 
 // workerLoop 工作循环
 // Loop listen work queue
-func (w *Worker) workerLoop(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Printf("cancel %s \n", w)
-			return
-		case task := <-w.taskQueue:
-			w.handle(task)
-		}
+func (w *Worker) workerLoop() {
+	for t := range w.taskQueue {
+		w.handle(t)
 	}
 }
 
 // handle run worker handle
 // download url raw data & parse html doc
-func (w *Worker) handle(task *task.Task) {
-	s, err := downloader.Download(task.Url)
+func (w *Worker) handle(t *task.Task) {
+	s, err := downloader.Download(t.Url)
 	if err != nil {
 		// again
-		w.scheduler.Submit(task)
+		w.scheduler.Submit(t)
 
-		log.Printf("[%s] Download (%s) err: %s \n", w, task.Url, err.Error())
+		log.Printf("[%s] Download (%s) err: %s \n", w, t.Url, err.Error())
 		return
 	}
 
 	// invoke parse handle
-	result, err := task.Handle(task.Meta, s)
+	result, err := t.Handle(t.Meta, s)
 	if err != nil {
-		log.Printf("[%s] Handle task (%s) err: %s \n", w, task.Url, err.Error())
+		log.Printf("[%s] Handle task (%s) err: %s \n", w, t.Url, err.Error())
 		return
 	}
 	w.scheduler.Done(result)
-	w.scheduler.WorkerReady(w)
-	log.Printf("[%s] Handle task done: %s \n", w, task.Url)
+	w.scheduler.ReadyWorker(w)
+	log.Printf("[%s] Handle task done: %s \n", w, t.Url)
 }
 
 func (w *Worker) String() string {
