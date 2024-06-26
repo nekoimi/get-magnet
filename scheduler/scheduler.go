@@ -2,35 +2,36 @@ package scheduler
 
 import (
 	"context"
+	"get-magnet/internal/model"
 	"log"
 )
 
 type Scheduler struct {
 	workerNum       int
-	workOutQueue    chan TaskOut
-	waitTaskChan    chan Task
+	workOutQueue    chan model.TaskOut
+	waitTaskChan    chan model.Task
 	readyWorkerChan chan *Worker
 }
 
 func New(workerNum int) *Scheduler {
 	return &Scheduler{
 		workerNum:       workerNum,
-		workOutQueue:    make(chan TaskOut, workerNum*10),
-		waitTaskChan:    make(chan Task, workerNum*10),
+		workOutQueue:    make(chan model.TaskOut, workerNum*10),
+		waitTaskChan:    make(chan model.Task, workerNum*10),
 		readyWorkerChan: make(chan *Worker, workerNum),
 	}
 }
 
-func (s *Scheduler) Submit(task Task) {
+func (s *Scheduler) Submit(task model.Task) {
 	log.Printf("submit task to waitTaskChan: %s \n", task.Url)
 	s.waitTaskChan <- task
 }
 
-func (s *Scheduler) Done(taskOut TaskOut) {
+func (s *Scheduler) Done(taskOut model.TaskOut) {
 	s.workOutQueue <- taskOut
 }
 
-func (s *Scheduler) OutputChan() chan TaskOut {
+func (s *Scheduler) OutputChan() chan model.TaskOut {
 	return s.workOutQueue
 }
 
@@ -40,10 +41,10 @@ func (s *Scheduler) WorkerReady(w *Worker) {
 
 func (s *Scheduler) Dispatch(ctx context.Context) {
 	log.Println("scheduler dispatch running...")
-	var activeTaskQueue []Task
+	var activeTaskQueue []model.Task
 	var activeWorkerQueue []*Worker
 	for {
-		var activeTask Task
+		var activeTask model.Task
 		var activeWorker *Worker
 		if len(activeTaskQueue) > 0 && len(activeWorkerQueue) > 0 {
 			activeTask = activeTaskQueue[0]

@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"get-magnet/aria2"
+	"get-magnet/internal/model"
 	"get-magnet/scheduler"
 	"get-magnet/storage"
 	"get-magnet/storage/db_storage"
@@ -110,12 +111,12 @@ func (e *Engine) Run() {
 }
 
 // Submit add task to scheduler
-func (e *Engine) Submit(task scheduler.Task) {
+func (e *Engine) Submit(task model.Task) {
 	e.scheduler.Submit(task)
 }
 
 // CronSubmit use cron func submit
-func (e *Engine) CronSubmit(cron string, task scheduler.Task) {
+func (e *Engine) CronSubmit(cron string, task model.Task) {
 	_, err := e.cron.AddFunc(cron, func() {
 		e.scheduler.Submit(task)
 	})

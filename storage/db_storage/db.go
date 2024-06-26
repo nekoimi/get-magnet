@@ -2,9 +2,9 @@ package db_storage
 
 import (
 	"database/sql"
+	"get-magnet/internal/model"
 	"get-magnet/pkg/db"
 	"get-magnet/pkg/util"
-	"get-magnet/scheduler"
 	"get-magnet/storage"
 	"log"
 )
@@ -21,7 +21,7 @@ func New() storage.Storage {
 	}
 }
 
-func (ds *dbStorage) Save(item scheduler.MagnetItem) error {
+func (ds *dbStorage) Save(item model.MagnetItem) error {
 	stmt, err := ds.db.Prepare(InsertSql)
 	if err != nil {
 		log.Printf("sql err: %s \n", err.Error())

@@ -2,7 +2,7 @@ package file_storage
 
 import (
 	"fmt"
-	"get-magnet/scheduler"
+	"get-magnet/internal/model"
 	"log"
 	"sync"
 	"testing"
@@ -23,7 +23,7 @@ func TestFileStorage_Save(t *testing.T) {
 		index := i
 		go func() {
 			for ci := range [100]int{} {
-				if err := s.Save(scheduler.MagnetItem{
+				if err := s.Save(model.MagnetItem{
 					OptimalLink: fmt.Sprintf("go-%d-w-%d", index, ci),
 				}); err != nil {
 					log.Println(err.Error())

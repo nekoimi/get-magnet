@@ -1,8 +1,8 @@
 package javdb
 
 import (
+	"get-magnet/internal/model"
 	"get-magnet/pkg/db"
-	"get-magnet/scheduler"
 	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/url"
@@ -12,7 +12,7 @@ import (
 const JavdbRootDomain = "https://javdb.com"
 
 // ParseMovieList movie list parser
-func ParseMovieList(meta *scheduler.TaskMeta, selection *goquery.Selection) (scheduler.TaskOut, error) {
+func ParseMovieList(meta *model.TaskMeta, selection *goquery.Selection) (model.TaskOut, error) {
 	var detailsHrefArr []string
 	selection.Find(".movie-list>div>a.box").Each(func(i int, s *goquery.Selection) {
 		href, _ := s.Attr("href")
@@ -21,7 +21,7 @@ func ParseMovieList(meta *scheduler.TaskMeta, selection *goquery.Selection) (sch
 
 	if len(detailsHrefArr) == 0 {
 		log.Println("Details href arr is empty！")
-		return scheduler.TaskOut{}, nil
+		return model.TaskOut{}, nil
 	}
 
 	// 判断是否需要继续解析执行下一页
@@ -35,7 +35,7 @@ func ParseMovieList(meta *scheduler.TaskMeta, selection *goquery.Selection) (sch
 	sql := "SELECT res_path FROM magnets WHERE res_path IN (?" + strings.Repeat(", ?", len(sqlArgs)-1) + ")"
 	rs, err := db.Db.Query(sql, sqlArgs...)
 	if err != nil {
-		return scheduler.TaskOut{}, err
+		return model.TaskOut{}, err
 	}
 	defer rs.Close()
 	for rs.Next() {
@@ -58,7 +58,7 @@ func ParseMovieList(meta *scheduler.TaskMeta, selection *goquery.Selection) (sch
 		}
 	}
 
-	var keepTasks []scheduler.Task
+	var keepTasks []model.Task
 
 	// 当前新获取的path列表没有一个是存在于数据库记录的
 	if len(existsPathSet) == 0 {
@@ -68,7 +68,7 @@ func ParseMovieList(meta *scheduler.TaskMeta, selection *goquery.Selection) (sch
 			// 提交下一页的任务
 			fullNextUrl := JavdbRootDomain + nextHref
 			log.Printf("nextHref: %s, fullNextUrl: %s \n", nextHref, fullNextUrl)
-			keepTasks = append(keepTasks, scheduler.Task{
+			keepTasks = append(keepTasks, model.Task{
 				Url:    fullNextUrl,
 				Handle: ParseMovieList,
 			})
@@ -82,24 +82,24 @@ func ParseMovieList(meta *scheduler.TaskMeta, selection *goquery.Selection) (sch
 		}
 		log.Printf("fullDetailsUrl: %s \n", fullDetailsUrl)
 		// append task list
-		keepTasks = append(keepTasks, scheduler.Task{
+		keepTasks = append(keepTasks, model.Task{
 			Url:    fullDetailsUrl,
 			Handle: ParseMovieDetails,
-			Meta: &scheduler.TaskMeta{
+			Meta: &model.TaskMeta{
 				Host:    JavdbRootDomain,
 				UrlPath: href,
 			},
 		})
 	}
 
-	return scheduler.TaskOut{
+	return model.TaskOut{
 		Tasks: keepTasks,
 		Items: nil,
 	}, nil
 }
 
 // ParseMovieDetails movie detail parser
-func ParseMovieDetails(meta *scheduler.TaskMeta, s *goquery.Selection) (scheduler.TaskOut, error) {
+func ParseMovieDetails(meta *model.TaskMeta, s *goquery.Selection) (model.TaskOut, error) {
 	ss := s.Find("section.section>div.container").First()
 
 	// Title
@@ -129,7 +129,7 @@ func ParseMovieDetails(meta *scheduler.TaskMeta, s *goquery.Selection) (schedule
 
 	if len(links) <= 0 {
 		// Ignore
-		return scheduler.TaskOut{}, nil
+		return model.TaskOut{}, nil
 	}
 
 	// optimalLink
@@ -161,8 +161,8 @@ func ParseMovieDetails(meta *scheduler.TaskMeta, s *goquery.Selection) (schedule
 		}
 	}
 
-	var magnetItems []scheduler.MagnetItem
-	magnetItems = append(magnetItems, scheduler.MagnetItem{
+	var magnetItems []model.MagnetItem
+	magnetItems = append(magnetItems, model.MagnetItem{
 		Title:       title,
 		Number:      number,
 		OptimalLink: optimalLink,
@@ -171,7 +171,7 @@ func ParseMovieDetails(meta *scheduler.TaskMeta, s *goquery.Selection) (schedule
 		ResPath:     meta.UrlPath,
 	})
 	log.Printf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
-	return scheduler.TaskOut{
+	return model.TaskOut{
 		Tasks: nil,
 		Items: magnetItems,
 	}, nil

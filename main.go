@@ -2,8 +2,8 @@ package main
 
 import (
 	"get-magnet/engine"
-	"get-magnet/handlers/javdb"
-	"get-magnet/scheduler"
+	"get-magnet/internal/model"
+	"get-magnet/test"
 	"log"
 	"os"
 )
@@ -19,32 +19,32 @@ func init() {
 func main() {
 	e := engine.Default()
 
-	e.Submit(scheduler.Task{
-		Url:    "https://javdb.com/censored?vft=2&vst=2",
-		Handle: javdb.ParseMovieList,
-		Meta: &scheduler.TaskMeta{
-			Host:    "https://javdb.com",
-			UrlPath: "/censored?vft=2&vst=2",
-		},
-	})
-	//
-	//e.CronSubmit("00 3 */3 * *", scheduler.Task{
+	//e.Submit(model.Task{
 	//	Url:    "https://javdb.com/censored?vft=2&vst=2",
 	//	Handle: javdb.ParseMovieList,
-	//	Meta: &scheduler.TaskMeta{
+	//	Meta: &model.TaskMeta{
 	//		Host:    "https://javdb.com",
 	//		UrlPath: "/censored?vft=2&vst=2",
 	//	},
 	//})
 	//
-	//e.Submit(scheduler.Task{
-	//	Url:    "https://movie.douban.com/top250",
-	//	Handle: test.DouBanTop250List,
-	//	Meta: &scheduler.TaskMeta{
-	//		Host:    "https://movie.douban.com",
-	//		UrlPath: "/top250",
+	//e.CronSubmit("00 3 */3 * *", model.Task{
+	//	Url:    "https://javdb.com/censored?vft=2&vst=2",
+	//	Handle: javdb.ParseMovieList,
+	//	Meta: &model.TaskMeta{
+	//		Host:    "https://javdb.com",
+	//		UrlPath: "/censored?vft=2&vst=2",
 	//	},
 	//})
+	//
+	e.Submit(model.Task{
+		Url:    "https://movie.douban.com/top250",
+		Handle: test.DouBanTop250List,
+		Meta: &model.TaskMeta{
+			Host:    "https://movie.douban.com",
+			UrlPath: "/top250",
+		},
+	})
 
 	e.Run()
 }

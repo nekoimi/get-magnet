@@ -2,14 +2,14 @@ package aria2
 
 import (
 	"context"
-	"get-magnet/scheduler"
+	"get-magnet/internal/model"
 	"github.com/siku2/arigo"
 	"log"
 )
 
 type Aria2 struct {
 	client     *arigo.Client
-	magnetChan chan scheduler.MagnetItem
+	magnetChan chan model.MagnetItem
 }
 
 func New() *Aria2 {
@@ -19,11 +19,11 @@ func New() *Aria2 {
 	}
 	return &Aria2{
 		client:     &client,
-		magnetChan: make(chan scheduler.MagnetItem),
+		magnetChan: make(chan model.MagnetItem),
 	}
 }
 
-func (aria *Aria2) Submit(item scheduler.MagnetItem) {
+func (aria *Aria2) Submit(item model.MagnetItem) {
 	aria.magnetChan <- item
 }
 
