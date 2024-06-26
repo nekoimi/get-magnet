@@ -10,17 +10,16 @@ import (
 type Aria2 struct {
 	client     *arigo.Client
 	magnetChan chan model.MagnetItem
+	closeChan  chan string
 }
 
 func New() *Aria2 {
-	client, err := arigo.Dial("wss://aria2.sakuraio.com/jsonrpc", "nekoimi")
-	if err != nil {
-		panic(err)
-	}
-	return &Aria2{
-		client:     &client,
+	aria := &Aria2{
 		magnetChan: make(chan model.MagnetItem),
+		closeChan:  make(chan string, 2),
 	}
+	aria.connect()
+	return aria
 }
 
 func (aria *Aria2) Submit(item model.MagnetItem) {
@@ -28,6 +27,8 @@ func (aria *Aria2) Submit(item model.MagnetItem) {
 }
 
 func (aria *Aria2) Run(ctx context.Context) {
+	go aria.waitDisconnection()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -47,5 +48,23 @@ func (aria *Aria2) Run(ctx context.Context) {
 				log.Printf("StartEvent#%s \n", g.GID)
 			})
 		}
+	}
+}
+
+// connect connect jsonrpc server
+func (aria *Aria2) connect() {
+	client, err := arigo.Dial("wss://aria2.sakuraio.com/jsonrpc", "nekoimi")
+	if err != nil {
+		panic(err)
+	}
+	aria.client = &client
+}
+
+// waitDisconnection wait disconnection and reconnect
+func (aria *Aria2) waitDisconnection() {
+	for {
+		closeMsg := <-aria.closeChan
+		log.Printf("aria2 client close: %s \n", closeMsg)
+		// TODO aria.connect()
 	}
 }
