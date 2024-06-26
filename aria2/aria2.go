@@ -9,15 +9,19 @@ import (
 type Aria2 struct {
 	client     *arigo.Client
 	magnetChan chan *model.MagnetItem
-	closeChan  chan string
 }
 
 func New() *Aria2 {
-	aria := &Aria2{
-		magnetChan: make(chan *model.MagnetItem),
-		closeChan:  make(chan string, 2),
+	client, err := arigo.Dial("wss://aria2.sakuraio.com/jsonrpc", "nekoimi")
+	if err != nil {
+		panic(err)
 	}
-	aria.connect()
+
+	aria := &Aria2{
+		client:     client,
+		magnetChan: make(chan *model.MagnetItem),
+	}
+
 	return aria
 }
 
@@ -26,8 +30,6 @@ func (aria *Aria2) Submit(item *model.MagnetItem) {
 }
 
 func (aria *Aria2) Run() {
-	go aria.waitDisconnection()
-
 	for {
 		select {
 		case item := <-aria.magnetChan:
@@ -44,27 +46,9 @@ func (aria *Aria2) Run() {
 }
 
 func (aria *Aria2) Stop() {
-	log.Println("aria2 client close...")
+	log.Println("aria2 client close")
 	err := aria.client.Close()
 	if err != nil {
 		log.Printf("aria2 client close err: %s \n", err.Error())
-	}
-}
-
-// connect connect jsonrpc server
-func (aria *Aria2) connect() {
-	client, err := arigo.Dial("wss://aria2.sakuraio.com/jsonrpc", "nekoimi")
-	if err != nil {
-		panic(err)
-	}
-	aria.client = &client
-}
-
-// waitDisconnection wait disconnection and reconnect
-func (aria *Aria2) waitDisconnection() {
-	for {
-		closeMsg := <-aria.closeChan
-		log.Printf("aria2 client close: %s \n", closeMsg)
-		// TODO aria.connect()
 	}
 }

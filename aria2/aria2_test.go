@@ -7,7 +7,7 @@ import (
 
 func TestCall(t *testing.T) {
 	//client, err := arigo.Dial("wss://aria2.sakuraio.com/jsonrpc", "nekoimi")
-	client, err := arigo.Dial("ws://10.1.1.100:6800/jsonrpc", "nekoimi")
+	client, err := arigo.Dial("wss://aria2.sakuraio.com/jsonrpc", "nekoimi")
 	if err != nil {
 		panic(err)
 	}
