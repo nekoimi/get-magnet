@@ -1,6 +1,7 @@
 package aria2
 
 import (
+	"context"
 	"get-magnet/internal/model"
 	"github.com/siku2/arigo"
 	"log"
@@ -33,22 +34,29 @@ func (aria *Aria2) Run() {
 	for {
 		select {
 		case item := <-aria.magnetChan:
-			magnetUri := item.OptimalLink
-			g, err := aria.client.AddURI(arigo.URIs(magnetUri), nil)
-			if err != nil {
-				log.Printf("add uri (%s) to aria2 err: %s \n", magnetUri, err.Error())
-			}
-			g.Subscribe(arigo.StartEvent, func(event *arigo.DownloadEvent) {
-				log.Printf("StartEvent#%s \n", g.GID)
-			})
+			optimalLink := item.OptimalLink
+			// TODO add url to aria2
+			log.Printf("add url to aria2: %s \n", optimalLink)
+			//g, err := aria.client.AddURI(arigo.URIs(optimalLink), nil)
+			//if err != nil {
+			//	log.Printf("add uri (%s) to aria2 err: %s \n", optimalLink, err.Error())
+			//}
+			//g.Subscribe(arigo.StartEvent, func(event *arigo.DownloadEvent) {
+			//	log.Printf("StartEvent#%s \n", g.GID)
+			//})
 		}
 	}
 }
 
-func (aria *Aria2) Stop() {
-	log.Println("aria2 client close")
-	err := aria.client.Close()
-	if err != nil {
-		log.Printf("aria2 client close err: %s \n", err.Error())
-	}
+func (aria *Aria2) Stop() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		err := aria.client.Close()
+		if err != nil {
+			log.Printf("aria2 client close err: %s \n", err.Error())
+		}
+		log.Println("stop aria2 client")
+		cancel()
+	}()
+	return ctx
 }

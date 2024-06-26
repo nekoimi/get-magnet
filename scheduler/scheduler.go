@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"get-magnet/internal/task"
 	"log"
-	"sync"
 	"time"
 )
 
@@ -50,26 +49,8 @@ func (s *Scheduler) Done(taskOut *task.Out) {
 	s.OutputQueue <- taskOut
 }
 
-func (s *Scheduler) Run(ctx context.Context, wg *sync.WaitGroup) {
+func (s *Scheduler) Run() {
 	log.Println("scheduler dispatch running...")
-	go s.dispatchLoop()
-	for {
-		select {
-		case <-ctx.Done():
-			for len(s.readyTaskChan) > 0 || len(s.activeTaskQueue) > 0 || len(s.activeWorkerQueue) < s.workerNum {
-				log.Printf("wait task process, %s \n", s.debug())
-				time.Sleep(1 * time.Second)
-			}
-
-			close(s.exit)
-			wg.Done()
-			return
-		default:
-		}
-	}
-}
-
-func (s *Scheduler) dispatchLoop() {
 	for {
 		var activeTask *task.Task
 		var activeWorker *Worker
@@ -80,7 +61,6 @@ func (s *Scheduler) dispatchLoop() {
 
 		select {
 		case <-s.exit:
-			log.Println("exit schedulerLoop")
 			return
 		case t := <-s.readyTaskChan:
 			log.Printf("read task: %s \n", t.Url)
@@ -89,16 +69,31 @@ func (s *Scheduler) dispatchLoop() {
 			log.Printf("read worker: %s \n", w)
 			s.activeWorkerQueue = append(s.activeWorkerQueue, w)
 		default:
-			if activeWorker == nil && activeTask == nil {
+			if activeWorker == nil || activeTask == nil {
 				continue
 			}
 			activeWorker.taskQueue <- activeTask
 			log.Printf("dispatch task (%s) to %s \n", activeTask.Url, activeWorker)
-			// 删除第一个元素
 			s.activeTaskQueue = s.activeTaskQueue[1:]
 			s.activeWorkerQueue = s.activeWorkerQueue[1:]
 		}
 	}
+}
+
+func (s *Scheduler) Stop() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		for len(s.readyTaskChan) > 0 || len(s.activeTaskQueue) > 0 || len(s.activeWorkerQueue) < s.workerNum {
+			log.Printf("wait task process, %s \n", s.debug())
+			time.Sleep(1 * time.Second)
+		}
+		close(s.exit)
+		log.Println("stop scheduler")
+		cancel()
+	}()
+
+	return ctx
 }
 
 func (s *Scheduler) debug() string {

@@ -1,16 +1,19 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 	"get-magnet/internal/task"
 	"get-magnet/pkg/downloader"
 	"log"
+	"time"
 )
 
 type Worker struct {
 	Id        int
 	taskQueue chan *task.Task
 	scheduler *Scheduler
+	exit      chan struct{}
 }
 
 func NewWorker(id int, s *Scheduler) *Worker {
@@ -18,21 +21,37 @@ func NewWorker(id int, s *Scheduler) *Worker {
 		Id:        id,
 		taskQueue: make(chan *task.Task, s.workerNum*10),
 		scheduler: s,
+		exit:      make(chan struct{}),
 	}
 }
 
 func (w *Worker) Run() {
-	log.Printf("start %s \n", w)
+	log.Printf("start worker %s ...\n", w)
 	w.scheduler.ReadyWorker(w)
-	go w.workerLoop()
+
+	for {
+		select {
+		case <-w.exit:
+			return
+		case t := <-w.taskQueue:
+			w.handle(t)
+		}
+	}
 }
 
-// workerLoop 工作循环
-// Loop listen work queue
-func (w *Worker) workerLoop() {
-	for t := range w.taskQueue {
-		w.handle(t)
-	}
+func (w *Worker) Stop() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		for len(w.taskQueue) > 0 {
+			time.Sleep(1 * time.Second)
+		}
+		close(w.exit)
+		log.Printf("stop worker %s \n", w)
+		cancel()
+	}()
+
+	return ctx
 }
 
 // handle run worker handle

@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// ParseMovieList movie list parser
-func ParseMovieList(meta *task.Meta, selection *goquery.Selection) (*task.Out, error) {
+// ChineseSubtitlesMovieList movie list parser
+func ChineseSubtitlesMovieList(meta *task.Meta, selection *goquery.Selection) (*task.Out, error) {
 	var detailsHrefArr []string
 	selection.Find(".movie-list>div>a.box").Each(func(i int, s *goquery.Selection) {
 		href, _ := s.Attr("href")
@@ -65,19 +65,19 @@ func ParseMovieList(meta *task.Meta, selection *goquery.Selection) (*task.Out, e
 		if existsNext {
 			// 提交下一页的任务
 			log.Printf("nextHref: %s, fullNextUrl: %s \n", nextHref, meta.Host+nextHref)
-			keepTasks = append(keepTasks, task.NewTask(meta.Host+nextHref, ParseMovieList))
+			keepTasks = append(keepTasks, task.NewTask(meta.Host+nextHref, ChineseSubtitlesMovieList))
 		}
 	}
 
 	for _, href := range notExistsPathArr {
-		keepTasks = append(keepTasks, task.NewTask(meta.Host+href, ParseMovieDetails))
+		keepTasks = append(keepTasks, task.NewTask(meta.Host+href, MovieDetails))
 	}
 
 	return task.NewOut(keepTasks, nil), nil
 }
 
-// ParseMovieDetails movie detail parser
-func ParseMovieDetails(meta *task.Meta, s *goquery.Selection) (*task.Out, error) {
+// MovieDetails movie detail parser
+func MovieDetails(meta *task.Meta, s *goquery.Selection) (*task.Out, error) {
 	ss := s.Find("section.section>div.container").First()
 
 	// Title

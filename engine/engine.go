@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"get-magnet/aria2"
 	"get-magnet/internal/task"
 	"get-magnet/scheduler"
@@ -17,23 +16,18 @@ import (
 const DefaultWorkerNum = 5
 
 type Engine struct {
-	// Signal chan
 	signalChan chan os.Signal
-	// worker 数量
-	workerNum int
-	// WaitGroup
-	wg  *sync.WaitGroup
-	swg *sync.WaitGroup
-	// ctx
-	ctx    context.Context
-	cancel context.CancelFunc
-	// aria2
+	workerNum  int
+
+	workers []*scheduler.Worker
+
+	// aria2 rpc 客户端
 	aria2 *aria2.Aria2
-	// cron
+	// 定时任务调度
 	cron *cron.Cron
 	// 任务调度器
 	scheduler *scheduler.Scheduler
-	// 结果存储接口
+	// 存储
 	Storage storage.Storage
 }
 
@@ -45,49 +39,45 @@ func Default() *Engine {
 // New create new Engine instance
 // workerNum: worker num, default value DefaultWorkerNum
 func New(workerNum int, st storage.Type) *Engine {
-	ctx, cancel := context.WithCancel(context.Background())
-	return &Engine{
+	e := &Engine{
 		signalChan: make(chan os.Signal),
 		workerNum:  workerNum,
-		wg:         new(sync.WaitGroup),
-		swg:        new(sync.WaitGroup),
-		ctx:        ctx,
-		cancel:     cancel,
+		workers:    make([]*scheduler.Worker, 0),
 		aria2:      aria2.New(),
 		cron:       cron.New(),
 		scheduler:  scheduler.New(workerNum),
 		Storage:    storage.NewStorage(st),
 	}
+
+	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	for i := 0; i < e.workerNum; i++ {
+		e.workers = append(e.workers, scheduler.NewWorker(i, e.scheduler))
+	}
+
+	return e
 }
 
 // Run start Engine
 func (e *Engine) Run() {
-	e.wg.Add(1)
-	for i := 0; i < e.workerNum; i++ {
-		w := scheduler.NewWorker(i, e.scheduler)
-		w.Run()
-	}
-
-	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
 	go e.cron.Run()
 	go e.aria2.Run()
+	go e.scheduler.Run()
 
-	// start scheduler
-	e.swg.Add(1)
-	go e.scheduler.Run(e.ctx, e.swg)
+	for _, worker := range e.workers {
+		go worker.Run()
+	}
 
-	// start engine loop
-	go e.engineLoop()
-
-	e.wg.Wait()
-}
-
-// engineLoop Loop handle output
-// or resubmit task
-func (e *Engine) engineLoop() {
 	for {
 		select {
+		case s := <-e.signalChan:
+			switch s {
+			case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM:
+				e.Stop(s)
+				return
+			default:
+				log.Println("Ignore Signal: ", s)
+			}
 		case out := <-e.scheduler.OutputQueue:
 			log.Printf("scheduler.OutputQueue: %v \n", out)
 			for _, t := range out.Tasks {
@@ -100,14 +90,7 @@ func (e *Engine) engineLoop() {
 				}
 
 				// TODO submit the item to aria2 and start downloading
-				// e.aria2.Submit(item)
-			}
-		case s := <-e.signalChan:
-			switch s {
-			case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM:
-				e.Stop(s)
-			default:
-				log.Println("Ignore Signal: ", s)
+				e.aria2.Submit(item)
 			}
 		}
 	}
@@ -130,11 +113,24 @@ func (e *Engine) CronSubmit(cron string, task *task.Task) {
 
 // Stop shutdown engine
 func (e *Engine) Stop(s os.Signal) {
-	e.cancel()
-	// wait scheduler
-	e.swg.Wait()
-	e.cron.Stop()
-	e.aria2.Stop()
-	e.wg.Done()
-	log.Println("exit engine")
+	c2 := e.cron.Stop()
+	<-c2.Done()
+
+	c1 := e.scheduler.Stop()
+	<-c1.Done()
+
+	var wg sync.WaitGroup
+	wg.Add(len(e.workers))
+	for _, worker := range e.workers {
+		go func(w *scheduler.Worker) {
+			<-w.Stop().Done()
+			wg.Done()
+		}(worker)
+	}
+	wg.Wait()
+
+	c3 := e.aria2.Stop()
+	<-c3.Done()
+
+	log.Println("stop engine")
 }
