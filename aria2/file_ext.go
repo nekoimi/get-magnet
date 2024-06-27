@@ -1,7 +1,7 @@
 package aria2
 
 import (
-	"github.com/siku2/arigo"
+	"github.com/nekoimi/arigo"
 	"sort"
 )
 

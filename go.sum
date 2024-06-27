@@ -17,12 +17,14 @@ github.com/go-sql-driver/mysql v1.8.1 h1:LedoTUt/eveggdHS9qUFC1EFSa8bU2+1pZjSRpv
 github.com/go-sql-driver/mysql v1.8.1/go.mod h1:wEBSXgmK//2ZFJyE+qWnIsVGmvmEKlqwuVSjsCm7DZg=
 github.com/gorilla/websocket v1.4.1 h1:q7AeDBpnBk8AogcD4DSag/Ukw/KV+YhzLj2bP5HvKCM=
 github.com/gorilla/websocket v1.4.1/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
+github.com/nekoimi/arigo v1.0.1 h1:n3rgtGTkiT4Zk9XA3cTJuYd9NkTksd264V+GZktStiQ=
+github.com/nekoimi/arigo v1.0.1/go.mod h1:9h7VILi8M/BIeIuVbO4OePAikQm3jvlqcAoeXxIyw1o=
+github.com/nekoimi/arigo v1.0.2 h1:eoG4OgHRSDWL8cUzFSuNUVSk3RKQpdGwXxggNZt7ZZE=
+github.com/nekoimi/arigo v1.0.2/go.mod h1:9h7VILi8M/BIeIuVbO4OePAikQm3jvlqcAoeXxIyw1o=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/robfig/cron/v3 v3.0.0 h1:kQ6Cb7aHOHTSzNVNEhmp8EcWKLb4CbiMW9h9VyIhO4E=
 github.com/robfig/cron/v3 v3.0.0/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
-github.com/siku2/arigo v0.2.1-0.20221203162025-97cc8d79dcf4 h1:qenDFEmm6fnxeIImAe5VoqUxKBtncV+FQnNdcNL/mZc=
-github.com/siku2/arigo v0.2.1-0.20221203162025-97cc8d79dcf4/go.mod h1:/slSGOCL5awvY4Q9SlyR15wBjeGllHLrLE1E/2MztMQ=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=

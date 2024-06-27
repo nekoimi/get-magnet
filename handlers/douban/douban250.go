@@ -36,6 +36,8 @@ func Details(meta *task.Meta, selection *goquery.Selection) (*task.Out, error) {
 		return task.NewSingleOut(nil, &model.MagnetItem{
 			Title:       title,
 			OptimalLink: imgSrc,
+			ResHost:     meta.Host,
+			ResPath:     meta.UrlPath,
 		}), nil
 	}
 

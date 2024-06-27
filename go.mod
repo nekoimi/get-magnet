@@ -5,8 +5,8 @@ go 1.20
 require (
 	github.com/PuerkitoBio/goquery v1.5.1
 	github.com/go-sql-driver/mysql v1.8.1
+	github.com/nekoimi/arigo v1.0.2
 	github.com/robfig/cron/v3 v3.0.0
-	github.com/siku2/arigo v0.2.1-0.20221203162025-97cc8d79dcf4
 )
 
 require (
