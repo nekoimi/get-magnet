@@ -39,7 +39,7 @@ func (w *Worker) Run() {
 	}
 }
 
-func (w *Worker) Stop() context.Context {
+func (w *Worker) Stop() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
@@ -51,15 +51,18 @@ func (w *Worker) Stop() context.Context {
 		cancel()
 	}()
 
-	return ctx
+	<-ctx.Done()
 }
 
 // handle run worker handle
 // download url raw data & parse html doc
 func (w *Worker) handle(t *task.Task) {
+	defer w.scheduler.ReadyWorker(w)
+
 	s, err := downloader.Download(t.Url)
 	if err != nil {
 		// again
+		t.SetErrorMessage(err.Error())
 		w.scheduler.Submit(t)
 
 		log.Printf("[%s] Download (%s) err: %s \n", w, t.Url, err.Error())
@@ -73,7 +76,6 @@ func (w *Worker) handle(t *task.Task) {
 		return
 	}
 	w.scheduler.Done(result)
-	w.scheduler.ReadyWorker(w)
 	log.Printf("[%s] Handle task done: %s \n", w, t.Url)
 }
 

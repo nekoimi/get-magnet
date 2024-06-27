@@ -48,7 +48,7 @@ func (aria *Aria2) Run() {
 	}
 }
 
-func (aria *Aria2) Stop() context.Context {
+func (aria *Aria2) Stop() {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		err := aria.client.Close()
@@ -58,5 +58,5 @@ func (aria *Aria2) Stop() context.Context {
 		log.Println("stop aria2 client")
 		cancel()
 	}()
-	return ctx
+	<-ctx.Done()
 }

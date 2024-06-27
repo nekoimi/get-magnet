@@ -22,6 +22,9 @@ type Engine struct {
 
 	workers []*scheduler.Worker
 
+	// allow to submit
+	allowSubmit bool
+
 	// aria2 rpc 客户端
 	aria2 *aria2.Aria2
 	// 定时任务调度
@@ -41,13 +44,14 @@ func Default() *Engine {
 // workerNum: worker num, default value DefaultWorkerNum
 func New(workerNum int, st storage.Type) *Engine {
 	e := &Engine{
-		signalChan: make(chan os.Signal),
-		workerNum:  workerNum,
-		workers:    make([]*scheduler.Worker, 0),
-		aria2:      aria2.New(),
-		cron:       cron.New(),
-		scheduler:  scheduler.New(workerNum),
-		Storage:    storage.NewStorage(st),
+		signalChan:  make(chan os.Signal),
+		workerNum:   workerNum,
+		workers:     make([]*scheduler.Worker, 0),
+		allowSubmit: true,
+		aria2:       aria2.New(),
+		cron:        cron.New(),
+		scheduler:   scheduler.New(workerNum),
+		Storage:     storage.NewStorage(st),
 	}
 
 	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -78,7 +82,7 @@ func (e *Engine) Run() {
 			case out := <-e.scheduler.OutputQueue:
 				log.Printf("scheduler.OutputQueue: %v \n", out)
 				for _, t := range out.Tasks {
-					e.scheduler.Submit(t)
+					e.Submit(t)
 				}
 				for _, item := range out.Items {
 					err := e.Storage.Save(item)
@@ -109,13 +113,17 @@ func (e *Engine) Run() {
 
 // Submit add task to scheduler
 func (e *Engine) Submit(task *task.Task) {
-	e.scheduler.Submit(task)
+	if e.allowSubmit {
+		e.scheduler.Submit(task)
+		return
+	}
+	log.Printf("Not allow to submit, ignore task: %s \n", task.Url)
 }
 
 // CronSubmit use cron func submit
 func (e *Engine) CronSubmit(cron string, task *task.Task) {
 	_, err := e.cron.AddFunc(cron, func() {
-		e.scheduler.Submit(task)
+		e.Submit(task)
 	})
 	if err != nil {
 		log.Fatalf("Add cron submit err: %s \n", err.Error())
@@ -124,17 +132,18 @@ func (e *Engine) CronSubmit(cron string, task *task.Task) {
 
 // Stop shutdown engine
 func (e *Engine) Stop(s os.Signal, exit chan struct{}) {
-	c2 := e.cron.Stop()
-	<-c2.Done()
+	e.allowSubmit = false
 
-	c1 := e.scheduler.Stop()
-	<-c1.Done()
+	c := e.cron.Stop()
+	<-c.Done()
+
+	e.scheduler.Stop()
 
 	var wg sync.WaitGroup
 	wg.Add(len(e.workers))
 	for _, worker := range e.workers {
 		go func(w *scheduler.Worker) {
-			<-w.Stop().Done()
+			w.Stop()
 			wg.Done()
 		}(worker)
 	}
@@ -146,8 +155,7 @@ func (e *Engine) Stop(s os.Signal, exit chan struct{}) {
 
 	close(exit)
 
-	c3 := e.aria2.Stop()
-	<-c3.Done()
+	e.aria2.Stop()
 
 	log.Println("stop engine")
 }

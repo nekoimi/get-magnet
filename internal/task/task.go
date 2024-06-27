@@ -11,9 +11,11 @@ type Handle func(meta *Meta, selection *goquery.Selection) (*Out, error)
 
 // Task Task details info
 type Task struct {
-	Url    string `json:"url,omitempty"`
-	Handle Handle `json:"-"`
-	Meta   *Meta  `json:"meta,omitempty"`
+	ErrorCount   int    `json:"retry_count,omitempty"`
+	ErrorMessage string `json:"error_message,omitempty"`
+	Url          string `json:"url,omitempty"`
+	Handle       Handle `json:"-"`
+	Meta         *Meta  `json:"meta,omitempty"`
 }
 
 // Meta Task meta info
@@ -29,13 +31,23 @@ func NewTask(urlStr string, handle Handle) *Task {
 	}
 
 	return &Task{
-		Url:    urlStr,
-		Handle: handle,
+		ErrorCount: 0,
+		Url:        urlStr,
+		Handle:     handle,
 		Meta: &Meta{
 			Host:    u.Scheme + "://" + u.Host,
 			UrlPath: u.Path,
 		},
 	}
+}
+
+func (t *Task) IncrError() {
+	t.ErrorCount++
+}
+
+func (t *Task) SetErrorMessage(err string) {
+	t.ErrorMessage = err
+	t.IncrError()
 }
 
 func (t *Task) String() string {

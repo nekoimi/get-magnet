@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const TaskErrorMax = 5
+
 type Scheduler struct {
 	workerNum       int
 	exit            chan struct{}
@@ -37,6 +39,10 @@ func New(workerNum int) *Scheduler {
 }
 
 func (s *Scheduler) Submit(task *task.Task) {
+	if task.ErrorCount >= TaskErrorMax {
+		log.Printf("Too many task errors, ignore task: %s \n", task.Url)
+		return
+	}
 	log.Printf("submit task to readyTaskChan: %s \n", task.Url)
 	s.readyTaskChan <- task
 }
@@ -80,7 +86,7 @@ func (s *Scheduler) Run() {
 	}
 }
 
-func (s *Scheduler) Stop() context.Context {
+func (s *Scheduler) Stop() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
@@ -93,7 +99,7 @@ func (s *Scheduler) Stop() context.Context {
 		cancel()
 	}()
 
-	return ctx
+	<-ctx.Done()
 }
 
 func (s *Scheduler) debug() string {
