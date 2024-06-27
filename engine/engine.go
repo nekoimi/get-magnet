@@ -64,24 +64,10 @@ func New(workerNum int, st storage.Type) *Engine {
 
 // Run start Engine
 func (e *Engine) Run() {
-	e.scheduler.SetOutputHandle(func(o *task.Out) {
-		log.Printf("scheduler.OutputQueue: %v \n", o)
-		for _, t := range o.Tasks {
-			e.Submit(t)
-		}
-		for _, item := range o.Items {
-			err := e.Storage.Save(item)
-			if err != nil {
-				log.Printf("Save item err: %s \n", err.Error())
-			}
-
-			// submit the item to aria2 and start downloading
-			e.aria2.Submit(item)
-		}
-	})
-
 	go e.cron.Run()
 	go e.aria2.Run()
+
+	e.scheduler.SetOutputHandle(e.taskOutputHandle)
 	go e.scheduler.Run()
 
 	for _, worker := range e.workers {
@@ -118,6 +104,22 @@ func (e *Engine) CronSubmit(cron string, task *task.Task) {
 	})
 	if err != nil {
 		log.Fatalf("Add cron submit err: %s \n", err.Error())
+	}
+}
+
+func (e *Engine) taskOutputHandle(o *task.Out) {
+	log.Printf("scheduler.OutputQueue: %v \n", o)
+	for _, t := range o.Tasks {
+		e.Submit(t)
+	}
+	for _, item := range o.Items {
+		err := e.Storage.Save(item)
+		if err != nil {
+			log.Printf("Save item err: %s \n", err.Error())
+		}
+
+		// submit the item to aria2 and start downloading
+		e.aria2.Submit(item)
 	}
 }
 
