@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 )
 
 const DefaultWorkerNum = 5
@@ -65,6 +64,22 @@ func New(workerNum int, st storage.Type) *Engine {
 
 // Run start Engine
 func (e *Engine) Run() {
+	e.scheduler.SetOutputHandle(func(o *task.Out) {
+		log.Printf("scheduler.OutputQueue: %v \n", o)
+		for _, t := range o.Tasks {
+			e.Submit(t)
+		}
+		for _, item := range o.Items {
+			err := e.Storage.Save(item)
+			if err != nil {
+				log.Printf("Save item err: %s \n", err.Error())
+			}
+
+			// submit the item to aria2 and start downloading
+			e.aria2.Submit(item)
+		}
+	})
+
 	go e.cron.Run()
 	go e.aria2.Run()
 	go e.scheduler.Run()
@@ -73,36 +88,12 @@ func (e *Engine) Run() {
 		go worker.Run()
 	}
 
-	exit := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-exit:
-				return
-			case out := <-e.scheduler.OutputQueue:
-				log.Printf("scheduler.OutputQueue: %v \n", out)
-				for _, t := range out.Tasks {
-					e.Submit(t)
-				}
-				for _, item := range out.Items {
-					err := e.Storage.Save(item)
-					if err != nil {
-						log.Printf("Save item err: %s \n", err.Error())
-					}
-
-					// TODO submit the item to aria2 and start downloading
-					e.aria2.Submit(item)
-				}
-			}
-		}
-	}()
-
 	for {
 		select {
 		case s := <-e.signalChan:
 			switch s {
 			case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM:
-				e.Stop(s, exit)
+				e.Stop(s)
 				return
 			default:
 				log.Println("Ignore Signal: ", s)
@@ -131,7 +122,7 @@ func (e *Engine) CronSubmit(cron string, task *task.Task) {
 }
 
 // Stop shutdown engine
-func (e *Engine) Stop(s os.Signal, exit chan struct{}) {
+func (e *Engine) Stop(s os.Signal) {
 	e.allowSubmit = false
 
 	c := e.cron.Stop()
@@ -148,12 +139,6 @@ func (e *Engine) Stop(s os.Signal, exit chan struct{}) {
 		}(worker)
 	}
 	wg.Wait()
-
-	for len(e.scheduler.OutputQueue) > 0 {
-		time.Sleep(1 * time.Second)
-	}
-
-	close(exit)
 
 	e.aria2.Stop()
 
