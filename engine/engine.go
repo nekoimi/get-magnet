@@ -108,7 +108,6 @@ func (e *Engine) CronSubmit(cron string, task *task.Task) {
 }
 
 func (e *Engine) taskOutputHandle(o *task.Out) {
-	log.Printf("scheduler.OutputQueue: %v \n", o)
 	for _, t := range o.Tasks {
 		e.Submit(t)
 	}
