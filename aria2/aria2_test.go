@@ -62,8 +62,8 @@ func TestCall(t *testing.T) {
 	}
 
 	g.Subscribe(arigo.StartEvent, func(event *arigo.DownloadEvent) {
-		t.Log("StartEvent: ", event.String())
-		showState(client, event.GID, "StartEvent")
+		t.Log("startEventHandle: ", event.String())
+		showState(client, event.GID, "startEventHandle")
 
 		if maxSelectNum > 0 {
 			// Select File
@@ -92,28 +92,28 @@ func TestCall(t *testing.T) {
 	})
 
 	g.Subscribe(arigo.PauseEvent, func(event *arigo.DownloadEvent) {
-		t.Log("PauseEvent: ", event.String())
-		showState(client, event.GID, "PauseEvent")
+		t.Log("pauseEventHandle: ", event.String())
+		showState(client, event.GID, "pauseEventHandle")
 	})
 
 	g.Subscribe(arigo.StopEvent, func(event *arigo.DownloadEvent) {
-		t.Log("StopEvent: ", event.String())
-		showState(client, event.GID, "StopEvent")
+		t.Log("stopEventHandle: ", event.String())
+		showState(client, event.GID, "stopEventHandle")
 	})
 
 	g.Subscribe(arigo.CompleteEvent, func(event *arigo.DownloadEvent) {
-		t.Log("CompleteEvent: ", event.String())
-		showState(client, event.GID, "CompleteEvent")
+		t.Log("completeEventHandle: ", event.String())
+		showState(client, event.GID, "completeEventHandle")
 	})
 
 	g.Subscribe(arigo.BTCompleteEvent, func(event *arigo.DownloadEvent) {
-		t.Log("BTCompleteEvent: ", event.String())
-		showState(client, event.GID, "BTCompleteEvent")
+		t.Log("btCompleteEventHandle: ", event.String())
+		showState(client, event.GID, "btCompleteEventHandle")
 	})
 
 	g.Subscribe(arigo.ErrorEvent, func(event *arigo.DownloadEvent) {
-		t.Log("ErrorEvent: ", event.String())
-		showState(client, event.GID, "ErrorEvent")
+		t.Log("errorEventHandle: ", event.String())
+		showState(client, event.GID, "errorEventHandle")
 	})
 
 	t.Log("AddURI: ", g.GID)

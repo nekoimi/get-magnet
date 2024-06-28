@@ -1,22 +1,21 @@
 package aria2
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"get-magnet/internal/model"
-	"get-magnet/pkg/file"
 	"get-magnet/pkg/util"
 	"github.com/nekoimi/arigo"
 	"log"
+	"strconv"
 	"strings"
+	"time"
 )
-
-const MinVideoSize = 100_000_000
 
 type Aria2 struct {
 	client     *arigo.Client
 	magnetChan chan *model.MagnetItem
+	magnetIds  []string
+	exit       chan struct{}
 }
 
 func New() *Aria2 {
@@ -28,14 +27,16 @@ func New() *Aria2 {
 	aria := &Aria2{
 		client:     client,
 		magnetChan: make(chan *model.MagnetItem),
+		magnetIds:  make([]string, 0),
+		exit:       make(chan struct{}),
 	}
 
-	aria.client.Subscribe(arigo.StartEvent, aria.StartEvent)
-	aria.client.Subscribe(arigo.PauseEvent, aria.PauseEvent)
-	aria.client.Subscribe(arigo.StopEvent, aria.StopEvent)
-	aria.client.Subscribe(arigo.CompleteEvent, aria.CompleteEvent)
-	aria.client.Subscribe(arigo.BTCompleteEvent, aria.BTCompleteEvent)
-	aria.client.Subscribe(arigo.ErrorEvent, aria.ErrorEvent)
+	aria.client.Subscribe(arigo.StartEvent, aria.startEventHandle)
+	aria.client.Subscribe(arigo.PauseEvent, aria.pauseEventHandle)
+	aria.client.Subscribe(arigo.StopEvent, aria.stopEventHandle)
+	aria.client.Subscribe(arigo.CompleteEvent, aria.completeEventHandle)
+	aria.client.Subscribe(arigo.BTCompleteEvent, aria.btCompleteEventHandle)
+	aria.client.Subscribe(arigo.ErrorEvent, aria.errorEventHandle)
 
 	return aria
 }
@@ -45,15 +46,34 @@ func (aria *Aria2) Submit(item *model.MagnetItem) {
 }
 
 func (aria *Aria2) Run() {
+	go aria.bestFileSelectWork()
+
 	for {
 		select {
 		case item := <-aria.magnetChan:
-			aria.download(item)
+			aria.createDownload(item)
 		}
 	}
 }
 
-func (aria *Aria2) download(item *model.MagnetItem) {
+func (aria *Aria2) Stop() {
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		close(aria.exit)
+		for len(aria.magnetChan) > 0 {
+			time.Sleep(1 * time.Second)
+		}
+		err := aria.client.Close()
+		if err != nil {
+			log.Printf("aria2 client close err: %s \n", err.Error())
+		}
+		log.Println("stop aria2 client")
+		cancel()
+	}()
+	<-ctx.Done()
+}
+
+func (aria *Aria2) createDownload(item *model.MagnetItem) {
 	magnetLink := item.OptimalLink
 	log.Printf("add url to aria2: %s \n", magnetLink)
 	ops, err := aria.client.GetGlobalOptions()
@@ -72,80 +92,88 @@ func (aria *Aria2) download(item *model.MagnetItem) {
 	}
 }
 
-func (aria *Aria2) Stop() {
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		err := aria.client.Close()
-		if err != nil {
-			log.Printf("aria2 client close err: %s \n", err.Error())
+func (aria *Aria2) bestFileSelectWork() {
+	for {
+		time.Sleep(30 * time.Second)
+		select {
+		case <-aria.exit:
+			return
+		default:
 		}
-		log.Println("stop aria2 client")
-		cancel()
-	}()
-	<-ctx.Done()
-}
 
-func (aria *Aria2) StartEvent(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s StartEvent\n", event.GID)
+		for _, magnetId := range aria.magnetIds {
+			status, err := aria.client.TellStatus(magnetId, "status", "errorCode", "errorMessage", "dir", "files")
+			if err != nil {
+				log.Printf("fetch GID#%s download status err: %s \n", magnetId, err.Error())
+				continue
+			}
 
-	status, err := aria.client.TellStatus(event.GID, "status", "errorCode", "errorMessage", "dir", "files")
-	if err != nil {
-		log.Printf("fetch GID#%s download status err: %s \n", event.GID, err.Error())
-		return
-	}
-	if status.Status == arigo.StatusError {
-		log.Printf("GID#%s StatusError \n", event.GID)
-		return
-	}
+			files := status.Files
+			if status.Status == arigo.StatusError {
+				for _, f := range files {
+					if f.Selected {
+						log.Printf("GID#%s StatusError: %s \n", magnetId, f.Path)
+					}
+				}
+				continue
+			}
 
-	files := status.Files
-	if len(files) <= 1 {
-		log.Printf("GID#%s file length only one: %s \n", event.GID, util.ToJson(files[0]))
-		return
-	}
+			if len(files) <= 1 {
+				continue
+			}
 
-	// 允许下载的文件列表
-	var allowFiles []arigo.File
-	for _, f := range files {
-		if file.IsVideo(f.Path) && f.Length > MinVideoSize {
-			allowFiles = append(allowFiles, f)
-			log.Printf("GID#%s video file [%s] length: %d \n", event.GID, f.Path, f.Length)
+			needChangeOps := false
+			for _, f := range files {
+				// if selected non best, need re-change options
+				if f.Selected && !IsBestFile(f) {
+					needChangeOps = true
+					break
+				}
+			}
+
+			if needChangeOps {
+				allowFiles := BestSelectFile(files)
+				var builder strings.Builder
+				for _, a := range allowFiles {
+					builder.WriteString(strconv.Itoa(a.Index))
+					builder.WriteString(",")
+				}
+				// selectFile, _ := strings.CutSuffix(builder.String(), ",")
+				selectIndex := builder.String()
+				err = aria.client.ChangeOptions(magnetId, arigo.Options{
+					SelectFile: selectIndex,
+				})
+				if err != nil {
+					log.Printf("change GID#%s options (select-file=%s) err: %s \n", magnetId, selectIndex, err.Error())
+					return
+				}
+
+				log.Println("SELECT-Files: ", selectIndex)
+			}
 		}
 	}
-
-	bufs := bytes.NewBufferString("")
-	for _, a := range allowFiles {
-		bufs.WriteString(fmt.Sprintf("%d", a.Index))
-		bufs.WriteString(",")
-	}
-	selectFile, _ := strings.CutSuffix(bufs.String(), ",")
-	err = aria.client.ChangeOptions(event.GID, arigo.Options{
-		SelectFile: selectFile,
-	})
-	if err != nil {
-		log.Printf("change GID#%s options (select-file=%s) err: %s \n", event.GID, selectFile, err.Error())
-		return
-	}
-
-	log.Println("SELECT-Files: ", selectFile)
 }
 
-func (aria *Aria2) PauseEvent(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s PauseEvent\n", event.GID)
+func (aria *Aria2) startEventHandle(event *arigo.DownloadEvent) {
+	log.Printf("GID#%s startEventHandle\n", event.GID)
 }
 
-func (aria *Aria2) StopEvent(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s StopEvent\n", event.GID)
+func (aria *Aria2) pauseEventHandle(event *arigo.DownloadEvent) {
+	log.Printf("GID#%s pauseEventHandle\n", event.GID)
 }
 
-func (aria *Aria2) CompleteEvent(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s CompleteEvent\n", event.GID)
+func (aria *Aria2) stopEventHandle(event *arigo.DownloadEvent) {
+	log.Printf("GID#%s stopEventHandle\n", event.GID)
 }
 
-func (aria *Aria2) BTCompleteEvent(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s BTCompleteEvent\n", event.GID)
+func (aria *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
+	log.Printf("GID#%s completeEventHandle\n", event.GID)
 }
 
-func (aria *Aria2) ErrorEvent(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s ErrorEvent\n", event.GID)
+func (aria *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {
+	log.Printf("GID#%s btCompleteEventHandle\n", event.GID)
+}
+
+func (aria *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
+	log.Printf("GID#%s errorEventHandle\n", event.GID)
 }
