@@ -1,8 +1,8 @@
 package main
 
 import (
-	"get-magnet/engine"
-	"get-magnet/storage"
+	"github.com/nekoimi/get-magnet/engine"
+	"github.com/nekoimi/get-magnet/storage"
 	"log"
 	"os"
 )

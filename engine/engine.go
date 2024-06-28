@@ -1,11 +1,11 @@
 package engine
 
 import (
-	"get-magnet/aria2"
-	"get-magnet/internal/model"
-	"get-magnet/internal/task"
-	"get-magnet/scheduler"
-	"get-magnet/storage"
+	"github.com/nekoimi/get-magnet/aria2"
+	"github.com/nekoimi/get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/internal/task"
+	"github.com/nekoimi/get-magnet/scheduler"
+	"github.com/nekoimi/get-magnet/storage"
 	"github.com/robfig/cron/v3"
 	"log"
 	"os"

@@ -1,9 +1,9 @@
 package task
 
 import (
-	"get-magnet/internal/model"
-	"get-magnet/pkg/util"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/nekoimi/get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/pkg/util"
 	"net/url"
 )
 

@@ -1,7 +1,7 @@
 package model
 
 import (
-	"get-magnet/pkg/util"
+	"github.com/nekoimi/get-magnet/pkg/util"
 	"time"
 )
 

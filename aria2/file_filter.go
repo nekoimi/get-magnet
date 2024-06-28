@@ -1,8 +1,8 @@
 package aria2
 
 import (
-	"get-magnet/pkg/file"
 	"github.com/nekoimi/arigo"
+	"github.com/nekoimi/get-magnet/pkg/file"
 )
 
 // MinVideoSize 文件最小大小：100M

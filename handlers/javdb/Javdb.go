@@ -1,10 +1,10 @@
 package javdb
 
 import (
-	"get-magnet/internal/model"
-	"get-magnet/internal/task"
-	"get-magnet/pkg/db"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/nekoimi/get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/internal/task"
+	"github.com/nekoimi/get-magnet/pkg/db"
 	"log"
 	"strings"
 )

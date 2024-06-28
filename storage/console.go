@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/internal/model"
 	"log"
 )
 

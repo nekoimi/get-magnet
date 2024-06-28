@@ -2,9 +2,9 @@ package aria2
 
 import (
 	"context"
-	"get-magnet/internal/model"
-	"get-magnet/pkg/util"
 	"github.com/nekoimi/arigo"
+	"github.com/nekoimi/get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
 	"strconv"
 	"strings"

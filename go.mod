@@ -1,4 +1,4 @@
-module get-magnet
+module github.com/nekoimi/get-magnet
 
 go 1.20
 

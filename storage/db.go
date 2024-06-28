@@ -2,9 +2,9 @@ package storage
 
 import (
 	"database/sql"
-	"get-magnet/internal/model"
-	"get-magnet/pkg/db"
-	"get-magnet/pkg/util"
+	"github.com/nekoimi/get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/pkg/db"
+	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
 )
 

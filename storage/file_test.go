@@ -2,7 +2,7 @@ package storage
 
 import (
 	"fmt"
-	"get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/internal/model"
 	"log"
 	"sync"
 	"testing"
