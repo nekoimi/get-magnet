@@ -68,12 +68,6 @@ func (s *Scheduler) Done(taskOut *task.Out) {
 
 func (s *Scheduler) Run() {
 	log.Println("scheduler dispatch running")
-
-	go func() {
-		log.Printf("task processing, %s \n", s.debug())
-		time.Sleep(5 * time.Second)
-	}()
-
 	go func() {
 		for o := range s.outputChan {
 			s.outputHandle(o)
