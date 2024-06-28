@@ -18,7 +18,7 @@ func TestSubmit(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// magnet:?xt=urn:btih:ce260805da416121016bb0943e4c24119a6876b5&dn=[javdb.com]JUQ-727-C.torrent
-	a.Submit(&model.MagnetItem{
+	a.Submit(&model.Item{
 		OptimalLink: "magnet:?xt=urn:btih:d1185a812f7252b99225af665a69bfa06d2e09a7&tr=http://open.acgtracker.com:1096/announce",
 		ResHost:     "https://javdb.com",
 	})

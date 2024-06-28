@@ -37,7 +37,7 @@ func OutputFile() string {
 	return time.Now().Format("2006-01-02") + "." + "txt"
 }
 
-func (s *fileStorage) Save(item *model.MagnetItem) error {
+func (s *fileStorage) Save(item *model.Item) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 

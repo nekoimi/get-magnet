@@ -8,13 +8,15 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type Aria2 struct {
+	mu         *sync.Mutex
 	client     *arigo.Client
-	magnetChan chan *model.MagnetItem
-	magnetIds  []string
+	magnetChan chan *model.Item
+	magnetMap  map[string]struct{}
 	exit       chan struct{}
 }
 
@@ -25,9 +27,10 @@ func New() *Aria2 {
 	}
 
 	aria := &Aria2{
+		mu:         &sync.Mutex{},
 		client:     client,
-		magnetChan: make(chan *model.MagnetItem),
-		magnetIds:  make([]string, 0),
+		magnetChan: make(chan *model.Item),
+		magnetMap:  make(map[string]struct{}),
 		exit:       make(chan struct{}),
 	}
 
@@ -41,7 +44,7 @@ func New() *Aria2 {
 	return aria
 }
 
-func (aria *Aria2) Submit(item *model.MagnetItem) {
+func (aria *Aria2) Submit(item *model.Item) {
 	aria.magnetChan <- item
 }
 
@@ -73,7 +76,7 @@ func (aria *Aria2) Stop() {
 	<-ctx.Done()
 }
 
-func (aria *Aria2) createDownload(item *model.MagnetItem) {
+func (aria *Aria2) createDownload(item *model.Item) {
 	magnetLink := item.OptimalLink
 	log.Printf("add url to aria2: %s \n", magnetLink)
 	ops, err := aria.client.GetGlobalOptions()
@@ -91,7 +94,9 @@ func (aria *Aria2) createDownload(item *model.MagnetItem) {
 		return
 	}
 
-	aria.magnetIds = append(aria.magnetIds, g.GID)
+	aria.mu.Lock()
+	defer aria.mu.Unlock()
+	aria.magnetMap[g.GID] = struct{}{}
 }
 
 func (aria *Aria2) bestFileSelectWork() {
@@ -103,23 +108,19 @@ func (aria *Aria2) bestFileSelectWork() {
 		default:
 		}
 
-		for _, magnetId := range aria.magnetIds {
+		for magnetId, _ := range aria.magnetMap {
 			status, err := aria.client.TellStatus(magnetId, "status", "errorCode", "errorMessage", "dir", "files")
 			if err != nil {
 				log.Printf("fetch GID#%s download status err: %s \n", magnetId, err.Error())
 				continue
 			}
 
-			files := status.Files
-			if status.Status == arigo.StatusError {
-				for _, f := range files {
-					if f.Selected {
-						log.Printf("GID#%s StatusError: %s \n", magnetId, f.Path)
-					}
-				}
+			if status.Status != arigo.StatusActive {
+				log.Printf("GID#%s Status not active: %s \n", magnetId, status.Status)
 				continue
 			}
 
+			files := status.Files
 			if len(files) <= 1 {
 				continue
 			}
@@ -158,6 +159,10 @@ func (aria *Aria2) bestFileSelectWork() {
 
 func (aria *Aria2) startEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s startEventHandle\n", event.GID)
+
+	aria.mu.Lock()
+	defer aria.mu.Unlock()
+	aria.magnetMap[event.GID] = struct{}{}
 }
 
 func (aria *Aria2) pauseEventHandle(event *arigo.DownloadEvent) {
@@ -170,6 +175,10 @@ func (aria *Aria2) stopEventHandle(event *arigo.DownloadEvent) {
 
 func (aria *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s completeEventHandle\n", event.GID)
+
+	aria.mu.Lock()
+	defer aria.mu.Unlock()
+	delete(aria.magnetMap, event.GID)
 }
 
 func (aria *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {

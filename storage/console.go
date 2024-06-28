@@ -12,7 +12,7 @@ func newConsole() Storage {
 	return &consoleStorage{}
 }
 
-func (s *consoleStorage) Save(item *model.MagnetItem) error {
+func (s *consoleStorage) Save(item *model.Item) error {
 	log.Println(item)
 	return nil
 }

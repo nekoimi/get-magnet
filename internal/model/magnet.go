@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-// MagnetItem 单个任务结果信息
-type MagnetItem struct {
+// Item 单个任务结果信息
+type Item struct {
 	Title       string   `json:"title,omitempty"`
 	Number      string   `json:"number,omitempty"`
 	OptimalLink string   `json:"optimal_link,omitempty"`
@@ -17,13 +17,13 @@ type MagnetItem struct {
 
 // Magnet 磁力信息实体 magnets
 type Magnet struct {
-	Id         int       `json:"id,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	Status     uint8     `json:"status,omitempty"`
-	MagnetItem `json:"magnet_item"`
+	Id        int       `json:"id,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Status    uint8     `json:"status,omitempty"`
+	Item      `json:"item"`
 }
 
-func (m *MagnetItem) String() string {
+func (m *Item) String() string {
 	return util.ToJson(m)
 }

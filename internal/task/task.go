@@ -57,26 +57,26 @@ func (t *Task) String() string {
 // Out 任务执行输出
 type Out struct {
 	Tasks []*Task
-	Items []*model.MagnetItem
+	Items []*model.Item
 }
 
 func NewEmptyOut() *Out {
 	return new(Out)
 }
 
-func NewSingleOut(t *Task, item *model.MagnetItem) *Out {
+func NewSingleOut(t *Task, item *model.Item) *Out {
 	var tasks []*Task
 	if t != nil {
 		tasks = append(tasks, t)
 	}
-	var items []*model.MagnetItem
+	var items []*model.Item
 	if item != nil {
 		items = append(items, item)
 	}
 	return NewOut(tasks, items)
 }
 
-func NewOut(tasks []*Task, items []*model.MagnetItem) *Out {
+func NewOut(tasks []*Task, items []*model.Item) *Out {
 	return &Out{
 		Tasks: tasks,
 		Items: items,

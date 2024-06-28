@@ -13,7 +13,7 @@ const (
 )
 
 type Storage interface {
-	Save(item *model.MagnetItem) error
+	Save(item *model.Item) error
 }
 
 func NewStorage(t Type) Storage {

@@ -23,7 +23,7 @@ func TestFileStorage_Save(t *testing.T) {
 		index := i
 		go func() {
 			for ci := range [100]int{} {
-				if err := s.Save(&model.MagnetItem{
+				if err := s.Save(&model.Item{
 					OptimalLink: fmt.Sprintf("go-%d-w-%d", index, ci),
 				}); err != nil {
 					log.Println(err.Error())

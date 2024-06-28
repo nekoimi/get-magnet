@@ -33,7 +33,7 @@ func Top250List(meta *task.Meta, selection *goquery.Selection) (*task.Out, error
 func Details(meta *task.Meta, selection *goquery.Selection) (*task.Out, error) {
 	title := selection.Find("#content>h1>span").First().Text()
 	if imgSrc, exists := selection.Find("#mainpic>a.nbgnbg>img").Attr("src"); exists {
-		return task.NewSingleOut(nil, &model.MagnetItem{
+		return task.NewSingleOut(nil, &model.Item{
 			Title:       title,
 			OptimalLink: imgSrc,
 			ResHost:     meta.Host,

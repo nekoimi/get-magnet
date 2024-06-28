@@ -140,7 +140,7 @@ func MovieDetails(meta *task.Meta, s *goquery.Selection) (*task.Out, error) {
 	}
 
 	log.Printf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
-	return task.NewSingleOut(nil, &model.MagnetItem{
+	return task.NewSingleOut(nil, &model.Item{
 		Title:       title,
 		Number:      number,
 		OptimalLink: optimalLink,

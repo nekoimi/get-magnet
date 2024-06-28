@@ -2,6 +2,7 @@ package engine
 
 import (
 	"get-magnet/aria2"
+	"get-magnet/internal/model"
 	"get-magnet/internal/task"
 	"get-magnet/scheduler"
 	"get-magnet/storage"
@@ -86,6 +87,11 @@ func (e *Engine) Run() {
 			}
 		}
 	}
+}
+
+// SubmitDownload add item to aria2 and start download
+func (e *Engine) SubmitDownload(item *model.Item) {
+	e.aria2.Submit(item)
 }
 
 // Submit add task to scheduler

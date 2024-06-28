@@ -20,7 +20,7 @@ func newDb() Storage {
 	}
 }
 
-func (ds *dbStorage) Save(item *model.MagnetItem) error {
+func (ds *dbStorage) Save(item *model.Item) error {
 	stmt, err := ds.db.Prepare(InsertSql)
 	if err != nil {
 		log.Printf("sql err: %s \n", err.Error())
