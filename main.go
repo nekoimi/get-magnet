@@ -20,8 +20,8 @@ func init() {
 func main() {
 	e := engine.New(1, storage.Db)
 
-	e.Submit(task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.ChineseSubtitlesMovieList))
-	//e.CronSubmit("00 3 */3 * *", task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.MovieDetails))
+	e.Submit(task.NewTask("https://javdb.com/censored?vft=2&vst=1", javdb.ChineseSubtitlesMovieList))
+	// e.CronSubmit("00 2 * * *", task.NewTask("https://javdb.com/censored?vft=2&vst=1", javdb.MovieDetails))
 
 	// e.Submit(task.NewTask("https://movie.douban.com/top250", douban.Top250List))
 
