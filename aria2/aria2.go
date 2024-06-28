@@ -83,13 +83,15 @@ func (aria *Aria2) createDownload(item *model.MagnetItem) {
 
 	host := strings.ReplaceAll(strings.ReplaceAll(util.CleanHost(item.ResHost), ":", "_"), ".", "_")
 	saveDir := ops.Dir + "/" + util.NowDate("-") + "/" + host
-	_, err = aria.client.AddURI(arigo.URIs(magnetLink), &arigo.Options{
+	g, err := aria.client.AddURI(arigo.URIs(magnetLink), &arigo.Options{
 		Dir: saveDir,
 	})
 	if err != nil {
 		log.Printf("add uri (%s) to aria2 err: %s \n", magnetLink, err.Error())
 		return
 	}
+
+	aria.magnetIds = append(aria.magnetIds, g.GID)
 }
 
 func (aria *Aria2) bestFileSelectWork() {
