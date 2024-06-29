@@ -1,0 +1,28 @@
+version: "3.8"
+services:
+  get-magnet:
+    image: ghcr.io/nekoimi/get-magnet:latest
+    container_name: get-magnet
+    hostname: get-magnet
+    networks:
+      - get_magnet
+    command:
+      - get-magnet
+      #     启动的worker数量
+      - -worker=5
+      #     mysql数据库连接
+      - -dsn=user:password@(127.0.0.1:3306)/get_magnet_db
+#    Aria2 jsonrpc 调用地址
+#     - -jsonrpc=
+#    Aria2 jsonrpc 调用 token
+#     - -token=
+    privileged: true
+    restart: on-failure
+    environment:
+      TZ: Asia/Shanghai
+      HTTP_PROXY: socks5://127.0.0.1:2080
+      HTTPS_PROXY: socks5://127.0.0.1:2080
+
+networks:
+  get_magnet:
+    driver: bridge
