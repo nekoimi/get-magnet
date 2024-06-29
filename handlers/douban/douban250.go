@@ -7,6 +7,9 @@ import (
 	"log"
 )
 
+// Top250List
+// Start
+// e.Submit(task.NewTask("https://movie.douban.com/top250", douban.Top250List))
 func Top250List(meta *task.Meta, selection *goquery.Selection) (*task.Out, error) {
 	var keepTasks []*task.Task
 

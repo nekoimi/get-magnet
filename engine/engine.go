@@ -106,9 +106,10 @@ func (e *Engine) Submit(task *task.Task) {
 func (e *Engine) CronSubmit(cron string, task *task.Task) {
 	_, err := e.cron.AddFunc(cron, func() {
 		e.Submit(task)
+		log.Println("cron submit ok")
 	})
 	if err != nil {
-		log.Fatalf("Add cron submit err: %s \n", err.Error())
+		log.Printf("add cron submit err: %s \n", err.Error())
 	}
 }
 
