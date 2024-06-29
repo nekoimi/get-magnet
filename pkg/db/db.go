@@ -6,21 +6,23 @@ import (
 	"log"
 )
 
-const Dsn = "root:mysql#123456@(10.1.1.100:3306)/get_magnet_db"
-
 var (
 	err error
-	Db  *sql.DB
+	db  *sql.DB
 )
 
-func init() {
-	Db, err = sql.Open("mysql", Dsn)
+func Init(dsn string) {
+	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	err = Db.Ping()
+	err = db.Ping()
 	if err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func Get() *sql.DB {
+	return db
 }

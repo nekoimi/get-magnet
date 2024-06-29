@@ -4,6 +4,7 @@ import (
 	"github.com/nekoimi/get-magnet/aria2"
 	"github.com/nekoimi/get-magnet/internal/model"
 	"github.com/nekoimi/get-magnet/internal/task"
+	"github.com/nekoimi/get-magnet/pkg/db"
 	"github.com/nekoimi/get-magnet/scheduler"
 	"github.com/nekoimi/get-magnet/storage"
 	"github.com/robfig/cron/v3"
@@ -14,9 +15,9 @@ import (
 	"syscall"
 )
 
-const DefaultWorkerNum = 5
-
 type Engine struct {
+	cfg *Config
+
 	signalChan chan os.Signal
 	workerNum  int
 
@@ -35,26 +36,24 @@ type Engine struct {
 	Storage storage.Storage
 }
 
-// Default create default Engine
-func Default() *Engine {
-	return New(DefaultWorkerNum, storage.Console)
-}
-
 // New create new Engine instance
-// workerNum: worker num, default value DefaultWorkerNum
-func New(workerNum int, st storage.Type) *Engine {
+// workerNum: worker num
+func New(cfg *Config) *Engine {
 	e := &Engine{
+		cfg:         cfg,
 		signalChan:  make(chan os.Signal),
-		workerNum:   workerNum,
+		workerNum:   cfg.WorkerNum,
 		workers:     make([]*scheduler.Worker, 0),
 		allowSubmit: true,
-		aria2:       aria2.New(),
+		aria2:       aria2.New(cfg.AriaRpc, cfg.AriaToken),
 		cron:        cron.New(),
-		scheduler:   scheduler.New(workerNum),
-		Storage:     storage.NewStorage(st),
+		scheduler:   scheduler.New(cfg.WorkerNum),
+		Storage:     storage.NewStorage(cfg.Storage),
 	}
 
 	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	db.Init(cfg.DbDsn)
 
 	for i := 0; i < e.workerNum; i++ {
 		e.workers = append(e.workers, scheduler.NewWorker(i, e.scheduler))

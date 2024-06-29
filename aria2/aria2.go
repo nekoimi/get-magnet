@@ -20,8 +20,8 @@ type Aria2 struct {
 	exit       chan struct{}
 }
 
-func New() *Aria2 {
-	client, err := arigo.Dial("wss://aria2.sakuraio.com/jsonrpc", "nekoimi")
+func New(rpc string, token string) *Aria2 {
+	client, err := arigo.Dial(rpc, token)
 	if err != nil {
 		panic(err)
 	}

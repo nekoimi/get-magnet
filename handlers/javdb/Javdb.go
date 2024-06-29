@@ -31,7 +31,7 @@ func ChineseSubtitlesMovieList(meta *task.Meta, selection *goquery.Selection) (*
 		sqlArgs = append(sqlArgs, s)
 	}
 	sql := "SELECT res_path FROM magnets WHERE res_path IN (?" + strings.Repeat(", ?", len(sqlArgs)-1) + ")"
-	rs, err := db.Db.Query(sql, sqlArgs...)
+	rs, err := db.Get().Query(sql, sqlArgs...)
 	if err != nil {
 		return task.NewEmptyOut(), err
 	}

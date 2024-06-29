@@ -16,7 +16,7 @@ type dbStorage struct {
 
 func newDb() Storage {
 	return &dbStorage{
-		db: db.Db,
+		db: db.Get(),
 	}
 }
 
