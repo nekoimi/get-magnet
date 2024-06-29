@@ -19,4 +19,4 @@ COPY --from=builder /build/get-magnet   /usr/bin/get-magnet
 
 WORKDIR /workspace
 
-ENTRYPOINT ["get-magnet"]
+CMD ["get-magnet"]
