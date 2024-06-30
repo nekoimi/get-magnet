@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/pkg/aria2_client"
 	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
 	"strconv"
@@ -13,33 +14,33 @@ import (
 )
 
 type Aria2 struct {
-	mu         *sync.Mutex
-	client     *arigo.Client
+	client *aria2_client.SafeClient
+
 	magnetChan chan *model.Item
-	magnetMap  map[string]struct{}
-	exit       chan struct{}
+
+	mmu       *sync.Mutex
+	magnetMap map[string]struct{}
+
+	exit chan struct{}
 }
 
-func New(rpc string, token string) *Aria2 {
-	client, err := arigo.Dial(rpc, token)
-	if err != nil {
-		panic(err)
-	}
+func New(jsonrpc string, secret string) *Aria2 {
+	client := aria2_client.New(jsonrpc, secret)
 
 	aria := &Aria2{
-		mu:         &sync.Mutex{},
 		client:     client,
 		magnetChan: make(chan *model.Item),
+		mmu:        &sync.Mutex{},
 		magnetMap:  make(map[string]struct{}),
 		exit:       make(chan struct{}),
 	}
 
-	aria.client.Subscribe(arigo.StartEvent, aria.startEventHandle)
-	aria.client.Subscribe(arigo.PauseEvent, aria.pauseEventHandle)
-	aria.client.Subscribe(arigo.StopEvent, aria.stopEventHandle)
-	aria.client.Subscribe(arigo.CompleteEvent, aria.completeEventHandle)
-	aria.client.Subscribe(arigo.BTCompleteEvent, aria.btCompleteEventHandle)
-	aria.client.Subscribe(arigo.ErrorEvent, aria.errorEventHandle)
+	aria.client.Client().Subscribe(arigo.StartEvent, aria.startEventHandle)
+	aria.client.Client().Subscribe(arigo.PauseEvent, aria.pauseEventHandle)
+	aria.client.Client().Subscribe(arigo.StopEvent, aria.stopEventHandle)
+	aria.client.Client().Subscribe(arigo.CompleteEvent, aria.completeEventHandle)
+	aria.client.Client().Subscribe(arigo.BTCompleteEvent, aria.btCompleteEventHandle)
+	aria.client.Client().Subscribe(arigo.ErrorEvent, aria.errorEventHandle)
 
 	return aria
 }
@@ -66,7 +67,7 @@ func (aria *Aria2) Stop() {
 		for len(aria.magnetChan) > 0 {
 			time.Sleep(1 * time.Second)
 		}
-		err := aria.client.Close()
+		err := aria.client.Client().Close()
 		if err != nil {
 			log.Printf("aria2 client close err: %s \n", err.Error())
 		}
@@ -79,14 +80,14 @@ func (aria *Aria2) Stop() {
 func (aria *Aria2) createDownload(item *model.Item) {
 	magnetLink := item.OptimalLink
 	log.Printf("add url to aria2: %s \n", magnetLink)
-	ops, err := aria.client.GetGlobalOptions()
+	ops, err := aria.client.Client().GetGlobalOptions()
 	if err != nil {
 		panic(err)
 	}
 
 	host := strings.ReplaceAll(strings.ReplaceAll(util.CleanHost(item.ResHost), ":", "_"), ".", "_")
 	saveDir := ops.Dir + "/" + util.NowDate("-") + "/" + host
-	g, err := aria.client.AddURI(arigo.URIs(magnetLink), &arigo.Options{
+	g, err := aria.client.Client().AddURI(arigo.URIs(magnetLink), &arigo.Options{
 		Dir: saveDir,
 	})
 	if err != nil {
@@ -94,8 +95,8 @@ func (aria *Aria2) createDownload(item *model.Item) {
 		return
 	}
 
-	aria.mu.Lock()
-	defer aria.mu.Unlock()
+	aria.mmu.Lock()
+	defer aria.mmu.Unlock()
 	aria.magnetMap[g.GID] = struct{}{}
 }
 
@@ -108,8 +109,8 @@ func (aria *Aria2) bestFileSelectWork() {
 		default:
 		}
 
-		for magnetId, _ := range aria.magnetMap {
-			status, err := aria.client.TellStatus(magnetId, "status", "errorCode", "errorMessage", "dir", "files")
+		for magnetId := range aria.magnetMap {
+			status, err := aria.client.Client().TellStatus(magnetId, "status", "errorCode", "errorMessage", "dir", "files")
 			if err != nil {
 				log.Printf("fetch GID#%s download status err: %s \n", magnetId, err.Error())
 				continue
@@ -143,7 +144,7 @@ func (aria *Aria2) bestFileSelectWork() {
 				}
 				// selectFile, _ := strings.CutSuffix(builder.String(), ",")
 				selectIndex := builder.String()
-				err = aria.client.ChangeOptions(magnetId, arigo.Options{
+				err = aria.client.Client().ChangeOptions(magnetId, arigo.Options{
 					SelectFile: selectIndex,
 				})
 				if err != nil {
@@ -160,8 +161,8 @@ func (aria *Aria2) bestFileSelectWork() {
 func (aria *Aria2) startEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s startEventHandle\n", event.GID)
 
-	aria.mu.Lock()
-	defer aria.mu.Unlock()
+	aria.mmu.Lock()
+	defer aria.mmu.Unlock()
 	aria.magnetMap[event.GID] = struct{}{}
 }
 
@@ -176,8 +177,8 @@ func (aria *Aria2) stopEventHandle(event *arigo.DownloadEvent) {
 func (aria *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s completeEventHandle\n", event.GID)
 
-	aria.mu.Lock()
-	defer aria.mu.Unlock()
+	aria.mmu.Lock()
+	defer aria.mmu.Unlock()
 	delete(aria.magnetMap, event.GID)
 }
 

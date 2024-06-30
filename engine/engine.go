@@ -45,7 +45,7 @@ func New(cfg *Config) *Engine {
 		workerNum:   cfg.WorkerNum,
 		workers:     make([]*scheduler.Worker, 0),
 		allowSubmit: true,
-		aria2:       aria2.New(cfg.AriaRpc, cfg.AriaToken),
+		aria2:       aria2.New(cfg.Jsonrpc, cfg.Secret),
 		cron:        cron.New(),
 		scheduler:   scheduler.New(cfg.WorkerNum),
 		Storage:     storage.NewStorage(cfg.Storage),

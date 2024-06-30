@@ -14,8 +14,8 @@ services:
       - -dsn=user:password@(127.0.0.1:3306)/get_magnet_db
 #    Aria2 jsonrpc 调用地址
 #     - -jsonrpc=
-#    Aria2 jsonrpc 调用 token
-#     - -token=
+#    Aria2 jsonrpc 调用 secret
+#     - -secret=
     privileged: true
     restart: on-failure
     environment:

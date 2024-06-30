@@ -16,10 +16,10 @@ var cfg = engine.Config{
 func init() {
 	log.SetFlags(log.Lshortfile | log.Ldate | log.Lmicroseconds)
 
-	flag.IntVar(&cfg.WorkerNum, "worker", 1, "start worker num")
+	flag.IntVar(&cfg.WorkerNum, "worker", 1, "start worker count")
 	flag.StringVar(&cfg.DbDsn, "dsn", "", "db dsn")
-	flag.StringVar(&cfg.AriaRpc, "jsonrpc", "", "aria2 jsonrpc address")
-	flag.StringVar(&cfg.AriaToken, "token", "", "aria2 jsonrpc token")
+	flag.StringVar(&cfg.Jsonrpc, "jsonrpc", "", "aria2 jsonrpc address")
+	flag.StringVar(&cfg.Secret, "secret", "", "aria2 jsonrpc secret")
 }
 
 func main() {

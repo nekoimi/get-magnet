@@ -5,7 +5,7 @@ import "github.com/nekoimi/get-magnet/storage"
 type Config struct {
 	WorkerNum int
 	DbDsn     string
-	AriaRpc   string
-	AriaToken string
+	Jsonrpc   string
+	Secret    string
 	Storage   storage.Type
 }
