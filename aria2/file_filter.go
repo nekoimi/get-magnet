@@ -3,6 +3,7 @@ package aria2
 import (
 	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/pkg/file"
+	"strings"
 )
 
 // MinVideoSize 文件最小大小：100M
@@ -19,5 +20,9 @@ func BestSelectFile(files []arigo.File) []arigo.File {
 }
 
 func IsBestFile(f arigo.File) bool {
-	return file.IsVideo(f.Path) && f.Length > MinVideoSize
+	return (file.IsVideo(f.Path) && f.Length > MinVideoSize) || IsTorrentFile(f.Path)
+}
+
+func IsTorrentFile(filename string) bool {
+	return strings.HasSuffix(filename, ".torrent")
 }
