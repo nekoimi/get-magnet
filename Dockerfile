@@ -13,8 +13,6 @@ FROM alpine:latest
 
 LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
-ENV TZ=Asia/Shanghai
-
 COPY --from=builder /build/get-magnet   /usr/bin/get-magnet
 
 RUN apk add tzdata \
