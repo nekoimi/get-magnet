@@ -17,6 +17,11 @@ ENV TZ=Asia/Shanghai
 
 COPY --from=builder /build/get-magnet   /usr/bin/get-magnet
 
+RUN apk add tzdata \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone \
+    && apk del tzdata
+
 WORKDIR /workspace
 
 CMD ["get-magnet"]
