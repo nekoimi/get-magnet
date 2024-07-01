@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/nekoimi/get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/common/model"
 	"github.com/nekoimi/get-magnet/pkg/file"
 	"log"
 	"os"

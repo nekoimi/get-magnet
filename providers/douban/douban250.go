@@ -2,8 +2,8 @@ package douban
 
 import (
 	"github.com/PuerkitoBio/goquery"
-	"github.com/nekoimi/get-magnet/internal/model"
-	"github.com/nekoimi/get-magnet/internal/task"
+	"github.com/nekoimi/get-magnet/common/model"
+	"github.com/nekoimi/get-magnet/common/task"
 	"log"
 )
 

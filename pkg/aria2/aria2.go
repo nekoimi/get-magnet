@@ -3,7 +3,7 @@ package aria2
 import (
 	"context"
 	"github.com/nekoimi/arigo"
-	"github.com/nekoimi/get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/common/model"
 	"github.com/nekoimi/get-magnet/pkg/aria2_client"
 	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"

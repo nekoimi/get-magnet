@@ -3,7 +3,7 @@ package aria2
 import (
 	"fmt"
 	"github.com/nekoimi/arigo"
-	"github.com/nekoimi/get-magnet/internal/model"
+	"github.com/nekoimi/get-magnet/common/model"
 	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
 	"sync"
@@ -12,7 +12,7 @@ import (
 )
 
 func TestSubmit(t *testing.T) {
-	a := New()
+	a := New("", "")
 	go a.Run()
 
 	time.Sleep(1 * time.Second)

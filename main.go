@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/kataras/iris/v12"
-	"github.com/nekoimi/get-magnet/engine"
+	"github.com/nekoimi/get-magnet/core/engine"
 	"github.com/nekoimi/get-magnet/storage"
 	"log"
 )

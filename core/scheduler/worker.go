@@ -3,7 +3,7 @@ package scheduler
 import (
 	"context"
 	"fmt"
-	"github.com/nekoimi/get-magnet/internal/task"
+	"github.com/nekoimi/get-magnet/common/task"
 	"github.com/nekoimi/get-magnet/pkg/downloader"
 	"log"
 	"time"
