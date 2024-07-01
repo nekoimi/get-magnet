@@ -3,8 +3,6 @@ name: Container Image CI
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
     tags:
       - "v*"
     paths-ignore:
