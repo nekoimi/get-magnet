@@ -2,8 +2,9 @@ package main
 
 import (
 	"flag"
-	"github.com/kataras/iris/v12"
+	"github.com/nekoimi/get-magnet/common/task"
 	"github.com/nekoimi/get-magnet/core/engine"
+	"github.com/nekoimi/get-magnet/providers/javdb"
 	"github.com/nekoimi/get-magnet/storage"
 	"log"
 )
@@ -25,12 +26,12 @@ func main() {
 	flag.Parse()
 	e := engine.New(&cfg)
 
-	// e.Submit(task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.ChineseSubtitlesMovieList))
+	e.Submit(task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.ChineseSubtitlesMovieList))
 	// e.CronSubmit("00 2 * * *", task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.ChineseSubtitlesMovieList))
 
-	go e.Run()
-
-	app := iris.New()
-
-	app.Listen(":8080")
+	e.Run()
+	//
+	//app := iris.New()
+	//
+	//app.Listen(":8080")
 }

@@ -39,6 +39,8 @@ type Engine struct {
 // New create new Engine instance
 // workerNum: worker num
 func New(cfg *Config) *Engine {
+	db.Init(cfg.DbDsn)
+
 	e := &Engine{
 		cfg:         cfg,
 		signalChan:  make(chan os.Signal),
@@ -52,8 +54,6 @@ func New(cfg *Config) *Engine {
 	}
 
 	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	db.Init(cfg.DbDsn)
 
 	for i := 0; i < e.workerNum; i++ {
 		e.workers = append(e.workers, scheduler.NewWorker(i, e.scheduler))
