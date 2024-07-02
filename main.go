@@ -2,9 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/nekoimi/get-magnet/common/task"
+	"github.com/nekoimi/get-magnet/app/web"
 	"github.com/nekoimi/get-magnet/core/engine"
-	"github.com/nekoimi/get-magnet/providers/javdb"
 	"github.com/nekoimi/get-magnet/storage"
 	"log"
 )
@@ -23,15 +22,11 @@ func init() {
 }
 
 func main() {
-	flag.Parse()
-	e := engine.New(&cfg)
+	//flag.Parse()
+	//e := engine.New(&cfg)
+	//go e.Run()
 
-	e.Submit(task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.ChineseSubtitlesMovieList))
-	// e.CronSubmit("00 2 * * *", task.NewTask("https://javdb.com/censored?vft=2&vst=2", javdb.ChineseSubtitlesMovieList))
+	app := web.New()
 
-	e.Run()
-	//
-	//app := iris.New()
-	//
-	//app.Listen(":8080")
+	app.Listen(":8080")
 }
