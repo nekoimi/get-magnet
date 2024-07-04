@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/nekoimi/get-magnet/app/web"
+	"github.com/nekoimi/get-magnet/api"
 	"github.com/nekoimi/get-magnet/core/engine"
 	"github.com/nekoimi/get-magnet/storage"
 	"log"
@@ -26,7 +26,7 @@ func main() {
 	//e := engine.New(&cfg)
 	//go e.Run()
 
-	app := web.New()
+	app := api.New()
 
 	app.Listen(":8080")
 }
