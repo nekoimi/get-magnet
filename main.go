@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/nekoimi/get-magnet/api"
+	"github.com/nekoimi/get-magnet/admin"
 	"github.com/nekoimi/get-magnet/core/engine"
 	"github.com/nekoimi/get-magnet/storage"
 	"log"
@@ -26,7 +26,12 @@ func main() {
 	//e := engine.New(&cfg)
 	//go e.Run()
 
-	app := api.New()
+	srv := admin.NewServer()
 
-	app.Listen(":8080")
+	log.Printf("Service is running, listening on port %s\n", ":8080")
+
+	err := srv.ListenAndServe()
+	if err != nil {
+		panic(err)
+	}
 }
