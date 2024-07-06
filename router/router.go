@@ -1,12 +1,12 @@
-package admin
+package router
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/nekoimi/get-magnet/admin/api/download"
-	"github.com/nekoimi/get-magnet/admin/middleware"
+	"github.com/nekoimi/get-magnet/api/download"
+	"github.com/nekoimi/get-magnet/middleware"
 )
 
-func newRouter() *mux.Router {
+func New() *mux.Router {
 	r := mux.NewRouter()
 
 	r.Use(middleware.AuthMiddleware())

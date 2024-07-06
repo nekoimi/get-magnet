@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
-	"github.com/nekoimi/get-magnet/admin"
-	"github.com/nekoimi/get-magnet/core/engine"
+	"github.com/nekoimi/get-magnet/config"
+	"github.com/nekoimi/get-magnet/server"
 	"github.com/nekoimi/get-magnet/storage"
 	"log"
 )
 
-var cfg = engine.Config{
+var cfg = config.Config{
 	Storage: storage.Db,
 }
 
@@ -22,16 +22,10 @@ func init() {
 }
 
 func main() {
-	//flag.Parse()
-	//e := engine.New(&cfg)
-	//go e.Run()
+	flag.Parse()
 
-	srv := admin.NewServer()
-
-	log.Printf("Service is running, listening on port %s\n", ":8080")
-
-	err := srv.ListenAndServe()
-	if err != nil {
-		panic(err)
-	}
+	srv := server.New(cfg)
+	srv.Run(func(s *server.Server) {
+		log.Printf("Service is running, listening on port %s\n", ":8080")
+	})
 }

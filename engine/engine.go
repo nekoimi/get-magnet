@@ -3,9 +3,10 @@ package engine
 import (
 	"github.com/nekoimi/get-magnet/common/model"
 	"github.com/nekoimi/get-magnet/common/task"
-	"github.com/nekoimi/get-magnet/core/scheduler"
+	"github.com/nekoimi/get-magnet/config"
 	"github.com/nekoimi/get-magnet/pkg/aria2"
 	"github.com/nekoimi/get-magnet/pkg/db"
+	scheduler2 "github.com/nekoimi/get-magnet/scheduler"
 	"github.com/nekoimi/get-magnet/storage"
 	"github.com/robfig/cron/v3"
 	"log"
@@ -16,12 +17,12 @@ import (
 )
 
 type Engine struct {
-	cfg *Config
+	cfg config.Config
 
 	signalChan chan os.Signal
 	workerNum  int
 
-	workers []*scheduler.Worker
+	workers []*scheduler2.Worker
 
 	// allow to submit
 	allowSubmit bool
@@ -31,32 +32,32 @@ type Engine struct {
 	// 定时任务调度
 	cron *cron.Cron
 	// 任务调度器
-	scheduler *scheduler.Scheduler
+	scheduler *scheduler2.Scheduler
 	// 存储
 	Storage storage.Storage
 }
 
 // New create new Engine instance
 // workerNum: worker num
-func New(cfg *Config) *Engine {
+func New(cfg config.Config) *Engine {
 	db.Init(cfg.DbDsn)
 
 	e := &Engine{
 		cfg:         cfg,
 		signalChan:  make(chan os.Signal),
 		workerNum:   cfg.WorkerNum,
-		workers:     make([]*scheduler.Worker, 0),
+		workers:     make([]*scheduler2.Worker, 0),
 		allowSubmit: true,
 		aria2:       aria2.New(cfg.Jsonrpc, cfg.Secret),
 		cron:        cron.New(),
-		scheduler:   scheduler.New(cfg.WorkerNum),
+		scheduler:   scheduler2.New(cfg.WorkerNum),
 		Storage:     storage.NewStorage(cfg.Storage),
 	}
 
 	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	for i := 0; i < e.workerNum; i++ {
-		e.workers = append(e.workers, scheduler.NewWorker(i, e.scheduler))
+		e.workers = append(e.workers, scheduler2.NewWorker(i, e.scheduler))
 	}
 
 	return e
@@ -140,7 +141,7 @@ func (e *Engine) Stop(s os.Signal) {
 	var wg sync.WaitGroup
 	wg.Add(len(e.workers))
 	for _, worker := range e.workers {
-		go func(w *scheduler.Worker) {
+		go func(w *scheduler2.Worker) {
 			w.Stop()
 			wg.Done()
 		}(worker)

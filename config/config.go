@@ -1,4 +1,4 @@
-package engine
+package config
 
 import "github.com/nekoimi/get-magnet/storage"
 
