@@ -101,14 +101,17 @@ func (aria *Aria2) createDownload(item *model.Item) {
 }
 
 func (aria *Aria2) bestFileSelectWork() {
-	for {
-		time.Sleep(30 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
 		select {
 		case <-aria.exit:
 			return
 		default:
 		}
 
+		aria.mmu.Lock()
 		for magnetId := range aria.magnetMap {
 			status, err := aria.client.Client().TellStatus(magnetId, "status", "errorCode", "errorMessage", "dir", "files")
 			if err != nil {
@@ -155,6 +158,7 @@ func (aria *Aria2) bestFileSelectWork() {
 				log.Println("SELECT-Files: ", selectIndex)
 			}
 		}
+		aria.mmu.Unlock()
 	}
 }
 
