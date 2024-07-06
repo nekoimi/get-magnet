@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/common/model"
+	"github.com/nekoimi/get-magnet/config"
 	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
 	"sync"
@@ -12,7 +13,10 @@ import (
 )
 
 func TestSubmit(t *testing.T) {
-	a := New("", "")
+	a := New(config.Aria2{
+		JsonRpc: "",
+		Secret:  "",
+	})
 	go a.Run()
 
 	time.Sleep(1 * time.Second)
@@ -72,7 +76,7 @@ func TestCall(t *testing.T) {
 				panic(err)
 			}
 
-			Sort(files, func(a, b *arigo.File) bool {
+			util.Sort(files, func(a, b *arigo.File) bool {
 				return a.Length > b.Length
 			})
 

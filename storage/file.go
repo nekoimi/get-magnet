@@ -2,7 +2,6 @@ package storage
 
 import (
 	"github.com/nekoimi/get-magnet/common/model"
-	"github.com/nekoimi/get-magnet/pkg/file"
 	"log"
 	"os"
 	"path/filepath"
@@ -24,7 +23,7 @@ func newFile(saveDir string) Storage {
 }
 
 func initSaveDir(saveDir string) {
-	if exists, err := file.Exists(saveDir); err != nil {
+	if exists, err := files.Exists(saveDir); err != nil {
 		log.Fatal(err.Error())
 	} else if !exists {
 		if err := os.MkdirAll(saveDir, os.ModeDir); err != nil {
@@ -42,7 +41,7 @@ func (s *fileStorage) Save(item *model.Item) error {
 	defer s.m.Unlock()
 
 	outputFile := filepath.Join(s.saveDir, OutputFile())
-	if exists, err := file.Exists(outputFile); err != nil {
+	if exists, err := files.Exists(outputFile); err != nil {
 		return err
 	} else if !exists {
 		_, err := os.Create(outputFile)
@@ -57,5 +56,5 @@ func (s *fileStorage) Save(item *model.Item) error {
 		return err
 	}
 
-	return file.WriteLine(f, item.OptimalLink)
+	return files.WriteLine(f, item.OptimalLink)
 }

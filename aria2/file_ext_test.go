@@ -2,6 +2,7 @@ package aria2
 
 import (
 	"github.com/nekoimi/arigo"
+	"github.com/nekoimi/get-magnet/pkg/util"
 	"testing"
 )
 
@@ -35,7 +36,7 @@ func TestSort(t *testing.T) {
 	}
 	t.Log("==================================================")
 
-	Sort(files, func(a, b *arigo.File) bool {
+	util.Sort(files, func(a, b *arigo.File) bool {
 		return a.Length > b.Length
 	})
 
