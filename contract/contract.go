@@ -2,12 +2,17 @@ package contract
 
 import "github.com/PuerkitoBio/goquery"
 
-type DownloadTask interface {
-	GetUrl() string
+type Task interface {
+	Url() string
+	Category() string
 }
 
-type Task interface {
-	DownloadTask
+type DownloadTask interface {
+	Task
+}
+
+type WorkerTask interface {
+	Task
 	GetHandler() TaskHandler
 }
 

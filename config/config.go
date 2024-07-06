@@ -12,15 +12,6 @@ type Config struct {
 	DB *Database
 }
 
-// Aria2 aria2 rpc 连接设置
-type Aria2 struct {
-	// jsonrpc 连接地址
-	JsonRpc string
-
-	// jsonrpc 连接secret
-	Secret string
-}
-
 // Database 数据库相关配置
 type Database struct {
 	// 数据库连接配置

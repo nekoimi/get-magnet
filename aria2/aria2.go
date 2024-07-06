@@ -5,10 +5,9 @@ import (
 	"errors"
 	"github.com/cenkalti/rpc2"
 	"github.com/nekoimi/arigo"
-	"github.com/nekoimi/get-magnet/common/model"
-	"github.com/nekoimi/get-magnet/config"
 	"github.com/nekoimi/get-magnet/contract"
 	"github.com/nekoimi/get-magnet/pkg/aria2_ext"
+	"github.com/nekoimi/get-magnet/pkg/queue"
 	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
 	"strconv"
@@ -18,49 +17,41 @@ import (
 )
 
 type Aria2 struct {
-	cfg *config.Aria2
-
-	cmux    *sync.Mutex
-	_client *arigo.Client
-
-	magnetChan chan *model.Item
-
-	mmux      *sync.Mutex
-	magnetMap map[string]struct{}
-
-	exit chan struct{}
+	cmux            *sync.Mutex
+	_client         *arigo.Client
+	downloadChan    chan contract.DownloadTask
+	bestSelectQueue *queue.Queue[string]
+	exit            chan struct{}
 }
 
-func New(cfg *config.Aria2) *Aria2 {
-	aria := &Aria2{
-		cfg:        cfg,
-		magnetChan: make(chan *model.Item),
-		mmux:       &sync.Mutex{},
-		magnetMap:  make(map[string]struct{}),
-		exit:       make(chan struct{}),
+func New() *Aria2 {
+	a := &Aria2{
+		downloadChan:    make(chan contract.DownloadTask),
+		bestSelectQueue: queue.New[string](),
+		exit:            make(chan struct{}, 1),
 	}
 
-	aria.client().Subscribe(arigo.StartEvent, aria.startEventHandle)
-	aria.client().Subscribe(arigo.PauseEvent, aria.pauseEventHandle)
-	aria.client().Subscribe(arigo.StopEvent, aria.stopEventHandle)
-	aria.client().Subscribe(arigo.CompleteEvent, aria.completeEventHandle)
-	aria.client().Subscribe(arigo.BTCompleteEvent, aria.btCompleteEventHandle)
-	aria.client().Subscribe(arigo.ErrorEvent, aria.errorEventHandle)
+	a.client().Subscribe(arigo.StartEvent, a.startEventHandle)
+	a.client().Subscribe(arigo.PauseEvent, a.pauseEventHandle)
+	a.client().Subscribe(arigo.StopEvent, a.stopEventHandle)
+	a.client().Subscribe(arigo.CompleteEvent, a.completeEventHandle)
+	a.client().Subscribe(arigo.BTCompleteEvent, a.btCompleteEventHandle)
+	a.client().Subscribe(arigo.ErrorEvent, a.errorEventHandle)
 
-	return aria
+	return a
 }
 
-func (a *Aria2) Submit(item contract.DownloadTask) {
-	// a.magnetChan <- item
+func (a *Aria2) Submit(t contract.DownloadTask) {
+	a.downloadChan <- t
 }
 
-func (a *Aria2) Run() {
+func (a *Aria2) Start() {
 	go a.bestFileSelectWork()
 
 	for {
 		select {
-		case item := <-a.magnetChan:
-			a.createDownload(item)
+		case t := <-a.downloadChan:
+			a.createDownload(t)
 		}
 	}
 }
@@ -69,7 +60,7 @@ func (a *Aria2) Stop() {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		close(a.exit)
-		for len(a.magnetChan) > 0 {
+		for len(a.downloadChan) > 0 {
 			time.Sleep(1 * time.Second)
 		}
 		err := a.client().Close()
@@ -82,50 +73,48 @@ func (a *Aria2) Stop() {
 	<-ctx.Done()
 }
 
-func (a *Aria2) createDownload(item *model.Item) {
-	magnetLink := item.OptimalLink
-	log.Printf("add url to aria2: %s \n", magnetLink)
+func (a *Aria2) createDownload(t contract.DownloadTask) {
+	magnetUrl := t.Url()
+	log.Printf("add url to aria2: %s \n", magnetUrl)
 	ops, err := a.client().GetGlobalOptions()
 	if err != nil {
 		panic(err)
 	}
 
-	host := strings.ReplaceAll(strings.ReplaceAll(util.CleanHost(item.ResHost), ":", "_"), ".", "_")
-	saveDir := ops.Dir + "/" + util.NowDate("-") + "/" + host
-	g, err := a.client().AddURI(arigo.URIs(magnetLink), &arigo.Options{
+	saveDir := ops.Dir + "/" + util.NowDate("-") + "/" + t.Category()
+	g, err := a.client().AddURI(arigo.URIs(magnetUrl), &arigo.Options{
 		Dir: saveDir,
 	})
 	if err != nil {
-		log.Printf("add uri (%s) to aria2 err: %s \n", magnetLink, err.Error())
+		log.Printf("add uri (%s) to aria2 err: %s \n", magnetUrl, err.Error())
 		return
 	}
 
-	a.mmux.Lock()
-	defer a.mmux.Unlock()
-	a.magnetMap[g.GID] = struct{}{}
+	a.bestSelectQueue.Add(g.GID)
 }
 
+// 下载文件优选
 func (a *Aria2) bestFileSelectWork() {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
+	for {
 		select {
 		case <-a.exit:
 			return
 		default:
-		}
-
-		a.mmux.Lock()
-		for magnetId := range a.magnetMap {
+			magnetId := a.bestSelectQueue.PollWait()
 			status, err := a.client().TellStatus(magnetId, "status", "errorCode", "errorMessage", "dir", "files")
 			if err != nil {
 				log.Printf("fetch GID#%s download status err: %s \n", magnetId, err.Error())
+				a.bestSelectQueue.Add(magnetId)
+				continue
+			}
+
+			if status.Status == arigo.StatusCompleted {
 				continue
 			}
 
 			if status.Status != arigo.StatusActive {
 				log.Printf("GID#%s Status not active: %s \n", magnetId, status.Status)
+				a.bestSelectQueue.Add(magnetId)
 				continue
 			}
 
@@ -163,16 +152,12 @@ func (a *Aria2) bestFileSelectWork() {
 				log.Println("SELECT-Files: ", selectIndex)
 			}
 		}
-		a.mmux.Unlock()
 	}
 }
 
 func (a *Aria2) startEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s startEventHandle\n", event.GID)
-
-	a.mmux.Lock()
-	defer a.mmux.Unlock()
-	a.magnetMap[event.GID] = struct{}{}
+	a.bestSelectQueue.Add(event.GID)
 }
 
 func (a *Aria2) pauseEventHandle(event *arigo.DownloadEvent) {
@@ -185,10 +170,6 @@ func (a *Aria2) stopEventHandle(event *arigo.DownloadEvent) {
 
 func (a *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s completeEventHandle\n", event.GID)
-
-	a.mmux.Lock()
-	defer a.mmux.Unlock()
-	delete(a.magnetMap, event.GID)
 }
 
 func (a *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {
@@ -228,7 +209,7 @@ func (a *Aria2) ping() error {
 }
 
 func (a *Aria2) connect() error {
-	client, err := arigo.Dial(a.cfg.JsonRpc, a.cfg.Secret)
+	client, err := arigo.Dial("a.cfg.JsonRpc", "a.cfg.Secret")
 	if err != nil {
 		return err
 	}

@@ -12,14 +12,14 @@ type Worker struct {
 	id       int64
 	version  int64
 	callback Callback
-	task     chan contract.Task
+	task     chan contract.WorkerTask
 	exit     chan struct{}
 	running  bool
 }
 
 type Callback interface {
-	Success(w *Worker, tasks []contract.Task, outputs ...any)
-	Error(w *Worker, t contract.Task, err error)
+	Success(w *Worker, tasks []contract.WorkerTask, outputs ...any)
+	Error(w *Worker, t contract.WorkerTask, err error)
 	Finally(w *Worker)
 }
 
@@ -29,7 +29,7 @@ func NewWorker(id int64, version int64, callback Callback) *Worker {
 		id:       id,
 		version:  version,
 		callback: callback,
-		task:     make(chan contract.Task, 1),
+		task:     make(chan contract.WorkerTask, 1),
 		exit:     make(chan struct{}),
 		running:  false,
 	}
@@ -59,7 +59,7 @@ func (w *Worker) Version() int64 {
 }
 
 // Deliver 投递任务
-func (w *Worker) Deliver(t contract.Task) {
+func (w *Worker) Deliver(t contract.WorkerTask) {
 	w.task <- t
 }
 
@@ -86,7 +86,7 @@ func (w *Worker) Stop() {
 }
 
 // do 执行任务
-func (w *Worker) do(t contract.Task) {
+func (w *Worker) do(t contract.WorkerTask) {
 	w.running = true
 	defer func() {
 		w.callback.Finally(w)
@@ -118,5 +118,5 @@ func (w *Worker) do(t contract.Task) {
 }
 
 func (w *Worker) String() string {
-	return fmt.Sprintf("worker-%d@v%d", w.id, w.version)
+	return fmt.Sprintf("worker-%d@v%d", w.Id(), w.Version())
 }

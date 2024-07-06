@@ -73,12 +73,12 @@ func (e *Engine) Download(item contract.DownloadTask) {
 }
 
 // Submit 添加任务到调度器
-func (e *Engine) Submit(task contract.Task) {
+func (e *Engine) Submit(task contract.WorkerTask) {
 	if e.allowSubmit {
 		e.scheduler.Submit(task)
 		return
 	}
-	log.Printf("Not allow to submit, ignore task: %s \n", task.GetUrl())
+	log.Printf("Not allow to submit, ignore task: %s \n", task.Url())
 }
 
 // ScaleWorker 更改worker池规模
@@ -98,7 +98,7 @@ func (e *Engine) ScaleWorker(num int) {
 	e.wmux.Unlock()
 }
 
-func (e *Engine) Success(w *worker.Worker, tasks []contract.Task, outputs ...any) {
+func (e *Engine) Success(w *worker.Worker, tasks []contract.WorkerTask, outputs ...any) {
 	// TODO 任务结果处理
 	for _, t := range tasks {
 		e.Submit(t)
@@ -114,7 +114,7 @@ func (e *Engine) Success(w *worker.Worker, tasks []contract.Task, outputs ...any
 	//}
 }
 
-func (e *Engine) Error(w *worker.Worker, t contract.Task, err error) {
+func (e *Engine) Error(w *worker.Worker, t contract.WorkerTask, err error) {
 	// TODO 错误记录
 	// TODO 任务重试
 }
