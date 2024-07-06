@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/common/model"
-	"github.com/nekoimi/get-magnet/pkg/aria2_client"
 	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
 	"strconv"
@@ -14,7 +13,7 @@ import (
 )
 
 type Aria2 struct {
-	client *aria2_client.SafeClient
+	client *SafeClient
 
 	magnetChan chan *model.Item
 
@@ -25,7 +24,7 @@ type Aria2 struct {
 }
 
 func New(jsonrpc string, secret string) *Aria2 {
-	client := aria2_client.New(jsonrpc, secret)
+	client := NewSafeClient(jsonrpc, secret)
 
 	aria := &Aria2{
 		client:     client,

@@ -1,4 +1,4 @@
-package aria2_client
+package aria2
 
 import (
 	"errors"
@@ -17,7 +17,7 @@ type SafeClient struct {
 	client *arigo.Client
 }
 
-func New(jsonrpc string, secret string) *SafeClient {
+func NewSafeClient(jsonrpc string, secret string) *SafeClient {
 	client, err := arigo.Dial(jsonrpc, secret)
 	if err != nil {
 		panic(err)
@@ -40,7 +40,7 @@ func (sc *SafeClient) Client() *arigo.Client {
 	if err != nil {
 		if errors.Is(err, rpc2.ErrShutdown) {
 			for {
-				err := sc.reconnect()
+				err := sc.connect()
 				if err != nil {
 					log.Printf("Check the rpc connection is closed, reconnect... %s\n", err.Error())
 					time.Sleep(5 * time.Second)
@@ -60,7 +60,7 @@ func (sc *SafeClient) ping() error {
 	return err
 }
 
-func (sc *SafeClient) reconnect() error {
+func (sc *SafeClient) connect() error {
 	client, err := arigo.Dial(sc.jsonrpc, sc.secret)
 	if err != nil {
 		return err

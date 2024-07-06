@@ -1,10 +1,10 @@
 package engine
 
 import (
+	"github.com/nekoimi/get-magnet/aria2"
 	"github.com/nekoimi/get-magnet/common/model"
 	"github.com/nekoimi/get-magnet/common/task"
 	"github.com/nekoimi/get-magnet/config"
-	"github.com/nekoimi/get-magnet/pkg/aria2"
 	"github.com/nekoimi/get-magnet/pkg/db"
 	scheduler2 "github.com/nekoimi/get-magnet/scheduler"
 	"github.com/nekoimi/get-magnet/storage"
