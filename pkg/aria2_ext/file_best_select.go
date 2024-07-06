@@ -1,4 +1,4 @@
-package aria2
+package aria2_ext
 
 import (
 	"github.com/nekoimi/arigo"

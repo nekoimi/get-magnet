@@ -16,7 +16,7 @@ type Config struct {
 // Engine 任务调度引擎配置
 type Engine struct {
 	// 初始化worker数量
-	WorkerNum int
+	MaxWorkerNum int
 
 	Aria2 *Aria2
 }
@@ -52,7 +52,7 @@ func Default() *Config {
 	cfg := new(Config)
 	cfg.Port = 8080
 	cfg.Engine = &Engine{
-		WorkerNum: 16,
+		MaxWorkerNum: 16,
 		Aria2: &Aria2{
 			JsonRpc: "",
 			Secret:  "",

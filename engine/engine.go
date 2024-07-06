@@ -32,11 +32,11 @@ func New(cfg *config.Engine) *Engine {
 		workers:     make([]*scheduler2.Worker, 0),
 		allowSubmit: true,
 		aria2:       aria2.New(cfg.Aria2),
-		scheduler:   scheduler2.New(cfg.WorkerNum),
+		scheduler:   scheduler2.New(cfg.MaxWorkerNum),
 		Storage:     storage.NewStorage(storage.Db),
 	}
 
-	for i := 0; i < cfg.WorkerNum; i++ {
+	for i := 0; i < cfg.MaxWorkerNum; i++ {
 		e.workers = append(e.workers, scheduler2.NewWorker(i, e.scheduler))
 	}
 
@@ -47,12 +47,12 @@ func New(cfg *config.Engine) *Engine {
 func (e *Engine) Run() {
 	go e.aria2.Run()
 
-	e.scheduler.SetOutputHandle(e.taskOutputHandle)
-	go e.scheduler.Run()
-
 	for _, worker := range e.workers {
 		go worker.Run()
 	}
+
+	e.scheduler.SetOutputHandle(e.taskOutputHandle)
+	e.scheduler.Run()
 }
 
 // SubmitDownload add item to aria2 and start download
