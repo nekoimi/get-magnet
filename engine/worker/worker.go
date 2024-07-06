@@ -96,23 +96,33 @@ func (w *Worker) do(t contract.WorkerTask) {
 	handler := t.GetHandler()
 	switch handler.(type) {
 	case contract.SimpleTaskHandler:
+		simpleHandler := handler.(contract.SimpleTaskHandler)
+		tasks, output, err := simpleHandler.Handle(t.Url())
+		if err != nil {
+			w.callback.Error(w, t, err)
+			log.Printf("[%s] Handle task (%s) err: %s \n", w, t.Url(), err.Error())
+			return
+		}
+		w.callback.Success(w, tasks, output)
+		log.Printf("[%s] Handle task done: %s \n", w, t.Url())
 		break
 	case contract.HTMLQueryParseHandler:
-		//s, err := downloader.Download(t.GetUrl())
-		//if err != nil {
-		//	w.callback.Error(w, t, err)
-		//	log.Printf("[%s] Download (%s) err: %s \n", w, t.GetUrl(), err.Error())
-		//	return
-		//}
-		//parseHandler := handler.(engine.HTMLQueryParseHandler)
-		//result, err := parseHandler.Handle(s)
-		//if err != nil {
-		//	w.callback.Error(w, t, err)
-		//	log.Printf("[%s] Handle task (%s) err: %s \n", w, t.GetUrl(), err.Error())
-		//	return
-		//}
-		//w.callback.Success(w, result)
-		//log.Printf("[%s] Handle task done: %s \n", w, t.GetUrl())
+		downloader := t.GetDownloader()
+		s, err := downloader.Download(t.Url())
+		if err != nil {
+			w.callback.Error(w, t, err)
+			log.Printf("[%s] Download (%s) err: %s \n", w, t.Url(), err.Error())
+			return
+		}
+		parseHandler := handler.(contract.HTMLQueryParseHandler)
+		tasks, output, err := parseHandler.Handle(s)
+		if err != nil {
+			w.callback.Error(w, t, err)
+			log.Printf("[%s] Handle task (%s) err: %s \n", w, t.Url(), err.Error())
+			return
+		}
+		w.callback.Success(w, tasks, output)
+		log.Printf("[%s] Handle task done: %s \n", w, t.Url())
 		break
 	}
 }

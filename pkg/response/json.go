@@ -45,18 +45,21 @@ func OkData(w http.ResponseWriter, data any) {
 	})
 }
 
-func ValidateError(w http.ResponseWriter, err error_ext.Error) {
-	w.WriteHeader(http.StatusBadRequest)
-	sendJsonResponse(w, JsonResponse{
-		Code: err.Code(),
-		Msg:  err.Msg(),
-	})
-}
-
-func Error(w http.ResponseWriter, err error_ext.Error) {
-	w.WriteHeader(http.StatusInternalServerError)
-	sendJsonResponse(w, JsonResponse{
-		Code: err.Code(),
-		Msg:  err.Msg(),
-	})
+func Error(w http.ResponseWriter, err error) {
+	resp := JsonResponse{
+		Code: 500,
+		Msg:  err.Error(),
+	}
+	switch err.(type) {
+	case error_ext.CodeError:
+		ext := err.(error_ext.CodeError)
+		w.WriteHeader(ext.GetHttpStatus())
+		resp.Code = ext.GetCode()
+		resp.Msg = ext.Error()
+	case error:
+		w.WriteHeader(http.StatusInternalServerError)
+		resp.Code = http.StatusInternalServerError
+		resp.Msg = err.Error()
+	}
+	sendJsonResponse(w, resp)
 }

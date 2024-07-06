@@ -5,6 +5,6 @@ import (
 	"net/http"
 )
 
-func Submit(w http.ResponseWriter, request *http.Request) {
+func Submit(w http.ResponseWriter, r *http.Request) {
 	response.Ok(w)
 }
