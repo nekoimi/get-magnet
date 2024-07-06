@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/nekoimi/get-magnet/config"
+	"github.com/nekoimi/get-magnet/database"
 	"github.com/nekoimi/get-magnet/engine"
 	"github.com/nekoimi/get-magnet/router"
 	"net/http"
@@ -13,6 +14,8 @@ type Server struct {
 }
 
 func New(cfg config.Config) *Server {
+	database.Init(cfg.DbDsn)
+
 	s := &Server{
 		http: &http.Server{
 			Addr:    ":8080",
