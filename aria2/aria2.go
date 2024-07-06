@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/common/model"
+	"github.com/nekoimi/get-magnet/config"
 	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
 	"strconv"
@@ -23,8 +24,8 @@ type Aria2 struct {
 	exit chan struct{}
 }
 
-func New(jsonrpc string, secret string) *Aria2 {
-	client := NewSafeClient(jsonrpc, secret)
+func New(cfg config.Aria2) *Aria2 {
+	client := NewSafeClient(cfg.JsonRpc, cfg.Secret)
 
 	aria := &Aria2{
 		client:     client,

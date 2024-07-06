@@ -1,9 +1,9 @@
 package database
 
 import (
+	"github.com/nekoimi/get-magnet/config"
 	"log"
 	"xorm.io/xorm"
-	xormLog "xorm.io/xorm/log"
 )
 
 var (
@@ -12,8 +12,8 @@ var (
 )
 
 // Init 初始化数据库操作
-func Init(dataSource string) {
-	engine, err = xorm.NewEngine(Postgres.String(), dataSource)
+func Init(cfg config.Database) {
+	engine, err = xorm.NewEngine(Postgres.String(), cfg.Dns)
 	if err != nil {
 		log.Fatalf("连接数据库异常: %s\n", err.Error())
 	}
@@ -24,11 +24,11 @@ func Init(dataSource string) {
 	}
 
 	// 初始化设置
-	engine.ShowSQL(true)
-	engine.Logger().SetLevel(xormLog.LOG_DEBUG)
+	engine.ShowSQL(cfg.ShowSQL)
+	engine.Logger().SetLevel(cfg.LogLevel)
 	// 连接池设置
-	engine.SetConnMaxIdleTime(8)
-	engine.SetMaxOpenConns(8)
+	engine.SetMaxIdleConns(cfg.MaxIdleConnNum)
+	engine.SetMaxOpenConns(cfg.MaxOpenConnNum)
 
 	// 初始化数据表
 	initTables(engine)

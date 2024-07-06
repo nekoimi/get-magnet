@@ -4,28 +4,46 @@ import (
 	"flag"
 	"github.com/nekoimi/get-magnet/config"
 	"github.com/nekoimi/get-magnet/server"
-	"github.com/nekoimi/get-magnet/storage"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
-var cfg = config.Config{
-	Storage: storage.Db,
-}
+var (
+	signalChan = make(chan os.Signal, 1)
+	cfg        = config.Default()
+)
 
 func init() {
 	log.SetFlags(log.Lshortfile | log.Ldate | log.Lmicroseconds)
 
-	flag.IntVar(&cfg.WorkerNum, "worker", 1, "start worker count")
-	flag.StringVar(&cfg.DbDsn, "dsn", "", "db dsn")
-	flag.StringVar(&cfg.Jsonrpc, "jsonrpc", "", "aria2 jsonrpc address")
-	flag.StringVar(&cfg.Secret, "secret", "", "aria2 jsonrpc secret")
+	flag.IntVar(&cfg.Engine.WorkerNum, "worker", cfg.Engine.WorkerNum, "任务池worker数量")
+	flag.StringVar(&cfg.DB.Dns, "dsn", "", "数据库连接参数")
+	flag.StringVar(&cfg.Engine.Aria2.JsonRpc, "jsonrpc", "", "aria2服务jsonrpc连接地址")
+	flag.StringVar(&cfg.Engine.Aria2.Secret, "secret", "", "aria2服务jsonrpc连接secret")
+
+	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 }
 
 func main() {
 	flag.Parse()
-
 	srv := server.New(cfg)
-	srv.Run(func(s *server.Server) {
-		log.Printf("Service is running, listening on port %s\n", ":8080")
-	})
+
+	go func() {
+		for {
+			select {
+			case s := <-signalChan:
+				switch s {
+				case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM:
+					srv.Stop()
+					return
+				default:
+					log.Println("Ignore Signal: ", s)
+				}
+			}
+		}
+	}()
+
+	srv.Run()
 }

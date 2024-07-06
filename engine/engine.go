@@ -5,23 +5,13 @@ import (
 	"github.com/nekoimi/get-magnet/common/model"
 	"github.com/nekoimi/get-magnet/common/task"
 	"github.com/nekoimi/get-magnet/config"
-	"github.com/nekoimi/get-magnet/pkg/db"
 	scheduler2 "github.com/nekoimi/get-magnet/scheduler"
 	"github.com/nekoimi/get-magnet/storage"
-	"github.com/robfig/cron/v3"
 	"log"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 )
 
 type Engine struct {
-	cfg config.Config
-
-	signalChan chan os.Signal
-	workerNum  int
-
 	workers []*scheduler2.Worker
 
 	// allow to submit
@@ -29,8 +19,6 @@ type Engine struct {
 
 	// aria2 rpc 客户端
 	aria2 *aria2.Aria2
-	// 定时任务调度
-	cron *cron.Cron
 	// 任务调度器
 	scheduler *scheduler2.Scheduler
 	// 存储
@@ -39,24 +27,16 @@ type Engine struct {
 
 // New create new Engine instance
 // workerNum: worker num
-func New(cfg config.Config) *Engine {
-	db.Init(cfg.DbDsn)
-
+func New(cfg config.Engine) *Engine {
 	e := &Engine{
-		cfg:         cfg,
-		signalChan:  make(chan os.Signal),
-		workerNum:   cfg.WorkerNum,
 		workers:     make([]*scheduler2.Worker, 0),
 		allowSubmit: true,
-		aria2:       aria2.New(cfg.Jsonrpc, cfg.Secret),
-		cron:        cron.New(),
+		aria2:       aria2.New(cfg.Aria2),
 		scheduler:   scheduler2.New(cfg.WorkerNum),
-		Storage:     storage.NewStorage(cfg.Storage),
+		Storage:     storage.NewStorage(storage.Db),
 	}
 
-	signal.Notify(e.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	for i := 0; i < e.workerNum; i++ {
+	for i := 0; i < cfg.WorkerNum; i++ {
 		e.workers = append(e.workers, scheduler2.NewWorker(i, e.scheduler))
 	}
 
@@ -65,7 +45,6 @@ func New(cfg config.Config) *Engine {
 
 // Run start Engine
 func (e *Engine) Run() {
-	go e.cron.Run()
 	go e.aria2.Run()
 
 	e.scheduler.SetOutputHandle(e.taskOutputHandle)
@@ -73,19 +52,6 @@ func (e *Engine) Run() {
 
 	for _, worker := range e.workers {
 		go worker.Run()
-	}
-
-	for {
-		select {
-		case s := <-e.signalChan:
-			switch s {
-			case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM:
-				e.Stop(s)
-				return
-			default:
-				log.Println("Ignore Signal: ", s)
-			}
-		}
 	}
 }
 
@@ -101,17 +67,6 @@ func (e *Engine) Submit(task *task.Task) {
 		return
 	}
 	log.Printf("Not allow to submit, ignore task: %s \n", task.Url)
-}
-
-// CronSubmit use cron func submit
-func (e *Engine) CronSubmit(cron string, task *task.Task) {
-	_, err := e.cron.AddFunc(cron, func() {
-		e.Submit(task)
-		log.Println("cron submit ok")
-	})
-	if err != nil {
-		log.Printf("add cron submit err: %s \n", err.Error())
-	}
 }
 
 func (e *Engine) taskOutputHandle(o *task.Out) {
@@ -130,12 +85,8 @@ func (e *Engine) taskOutputHandle(o *task.Out) {
 }
 
 // Stop shutdown engine
-func (e *Engine) Stop(s os.Signal) {
+func (e *Engine) Stop() {
 	e.allowSubmit = false
-
-	c := e.cron.Stop()
-	<-c.Done()
-
 	e.scheduler.Stop()
 
 	var wg sync.WaitGroup
