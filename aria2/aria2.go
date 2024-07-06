@@ -7,6 +7,7 @@ import (
 	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/common/model"
 	"github.com/nekoimi/get-magnet/config"
+	"github.com/nekoimi/get-magnet/contract"
 	"github.com/nekoimi/get-magnet/pkg/aria2_ext"
 	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
@@ -49,8 +50,8 @@ func New(cfg *config.Aria2) *Aria2 {
 	return aria
 }
 
-func (a *Aria2) Submit(item *model.Item) {
-	a.magnetChan <- item
+func (a *Aria2) Submit(item contract.DownloadTask) {
+	// a.magnetChan <- item
 }
 
 func (a *Aria2) Run() {

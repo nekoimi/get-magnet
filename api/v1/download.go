@@ -1,7 +1,10 @@
 package v1
 
-import "net/http"
+import (
+	"github.com/nekoimi/get-magnet/pkg/response"
+	"net/http"
+)
 
-func Submit(writer http.ResponseWriter, request *http.Request) {
-
+func Submit(w http.ResponseWriter, request *http.Request) {
+	response.Ok(w)
 }

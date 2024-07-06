@@ -30,8 +30,9 @@ func (q *Queue[T]) Poll() (T, bool) {
 	q.mux.Lock()
 	defer q.mux.Unlock()
 
+	var zero T
 	if len(q.items) == 0 {
-		return nil, false
+		return zero, false
 	}
 
 	item := q.items[0]

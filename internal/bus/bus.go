@@ -2,21 +2,18 @@ package bus
 
 import (
 	"github.com/asaskevich/EventBus"
+	"log"
 )
 
 type Bus struct {
 	eventBus EventBus.Bus
 }
 
-var eventBus *Bus
-
-func init() {
-	eventBus = &Bus{eventBus: EventBus.New()}
-}
-
-// Get 获取实例
-func Get() *Bus {
-	return eventBus
+// New 获取实例
+func New() *Bus {
+	return &Bus{
+		eventBus: EventBus.New(),
+	}
 }
 
 func (b *Bus) Publish(topic string, args ...interface{}) {
@@ -24,5 +21,9 @@ func (b *Bus) Publish(topic string, args ...interface{}) {
 }
 
 func (b *Bus) Subscribe(topic string, fn interface{}) {
-	b.eventBus.SubscribeAsync(topic, fn, true)
+	err := b.eventBus.SubscribeAsync(topic, fn, true)
+	if err != nil {
+		log.Printf("Event Subscribe error: %s\n", err.Error())
+		return
+	}
 }

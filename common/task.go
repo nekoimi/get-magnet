@@ -1,4 +1,4 @@
-package task
+package common
 
 import (
 	"github.com/PuerkitoBio/goquery"

@@ -8,14 +8,8 @@ type Config struct {
 	// http服务端口
 	Port int
 
-	Engine *Engine
-
+	// 数据库配置
 	DB *Database
-}
-
-// Engine 任务调度引擎配置
-type Engine struct {
-	Aria2 *Aria2
 }
 
 // Aria2 aria2 rpc 连接设置
@@ -48,12 +42,6 @@ type Database struct {
 func Default() *Config {
 	cfg := new(Config)
 	cfg.Port = 8080
-	cfg.Engine = &Engine{
-		Aria2: &Aria2{
-			JsonRpc: "",
-			Secret:  "",
-		},
-	}
 	cfg.DB = &Database{
 		Dns:            "",
 		ShowSQL:        true,

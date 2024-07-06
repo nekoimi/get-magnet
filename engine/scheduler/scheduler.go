@@ -2,7 +2,7 @@ package scheduler
 
 import (
 	"context"
-	"github.com/nekoimi/get-magnet/common/task"
+	"github.com/nekoimi/get-magnet/contract"
 	"github.com/nekoimi/get-magnet/engine/worker"
 	"github.com/nekoimi/get-magnet/pkg/queue"
 	"log"
@@ -11,7 +11,7 @@ import (
 const TaskErrorMax = 5
 
 type Scheduler struct {
-	taskQueue   *queue.Queue[*task.Task]
+	taskQueue   *queue.Queue[contract.Task]
 	workerQueue *queue.Queue[*worker.Worker]
 
 	workerNum int
@@ -21,7 +21,7 @@ type Scheduler struct {
 // NewScheduler 获取一个新的调度器实例
 func NewScheduler() *Scheduler {
 	return &Scheduler{
-		taskQueue:   queue.New[*task.Task](),
+		taskQueue:   queue.New[contract.Task](),
 		workerQueue: queue.New[*worker.Worker](),
 
 		workerNum: 16,
@@ -31,11 +31,11 @@ func NewScheduler() *Scheduler {
 }
 
 // Submit 提交一个任务
-func (s *Scheduler) Submit(task *task.Task) {
-	if task.ErrorCount >= TaskErrorMax {
-		log.Printf("Too many task errors, ignore task: %s \n", task.Url)
-		return
-	}
+func (s *Scheduler) Submit(task contract.Task) {
+	//if task.ErrorCount >= TaskErrorMax {
+	//	log.Printf("Too many task errors, ignore task: %s \n", task.GetUrl())
+	//	return
+	//}
 	s.taskQueue.Add(task)
 }
 
@@ -54,7 +54,7 @@ func (s *Scheduler) Start() {
 			// 阻塞等待就绪的worker
 			waitWorker := s.workerQueue.PollWait()
 			if t, exists := s.taskQueue.Poll(); exists {
-				log.Printf("dispatch task (%s) to %s \n", t.Url, waitWorker.String())
+				log.Printf("dispatch task (%s) to %s \n", t.GetUrl(), waitWorker.String())
 				waitWorker.Deliver(t)
 			} else {
 				// 有等待执行任务的worker

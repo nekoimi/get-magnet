@@ -1,4 +1,4 @@
-package task
+package common
 
 import (
 	"net/url"

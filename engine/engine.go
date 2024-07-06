@@ -2,11 +2,10 @@ package engine
 
 import (
 	"github.com/nekoimi/get-magnet/aria2"
-	"github.com/nekoimi/get-magnet/common/model"
-	"github.com/nekoimi/get-magnet/common/task"
-	"github.com/nekoimi/get-magnet/config"
+	"github.com/nekoimi/get-magnet/contract"
 	scheduler2 "github.com/nekoimi/get-magnet/engine/scheduler"
 	"github.com/nekoimi/get-magnet/engine/worker"
+	"github.com/nekoimi/get-magnet/event"
 	"github.com/nekoimi/get-magnet/storage"
 	"log"
 	"modernc.org/mathutil"
@@ -44,40 +43,42 @@ type Engine struct {
 }
 
 // New create new Engine instance
-// workerNum: worker num
-func New(cfg *config.Engine) *Engine {
+func New() *Engine {
 	e := &Engine{
 		workers:     make(map[int64]*worker.Worker, 0),
 		allowSubmit: true,
-		aria2:       aria2.New(cfg.Aria2),
 		scheduler:   scheduler2.NewScheduler(),
 		Storage:     storage.NewStorage(storage.Db),
 	}
+
+	event.GetBus().Subscribe(event.ScaleWorker.String(), e.ScaleWorker)
+	event.GetBus().Subscribe(event.Download.String(), e.Download)
+	event.GetBus().Subscribe(event.Aria2Test.String(), func() {})
+	event.GetBus().Subscribe(event.Aria2LinkUp.String(), func() {})
+	event.GetBus().Subscribe(event.Aria2LinkDown.String(), func() {})
 
 	return e
 }
 
 // Run start Engine
 func (e *Engine) Run() {
-	go e.aria2.Run()
-
 	e.ScaleWorker(defaultWorkerNum)
-
 	e.scheduler.Start()
 }
 
-// SubmitDownload add item to aria2 and start download
-func (e *Engine) SubmitDownload(item *model.Item) {
+// Download 添加下载任务
+func (e *Engine) Download(item contract.DownloadTask) {
+	// TODO 需要判断aria2的对接状态
 	e.aria2.Submit(item)
 }
 
-// Submit add task to scheduler
-func (e *Engine) Submit(task *task.Task) {
+// Submit 添加任务到调度器
+func (e *Engine) Submit(task contract.Task) {
 	if e.allowSubmit {
 		e.scheduler.Submit(task)
 		return
 	}
-	log.Printf("Not allow to submit, ignore task: %s \n", task.Url)
+	log.Printf("Not allow to submit, ignore task: %s \n", task.GetUrl())
 }
 
 // ScaleWorker 更改worker池规模
@@ -97,23 +98,23 @@ func (e *Engine) ScaleWorker(num int) {
 	e.wmux.Unlock()
 }
 
-func (e *Engine) Success(w *worker.Worker, o *task.Out) {
+func (e *Engine) Success(w *worker.Worker, tasks []contract.Task, outputs ...any) {
 	// TODO 任务结果处理
-	for _, t := range o.Tasks {
+	for _, t := range tasks {
 		e.Submit(t)
 	}
-	for _, item := range o.Items {
-		err := e.Storage.Save(item)
-		if err != nil {
-			log.Printf("Save item err: %s \n", err.Error())
-		}
-
-		// submit the item to aria2 and start downloading
-		e.aria2.Submit(item)
-	}
+	//for _, item := range outputs {
+	//err := e.Storage.Save(item)
+	//if err != nil {
+	//	log.Printf("Save item err: %s \n", err.Error())
+	//}
+	//
+	//// submit the item to aria2 and start downloading
+	//e.aria2.Submit(item)
+	//}
 }
 
-func (e *Engine) Error(w *worker.Worker, t *task.Task, err error) {
+func (e *Engine) Error(w *worker.Worker, t contract.Task, err error) {
 	// TODO 错误记录
 	// TODO 任务重试
 }

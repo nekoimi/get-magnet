@@ -3,8 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
-	"github.com/nekoimi/get-magnet/common/task"
-	"github.com/nekoimi/get-magnet/pkg/downloader"
+	"github.com/nekoimi/get-magnet/contract"
 	"log"
 	"time"
 )
@@ -13,14 +12,14 @@ type Worker struct {
 	id       int64
 	version  int64
 	callback Callback
-	task     chan *task.Task
+	task     chan contract.Task
 	exit     chan struct{}
 	running  bool
 }
 
 type Callback interface {
-	Success(w *Worker, out *task.Out)
-	Error(w *Worker, t *task.Task, err error)
+	Success(w *Worker, tasks []contract.Task, outputs ...any)
+	Error(w *Worker, t contract.Task, err error)
 	Finally(w *Worker)
 }
 
@@ -30,7 +29,7 @@ func NewWorker(id int64, version int64, callback Callback) *Worker {
 		id:       id,
 		version:  version,
 		callback: callback,
-		task:     make(chan *task.Task, 1),
+		task:     make(chan contract.Task, 1),
 		exit:     make(chan struct{}),
 		running:  false,
 	}
@@ -60,7 +59,7 @@ func (w *Worker) Version() int64 {
 }
 
 // Deliver 投递任务
-func (w *Worker) Deliver(t *task.Task) {
+func (w *Worker) Deliver(t contract.Task) {
 	w.task <- t
 }
 
@@ -87,28 +86,35 @@ func (w *Worker) Stop() {
 }
 
 // do 执行任务
-func (w *Worker) do(t *task.Task) {
+func (w *Worker) do(t contract.Task) {
 	w.running = true
 	defer func() {
 		w.callback.Finally(w)
 		w.running = false
 	}()
 
-	s, err := downloader.Download(t.Url)
-	if err != nil {
-		w.callback.Error(w, t, err)
-		log.Printf("[%s] Download (%s) err: %s \n", w, t.Url, err.Error())
-		return
+	handler := t.GetHandler()
+	switch handler.(type) {
+	case contract.SimpleTaskHandler:
+		break
+	case contract.HTMLQueryParseHandler:
+		//s, err := downloader.Download(t.GetUrl())
+		//if err != nil {
+		//	w.callback.Error(w, t, err)
+		//	log.Printf("[%s] Download (%s) err: %s \n", w, t.GetUrl(), err.Error())
+		//	return
+		//}
+		//parseHandler := handler.(engine.HTMLQueryParseHandler)
+		//result, err := parseHandler.Handle(s)
+		//if err != nil {
+		//	w.callback.Error(w, t, err)
+		//	log.Printf("[%s] Handle task (%s) err: %s \n", w, t.GetUrl(), err.Error())
+		//	return
+		//}
+		//w.callback.Success(w, result)
+		//log.Printf("[%s] Handle task done: %s \n", w, t.GetUrl())
+		break
 	}
-
-	result, err := t.Handle(t.Meta, s)
-	if err != nil {
-		w.callback.Error(w, t, err)
-		log.Printf("[%s] Handle task (%s) err: %s \n", w, t.Url, err.Error())
-		return
-	}
-	w.callback.Success(w, result)
-	log.Printf("[%s] Handle task done: %s \n", w, t.Url)
 }
 
 func (w *Worker) String() string {

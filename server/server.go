@@ -16,7 +16,6 @@ import (
 
 type Server struct {
 	signalChan chan os.Signal
-	cfg        *config.Config
 	http       *http.Server
 	cron       *cron.Cron
 	engine     *engine.Engine
@@ -27,13 +26,12 @@ func New(cfg *config.Config) *Server {
 
 	s := &Server{
 		signalChan: make(chan os.Signal, 1),
-		cfg:        cfg,
 		http: &http.Server{
 			Addr:    fmt.Sprintf(":%d", cfg.Port),
 			Handler: router.New(),
 		},
-		cron: cron.New(),
-		//engine: engine.New(cfg.Engine),
+		cron:   cron.New(),
+		engine: engine.New(),
 	}
 
 	signal.Notify(s.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -43,7 +41,7 @@ func New(cfg *config.Config) *Server {
 
 func (s *Server) Run() {
 	go s.cron.Run()
-	//go s.engine.Run()
+	// go s.engine.Run()
 
 	go func() {
 		err := s.http.ListenAndServe()
@@ -52,7 +50,7 @@ func (s *Server) Run() {
 		}
 	}()
 
-	log.Printf("Service is running, listening on port %s\n", fmt.Sprintf(":%d", s.cfg.Port))
+	log.Println("Service is running")
 
 	for range s.signalChan {
 		s.Stop()
@@ -60,7 +58,7 @@ func (s *Server) Run() {
 }
 
 func (s *Server) Stop() {
-	//<-s.cron.Stop().Done()
+	<-s.cron.Stop().Done()
 	//s.engine.Stop()
 	_ = database.Get().Close()
 	os.Exit(0)
