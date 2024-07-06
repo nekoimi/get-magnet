@@ -1,8 +1,8 @@
-package aria2
+package aria2_ext
 
 import (
 	"github.com/nekoimi/arigo"
-	"github.com/nekoimi/get-magnet/pkg/file"
+	"github.com/nekoimi/get-magnet/pkg/files"
 	"strings"
 )
 
@@ -20,7 +20,7 @@ func BestSelectFile(files []arigo.File) []arigo.File {
 }
 
 func IsBestFile(f arigo.File) bool {
-	return (file.IsVideo(f.Path) && f.Length > MinVideoSize) || IsTorrentFile(f.Path)
+	return (files.IsVideo(f.Path) && f.Length > MinVideoSize) || IsTorrentFile(f.Path)
 }
 
 func IsTorrentFile(filename string) bool {
