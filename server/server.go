@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"fmt"
 	"github.com/nekoimi/get-magnet/config"
 	"github.com/nekoimi/get-magnet/database"
@@ -33,8 +32,8 @@ func New(cfg *config.Config) *Server {
 			Addr:    fmt.Sprintf(":%d", cfg.Port),
 			Handler: router.New(),
 		},
-		cron:   cron.New(),
-		engine: engine.New(cfg.Engine),
+		cron: cron.New(),
+		//engine: engine.New(cfg.Engine),
 	}
 
 	signal.Notify(s.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -44,7 +43,7 @@ func New(cfg *config.Config) *Server {
 
 func (s *Server) Run() {
 	go s.cron.Run()
-	go s.engine.Run()
+	//go s.engine.Run()
 
 	go func() {
 		err := s.http.ListenAndServe()
@@ -54,14 +53,15 @@ func (s *Server) Run() {
 	}()
 
 	log.Printf("Service is running, listening on port %s\n", fmt.Sprintf(":%d", s.cfg.Port))
+
 	for range s.signalChan {
 		s.Stop()
 	}
 }
 
 func (s *Server) Stop() {
-	<-s.cron.Stop().Done()
-	s.engine.Stop()
+	//<-s.cron.Stop().Done()
+	//s.engine.Stop()
 	_ = database.Get().Close()
-	_ = s.http.Shutdown(context.Background())
+	os.Exit(0)
 }

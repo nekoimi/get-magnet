@@ -1,4 +1,4 @@
-package download
+package v1
 
 import "net/http"
 

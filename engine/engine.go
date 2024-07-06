@@ -9,10 +9,22 @@ import (
 	"github.com/nekoimi/get-magnet/storage"
 	"log"
 	"sync"
+	"sync/atomic"
 )
 
+// 默认启动16个worker
+const defaultWorkerNum = 16
+
 type Engine struct {
-	workers []*scheduler2.Worker
+	// worker操作锁
+	wmux sync.Mutex
+	// workerId 生成
+	workerIdNext atomic.Int64
+	// worker最新版本
+	workerLastVersion int64
+	workerVersionNext atomic.Int64
+	// worker池
+	workers map[int64]*Worker
 
 	// allow to submit
 	allowSubmit bool
@@ -29,16 +41,14 @@ type Engine struct {
 // workerNum: worker num
 func New(cfg *config.Engine) *Engine {
 	e := &Engine{
-		workers:     make([]*scheduler2.Worker, 0),
+		workers:     make(map[int64]*Worker, 0),
 		allowSubmit: true,
 		aria2:       aria2.New(cfg.Aria2),
-		scheduler:   scheduler2.New(cfg.MaxWorkerNum),
+		scheduler:   scheduler2.New(),
 		Storage:     storage.NewStorage(storage.Db),
 	}
 
-	for i := 0; i < cfg.MaxWorkerNum; i++ {
-		e.workers = append(e.workers, scheduler2.NewWorker(i, e.scheduler))
-	}
+	e.ScaleWorker(defaultWorkerNum)
 
 	return e
 }
@@ -48,10 +58,10 @@ func (e *Engine) Run() {
 	go e.aria2.Run()
 
 	for _, worker := range e.workers {
+		e.scheduler.Ready(worker)
 		go worker.Run()
 	}
 
-	e.scheduler.SetOutputHandle(e.taskOutputHandle)
 	e.scheduler.Run()
 }
 
@@ -69,7 +79,19 @@ func (e *Engine) Submit(task *task.Task) {
 	log.Printf("Not allow to submit, ignore task: %s \n", task.Url)
 }
 
-func (e *Engine) taskOutputHandle(o *task.Out) {
+// ScaleWorker 更改worker池规模
+func (e *Engine) ScaleWorker(num int) {
+	e.wmux.Lock()
+	e.workerLastVersion = e.workerVersionNext.Add(1)
+	for i := 0; i < num; i++ {
+		workerId := e.workerIdNext.Add(1)
+		e.workers[workerId] = NewWorker(workerId, e.workerLastVersion, e)
+	}
+	e.wmux.Unlock()
+}
+
+func (e *Engine) Success(w *Worker, o *task.Out) {
+	// TODO 任务结果处理
 	for _, t := range o.Tasks {
 		e.Submit(t)
 	}
@@ -84,6 +106,22 @@ func (e *Engine) taskOutputHandle(o *task.Out) {
 	}
 }
 
+func (e *Engine) Error(w *Worker, t *task.Task, err error) {
+	// TODO 错误记录
+	// TODO 任务重试
+}
+
+func (e *Engine) Finally(w *Worker) {
+	// 判断worker版本, 是否和最新版本一致
+	// 版本一致: 保留该worker实例，继续执行后续任务
+	if e.workerLastVersion == w.version {
+		e.scheduler.Ready(w)
+	} else {
+		// 不一致: 直接释放掉
+		delete(e.workers, w.id)
+	}
+}
+
 // Stop shutdown engine
 func (e *Engine) Stop() {
 	e.allowSubmit = false
@@ -92,7 +130,7 @@ func (e *Engine) Stop() {
 	var wg sync.WaitGroup
 	wg.Add(len(e.workers))
 	for _, worker := range e.workers {
-		go func(w *scheduler2.Worker) {
+		go func(w *Worker) {
 			w.Stop()
 			wg.Done()
 		}(worker)

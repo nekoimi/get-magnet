@@ -2,9 +2,15 @@ package router
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/nekoimi/get-magnet/api/download"
+	"github.com/nekoimi/get-magnet/api"
+	"github.com/nekoimi/get-magnet/api/v1"
 	"github.com/nekoimi/get-magnet/middleware"
+	"log"
+	"net/http"
 )
+
+// const uiStaticDir = "/workspace/ui"
+const uiStaticDir = "C:\\Users\\nekoimi\\Downloads\\vue-next-admin"
 
 //const aria2JsonApi = "/api/aria2/jsonrpc"
 
@@ -17,11 +23,35 @@ import (
 func New() *mux.Router {
 	r := mux.NewRouter()
 	r.Use(middleware.AuthMiddleware())
+	// 接口
+	apiRoute := r.PathPrefix("/api").Subrouter()
+	{
+		// 登录
+		apiRoute.HandleFunc("/auth/login", api.Login)
+		// 登出
+		apiRoute.HandleFunc("/auth/logout", api.Logout)
 
-	// 提交下载连接
-	r.HandleFunc("/api/v1/download/submit", download.Submit)
+		v1Api := apiRoute.PathPrefix("/v1").Subrouter()
+		{
+			// 提交下载连接
+			v1Api.HandleFunc("/download/submit", v1.Submit)
+		}
+	}
+
+	// 静态资源
+	r.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServer(http.Dir(uiStaticDir))))
+
+	routeDebugPrint(r)
 
 	return r
+}
+
+func routeDebugPrint(r *mux.Router) {
+	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		path, _ := route.GetPathTemplate()
+		log.Printf("Route: %s\n", path)
+		return nil
+	})
 }
 
 //// Get 获取路由实例

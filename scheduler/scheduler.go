@@ -4,49 +4,37 @@ import (
 	"context"
 	"fmt"
 	"github.com/nekoimi/get-magnet/common/task"
+	"github.com/nekoimi/get-magnet/engine"
 	"log"
 	"time"
 )
 
 const TaskErrorMax = 5
 
-type OutputHandle func(o *task.Out)
-
 type Scheduler struct {
 	workerNum       int
 	exit            chan struct{}
 	readyTaskChan   chan *task.Task
-	readyWorkerChan chan *Worker
+	readyWorkerChan chan *engine.Worker
 	outputChan      chan *task.Out
 
 	activeTaskQueue   []*task.Task
-	activeWorkerQueue []*Worker
-
-	outputHandle OutputHandle
+	activeWorkerQueue []*engine.Worker
 }
 
-func ignoreOutputHandle(o *task.Out) {
-}
-
-func New(workerNum int) *Scheduler {
+func New() *Scheduler {
 	return &Scheduler{
-		workerNum: workerNum,
+		workerNum: 16,
 
 		exit: make(chan struct{}),
 
-		readyTaskChan:   make(chan *task.Task, workerNum*10),
-		readyWorkerChan: make(chan *Worker, workerNum),
-		outputChan:      make(chan *task.Out, workerNum*10),
+		readyTaskChan:   make(chan *task.Task, 16),
+		readyWorkerChan: make(chan *engine.Worker, 16),
+		outputChan:      make(chan *task.Out, 16),
 
 		activeTaskQueue:   make([]*task.Task, 0),
-		activeWorkerQueue: make([]*Worker, 0),
-
-		outputHandle: ignoreOutputHandle,
+		activeWorkerQueue: make([]*engine.Worker, 0),
 	}
-}
-
-func (s *Scheduler) SetOutputHandle(handle OutputHandle) {
-	s.outputHandle = handle
 }
 
 func (s *Scheduler) Submit(task *task.Task) {
@@ -58,25 +46,16 @@ func (s *Scheduler) Submit(task *task.Task) {
 	s.readyTaskChan <- task
 }
 
-func (s *Scheduler) ReadyWorker(w *Worker) {
+func (s *Scheduler) Ready(w *engine.Worker) {
 	s.readyWorkerChan <- w
-}
-
-func (s *Scheduler) Done(taskOut *task.Out) {
-	s.outputChan <- taskOut
 }
 
 func (s *Scheduler) Run() {
 	log.Println("scheduler dispatch running")
-	go func() {
-		for o := range s.outputChan {
-			s.outputHandle(o)
-		}
-	}()
 
 	for {
 		var activeTask *task.Task
-		var activeWorker *Worker
+		var activeWorker *engine.Worker
 		if len(s.activeTaskQueue) > 0 && len(s.activeWorkerQueue) > 0 {
 			activeTask = s.activeTaskQueue[0]
 			activeWorker = s.activeWorkerQueue[0]
@@ -95,7 +74,7 @@ func (s *Scheduler) Run() {
 			if activeWorker == nil || activeTask == nil {
 				continue
 			}
-			activeWorker.taskQueue <- activeTask
+			activeWorker.TaskQueue <- activeTask
 			log.Printf("dispatch task (%s) to %s \n", activeTask.Url, activeWorker)
 			s.activeTaskQueue = s.activeTaskQueue[1:]
 			s.activeWorkerQueue = s.activeWorkerQueue[1:]

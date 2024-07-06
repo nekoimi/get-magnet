@@ -1,4 +1,4 @@
-package scheduler
+package engine
 
 import (
 	"context"
@@ -10,31 +10,39 @@ import (
 )
 
 type Worker struct {
-	Id        int
-	taskQueue chan *task.Task
-	scheduler *Scheduler
+	id       int64
+	version  int64
+	callback WorkerCallback
+
+	TaskQueue chan *task.Task
 	exit      chan struct{}
 }
 
-func NewWorker(id int, s *Scheduler) *Worker {
+type WorkerCallback interface {
+	Success(w *Worker, out *task.Out)
+	Error(w *Worker, t *task.Task, err error)
+	Finally(w *Worker)
+}
+
+func NewWorker(id int64, version int64, callback WorkerCallback) *Worker {
 	return &Worker{
-		Id:        id,
-		taskQueue: make(chan *task.Task, s.workerNum*10),
-		scheduler: s,
+		id:       id,
+		version:  version,
+		callback: callback,
+
+		TaskQueue: make(chan *task.Task, 16),
 		exit:      make(chan struct{}),
 	}
 }
 
 func (w *Worker) Run() {
 	log.Printf("start worker %s ...\n", w)
-	w.scheduler.ReadyWorker(w)
-
 	for {
 		select {
 		case <-w.exit:
 			return
-		case t := <-w.taskQueue:
-			w.handle(t)
+		case t := <-w.TaskQueue:
+			w.callback(t)
 		}
 	}
 }
@@ -43,7 +51,7 @@ func (w *Worker) Stop() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
-		for len(w.taskQueue) > 0 {
+		for len(w.TaskQueue) > 0 {
 			time.Sleep(1 * time.Second)
 		}
 		close(w.exit)
@@ -54,31 +62,29 @@ func (w *Worker) Stop() {
 	<-ctx.Done()
 }
 
-// handle run worker handle
+// doWork run worker callback
 // download url raw data & parse html doc
-func (w *Worker) handle(t *task.Task) {
-	defer w.scheduler.ReadyWorker(w)
+func (w *Worker) doWork(t *task.Task) {
+	defer w.callback.Finally(w)
 
 	s, err := downloader.Download(t.Url)
 	if err != nil {
-		// again
-		t.SetErrorMessage(err.Error())
-		w.scheduler.Submit(t)
-
+		w.callback.Error(w, t, err)
 		log.Printf("[%s] Download (%s) err: %s \n", w, t.Url, err.Error())
 		return
 	}
 
-	// invoke parse handle
+	// invoke parse callback
 	result, err := t.Handle(t.Meta, s)
 	if err != nil {
+		w.callback.Error(w, t, err)
 		log.Printf("[%s] Handle task (%s) err: %s \n", w, t.Url, err.Error())
 		return
 	}
-	w.scheduler.Done(result)
+	w.callback.Success(w, result)
 	log.Printf("[%s] Handle task done: %s \n", w, t.Url)
 }
 
 func (w *Worker) String() string {
-	return fmt.Sprintf("worker-%d", w.Id)
+	return fmt.Sprintf("worker-%d@v%d", w.id, w.version)
 }
