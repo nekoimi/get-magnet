@@ -36,8 +36,8 @@ func New(cfg *config.Config) *Server {
 }
 
 func (s *Server) Run() {
-	s.cron.Run()
-	s.engine.Run()
+	// s.cron.Run()
+	// s.engine.Run()
 
 	log.Printf("Service is running, listening on port %s\n", fmt.Sprintf(":%d", s.cfg.Port))
 

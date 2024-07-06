@@ -27,7 +27,7 @@ type Engine struct {
 
 // New create new Engine instance
 // workerNum: worker num
-func New(cfg config.Engine) *Engine {
+func New(cfg *config.Engine) *Engine {
 	e := &Engine{
 		workers:     make([]*scheduler2.Worker, 0),
 		allowSubmit: true,

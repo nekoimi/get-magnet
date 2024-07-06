@@ -18,6 +18,7 @@ var (
 func init() {
 	log.SetFlags(log.Lshortfile | log.Ldate | log.Lmicroseconds)
 
+	flag.IntVar(&cfg.Port, "port", 8080, "http服务端口")
 	flag.IntVar(&cfg.Engine.WorkerNum, "worker", cfg.Engine.WorkerNum, "任务池worker数量")
 	flag.StringVar(&cfg.DB.Dns, "dsn", "", "数据库连接参数")
 	flag.StringVar(&cfg.Engine.Aria2.JsonRpc, "jsonrpc", "", "aria2服务jsonrpc连接地址")

@@ -24,7 +24,7 @@ type Aria2 struct {
 	exit chan struct{}
 }
 
-func New(cfg config.Aria2) *Aria2 {
+func New(cfg *config.Aria2) *Aria2 {
 	client := NewSafeClient(cfg.JsonRpc, cfg.Secret)
 
 	aria := &Aria2{

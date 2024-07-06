@@ -2,6 +2,7 @@ package storage
 
 import (
 	"github.com/nekoimi/get-magnet/common/model"
+	"github.com/nekoimi/get-magnet/pkg/files"
 	"log"
 	"os"
 	"path/filepath"

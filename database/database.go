@@ -12,8 +12,9 @@ var (
 )
 
 // Init 初始化数据库操作
-func Init(cfg config.Database) {
-	engine, err = xorm.NewEngine(Postgres.String(), cfg.Dns)
+func Init(cfg *config.Database) {
+	log.Printf("连接数据库")
+	engine, err = xorm.NewEngine(MySQL.String(), cfg.Dns)
 	if err != nil {
 		log.Fatalf("连接数据库异常: %s\n", err.Error())
 	}
