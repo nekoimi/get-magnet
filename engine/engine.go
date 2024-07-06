@@ -5,15 +5,21 @@ import (
 	"github.com/nekoimi/get-magnet/common/model"
 	"github.com/nekoimi/get-magnet/common/task"
 	"github.com/nekoimi/get-magnet/config"
-	scheduler2 "github.com/nekoimi/get-magnet/scheduler"
+	scheduler2 "github.com/nekoimi/get-magnet/engine/scheduler"
+	"github.com/nekoimi/get-magnet/engine/worker"
 	"github.com/nekoimi/get-magnet/storage"
 	"log"
+	"modernc.org/mathutil"
 	"sync"
 	"sync/atomic"
 )
 
-// 默认启动16个worker
-const defaultWorkerNum = 16
+const (
+	// 默认启动16个worker
+	defaultWorkerNum = 16
+	// 最大worker数
+	maxWorkerNum = 512
+)
 
 type Engine struct {
 	// worker操作锁
@@ -24,7 +30,7 @@ type Engine struct {
 	workerLastVersion int64
 	workerVersionNext atomic.Int64
 	// worker池
-	workers map[int64]*Worker
+	workers map[int64]*worker.Worker
 
 	// allow to submit
 	allowSubmit bool
@@ -41,14 +47,12 @@ type Engine struct {
 // workerNum: worker num
 func New(cfg *config.Engine) *Engine {
 	e := &Engine{
-		workers:     make(map[int64]*Worker, 0),
+		workers:     make(map[int64]*worker.Worker, 0),
 		allowSubmit: true,
 		aria2:       aria2.New(cfg.Aria2),
-		scheduler:   scheduler2.New(),
+		scheduler:   scheduler2.NewScheduler(),
 		Storage:     storage.NewStorage(storage.Db),
 	}
-
-	e.ScaleWorker(defaultWorkerNum)
 
 	return e
 }
@@ -57,12 +61,9 @@ func New(cfg *config.Engine) *Engine {
 func (e *Engine) Run() {
 	go e.aria2.Run()
 
-	for _, worker := range e.workers {
-		e.scheduler.Ready(worker)
-		go worker.Run()
-	}
+	e.ScaleWorker(defaultWorkerNum)
 
-	e.scheduler.Run()
+	e.scheduler.Start()
 }
 
 // SubmitDownload add item to aria2 and start download
@@ -83,14 +84,20 @@ func (e *Engine) Submit(task *task.Task) {
 func (e *Engine) ScaleWorker(num int) {
 	e.wmux.Lock()
 	e.workerLastVersion = e.workerVersionNext.Add(1)
-	for i := 0; i < num; i++ {
+	for i := 0; i < mathutil.Min(num, maxWorkerNum); i++ {
 		workerId := e.workerIdNext.Add(1)
-		e.workers[workerId] = NewWorker(workerId, e.workerLastVersion, e)
+
+		w := worker.NewWorker(workerId, e.workerLastVersion, e)
+		e.workers[workerId] = w
+
+		e.scheduler.Ready(w)
+
+		go w.Run()
 	}
 	e.wmux.Unlock()
 }
 
-func (e *Engine) Success(w *Worker, o *task.Out) {
+func (e *Engine) Success(w *worker.Worker, o *task.Out) {
 	// TODO 任务结果处理
 	for _, t := range o.Tasks {
 		e.Submit(t)
@@ -106,19 +113,19 @@ func (e *Engine) Success(w *Worker, o *task.Out) {
 	}
 }
 
-func (e *Engine) Error(w *Worker, t *task.Task, err error) {
+func (e *Engine) Error(w *worker.Worker, t *task.Task, err error) {
 	// TODO 错误记录
 	// TODO 任务重试
 }
 
-func (e *Engine) Finally(w *Worker) {
+func (e *Engine) Finally(w *worker.Worker) {
 	// 判断worker版本, 是否和最新版本一致
 	// 版本一致: 保留该worker实例，继续执行后续任务
-	if e.workerLastVersion == w.version {
+	if e.workerLastVersion == w.Version() {
 		e.scheduler.Ready(w)
 	} else {
 		// 不一致: 直接释放掉
-		delete(e.workers, w.id)
+		delete(e.workers, w.Id())
 	}
 }
 
@@ -129,11 +136,11 @@ func (e *Engine) Stop() {
 
 	var wg sync.WaitGroup
 	wg.Add(len(e.workers))
-	for _, worker := range e.workers {
-		go func(w *Worker) {
+	for _, w := range e.workers {
+		go func(w *worker.Worker) {
 			w.Stop()
 			wg.Done()
-		}(worker)
+		}(w)
 	}
 	wg.Wait()
 
