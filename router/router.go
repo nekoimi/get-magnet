@@ -22,6 +22,8 @@ const uiStaticDir = "C:\\Users\\nekoimi\\Downloads\\vue-next-admin"
 
 func New() *mux.Router {
 	r := mux.NewRouter()
+	r.Use(mux.CORSMethodMiddleware(r))
+	r.Use(middleware.LoggingMiddleware)
 	r.Use(middleware.AuthMiddleware())
 	// 接口
 	apiRoute := r.PathPrefix("/api").Subrouter()

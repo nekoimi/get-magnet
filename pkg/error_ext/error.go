@@ -37,4 +37,14 @@ var (
 		HttpStatus: http.StatusBadRequest,
 		Msg:        "参数验证错误",
 	}
+	AccountNotFoundError = &ExtError{
+		Code:       20404,
+		HttpStatus: http.StatusBadRequest,
+		Msg:        "账号或密码错误",
+	}
+	PasswordError = &ExtError{
+		Code:       20400,
+		HttpStatus: http.StatusBadRequest,
+		Msg:        "账号或密码错误",
+	}
 )

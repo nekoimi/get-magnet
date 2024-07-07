@@ -7,7 +7,8 @@ import (
 type Config struct {
 	// http服务端口
 	Port int
-
+	// Jwt secret
+	JwtSecret string
 	// 数据库配置
 	DB *Database
 }
@@ -30,8 +31,10 @@ type Database struct {
 	MaxIdleConnNum int
 }
 
+var cfg *Config
+
 func Default() *Config {
-	cfg := new(Config)
+	cfg = new(Config)
 	cfg.Port = 8080
 	cfg.DB = &Database{
 		Dns:            "",
@@ -40,5 +43,9 @@ func Default() *Config {
 		MaxOpenConnNum: 16,
 		MaxIdleConnNum: 8,
 	}
+	return cfg
+}
+
+func Get() *Config {
 	return cfg
 }

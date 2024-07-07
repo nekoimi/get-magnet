@@ -2,6 +2,9 @@ package database
 
 import (
 	"github.com/nekoimi/get-magnet/config"
+	"github.com/nekoimi/get-magnet/database/migrate"
+	"github.com/nekoimi/get-magnet/database/table"
+	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
 	"xorm.io/xorm"
 )
@@ -31,26 +34,66 @@ func Init(cfg *config.Database) {
 	engine.SetMaxIdleConns(cfg.MaxIdleConnNum)
 	engine.SetMaxOpenConns(cfg.MaxOpenConnNum)
 
-	// 初始化数据表
-	initTables(engine)
+	// 初始化数据迁移
+	initMigrates(engine)
+	// 数据表迁移
+	runMigrates(engine)
 }
 
-// Get 获取数据库操作实例
-func Get() *xorm.Engine {
+// Instance 获取数据库操作实例
+func Instance() *xorm.Engine {
 	return engine
 }
 
-// 初始化数据表
-func initTables(e *xorm.Engine) {
-	// autoCreateTable(e, nil)
-}
-
-func autoCreateTable(e *xorm.Engine, tableBean any) {
-	if exists, err := e.IsTableExist(tableBean); err != nil {
-		log.Fatalf("检查数据表状态异常: %s\n", err.Error())
-	} else if !exists {
-		if err := e.CreateTables(tableBean); err != nil {
-			log.Fatalf("创建数据表异常: %s\n", err.Error())
+// 初始化数据迁移
+func initMigrates(e *xorm.Engine) {
+	mg := new(table.Migrates)
+	if exist, err := e.IsTableExist(mg); err != nil {
+		log.Fatalf("数据表检查失败: %s\n", err.Error())
+	} else if !exist {
+		err := e.CreateTables(mg)
+		if err != nil {
+			log.Fatalf("数据表初始化失败: %s\n", err.Error())
 		}
 	}
+}
+
+// 初始化数据表迁移
+func runMigrates(e *xorm.Engine) {
+	migrates := migrate.GetAll()
+	util.Sort[migrate.Migrate](migrates, func(a *migrate.Migrate, b *migrate.Migrate) bool {
+		return (*a).Version() < (*b).Version()
+	})
+	log.Println("数据表迁移执行...")
+	for _, m := range migrates {
+		if exists, err := e.Exist(&table.Migrates{Version: m.Version()}); err != nil {
+			log.Printf("数据表迁移异常: %s, \n details: %s \n", m.Desc(), err.Error())
+			break
+		} else if exists {
+			// 已经存在迁移记录，直接跳过所有
+			break
+		}
+
+		log.Printf("数据表迁移: %d, %s , 执行...\n\n", m.Version(), m.Desc())
+		err = m.Exec(e)
+		if err != nil {
+			log.Printf("数据表迁移异常: %s, \n details: %s \n", m.Desc(), err.Error())
+			if _, insertErr := e.InsertOne(&table.Migrates{
+				Version: m.Version(),
+				Success: false,
+				Message: err.Error(),
+			}); insertErr != nil {
+				log.Fatalf("数据库操作失败: %s\n", insertErr.Error())
+			}
+			break
+		}
+		if _, insertErr := e.InsertOne(&table.Migrates{
+			Version: m.Version(),
+			Success: true,
+			Message: "ok",
+		}); insertErr != nil {
+			log.Fatalf("数据库操作失败: %s\n", insertErr.Error())
+		}
+	}
+	log.Println("数据表迁移执行完毕")
 }

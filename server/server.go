@@ -60,6 +60,6 @@ func (s *Server) Run() {
 func (s *Server) Stop() {
 	<-s.cron.Stop().Done()
 	//s.engine.Stop()
-	_ = database.Get().Close()
+	_ = database.Instance().Close()
 	os.Exit(0)
 }

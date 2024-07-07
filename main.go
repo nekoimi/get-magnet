@@ -13,6 +13,7 @@ func init() {
 	log.SetFlags(log.Lshortfile | log.Ldate | log.Lmicroseconds)
 
 	flag.IntVar(&cfg.Port, "port", 8080, "http服务端口")
+	flag.StringVar(&cfg.JwtSecret, "jwtSecret", "get-magnet", "jwt secret")
 	flag.StringVar(&cfg.DB.Dns, "dsn", "", "数据库连接参数")
 }
 
