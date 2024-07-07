@@ -8,6 +8,7 @@ import (
 	"github.com/nekoimi/get-magnet/pkg/request"
 	"github.com/nekoimi/get-magnet/pkg/response"
 	"github.com/nekoimi/get-magnet/pkg/util"
+	"log"
 	"net/http"
 )
 
@@ -16,6 +17,7 @@ type LoginReq struct {
 	Password string `json:"password,omitempty"`
 }
 
+// Login 登录认证
 func Login(w http.ResponseWriter, r *http.Request) {
 	p := new(LoginReq)
 
@@ -52,6 +54,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	response.Ok(w, result)
 }
 
+// Logout 退出登录
 func Logout(w http.ResponseWriter, r *http.Request) {
+	u, ok := request.JwtUser(w, r)
+	if !ok {
+		return
+	}
+
+	log.Printf("登录用户: %s\n", u.GetId())
+
 	response.Ok(w, nil)
 }

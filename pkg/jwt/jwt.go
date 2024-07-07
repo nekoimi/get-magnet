@@ -1,11 +1,15 @@
 package jwt
 
 import (
+	"encoding/json"
+	"errors"
 	jwtlib "github.com/cristalhq/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/nekoimi/get-magnet/config"
 	"time"
 )
+
+var TokenExpirseError = errors.New("认证信息已过期")
 
 type Subject interface {
 	GetId() string
@@ -37,4 +41,33 @@ func NewToken(sub Subject) (TokenResult, error) {
 
 	result.Token = token.String()
 	return result, nil
+}
+
+func ParseToken(token string) (string, error) {
+	verifier, err := jwtlib.NewVerifierHS(jwtlib.HS256, []byte(config.Get().JwtSecret))
+	if err != nil {
+		return "", err
+	}
+
+	t, err := jwtlib.Parse([]byte(token), verifier)
+	if err != nil {
+		return "", err
+	}
+
+	err = verifier.Verify(t)
+	if err != nil {
+		return "", err
+	}
+
+	var claims jwtlib.RegisteredClaims
+	err = json.Unmarshal(t.Claims(), &claims)
+	if err != nil {
+		return "", err
+	}
+
+	if !claims.IsValidExpiresAt(time.Now()) {
+		return "", TokenExpirseError
+	}
+
+	return claims.Subject, nil
 }

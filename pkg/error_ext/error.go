@@ -47,4 +47,14 @@ var (
 		HttpStatus: http.StatusBadRequest,
 		Msg:        "账号或密码错误",
 	}
+	AuthenticationError = &ExtError{
+		Code:       20401,
+		HttpStatus: http.StatusUnauthorized,
+		Msg:        "认证信息异常",
+	}
+	AuthenticationExpirseError = &ExtError{
+		Code:       20401,
+		HttpStatus: http.StatusUnauthorized,
+		Msg:        "认证信息已过期",
+	}
 )
