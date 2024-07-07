@@ -3,6 +3,7 @@ package request
 import (
 	"encoding/json"
 	"github.com/nekoimi/get-magnet/pkg/error_ext"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -13,11 +14,11 @@ func Parse[T any](r *http.Request, t *T) error {
 		return error_ext.RequestBodyNotSupportedError
 	}
 
-	raw := make([]byte, r.ContentLength)
-	_, err := r.Body.Read(raw)
+	raw, err := io.ReadAll(r.Body)
 	if err != nil {
 		return err
 	}
+
 	err = json.Unmarshal(raw, t)
 	if err != nil {
 		return err

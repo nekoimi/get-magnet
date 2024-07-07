@@ -7,8 +7,8 @@ import (
 )
 
 type A struct {
-	Username string
-	Password string
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -20,9 +20,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.OkData(w, a)
+	response.Ok(w, a)
 }
 
 func Logout(w http.ResponseWriter, r *http.Request) {
-	response.Ok(w)
+	response.Ok(w, nil)
 }

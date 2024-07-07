@@ -6,5 +6,5 @@ import (
 )
 
 func Submit(w http.ResponseWriter, r *http.Request) {
-	response.Ok(w)
+	response.Ok(w, nil)
 }

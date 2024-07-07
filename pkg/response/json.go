@@ -21,22 +21,14 @@ func sendJsonResponse(w http.ResponseWriter, response JsonResponse) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_, err = w.Write(bs)
 	if err != nil {
 		log.Printf("Send json response error: %s\n", err.Error())
 	}
 }
 
-func Ok(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusOK)
-	sendJsonResponse(w, JsonResponse{
-		Code: 0,
-		Msg:  "OK",
-	})
-}
-
-func OkData(w http.ResponseWriter, data any) {
+func Ok(w http.ResponseWriter, data any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	sendJsonResponse(w, JsonResponse{
 		Code: 0,
@@ -46,6 +38,7 @@ func OkData(w http.ResponseWriter, data any) {
 }
 
 func Error(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	resp := JsonResponse{
 		Code: 500,
 		Msg:  err.Error(),
