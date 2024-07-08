@@ -9,12 +9,13 @@ import (
 )
 
 type Worker struct {
-	id       int64
-	version  int64
-	callback Callback
-	task     chan contract.WorkerTask
-	exit     chan struct{}
-	running  bool
+	id         int64
+	version    int64
+	downloader contract.Downloader
+	callback   Callback
+	task       chan contract.WorkerTask
+	exit       chan struct{}
+	running    bool
 }
 
 type Callback interface {
@@ -24,14 +25,15 @@ type Callback interface {
 }
 
 // NewWorker 创建一个新的任务执行worker
-func NewWorker(id int64, version int64, callback Callback) *Worker {
+func NewWorker(id int64, version int64, downloader contract.Downloader, callback Callback) *Worker {
 	return &Worker{
-		id:       id,
-		version:  version,
-		callback: callback,
-		task:     make(chan contract.WorkerTask, 1),
-		exit:     make(chan struct{}),
-		running:  false,
+		id:         id,
+		version:    version,
+		downloader: downloader,
+		callback:   callback,
+		task:       make(chan contract.WorkerTask, 1),
+		exit:       make(chan struct{}),
+		running:    false,
 	}
 }
 
@@ -107,8 +109,7 @@ func (w *Worker) do(t contract.WorkerTask) {
 		log.Printf("[%s] Handle task done: %s \n", w, t.Url())
 		break
 	case contract.HTMLQueryParseHandler:
-		downloader := t.GetDownloader()
-		s, err := downloader.Download(t.Url())
+		s, err := w.downloader.Download(t.Url())
 		if err != nil {
 			w.callback.Error(w, t, err)
 			log.Printf("[%s] Download (%s) err: %s \n", w, t.Url(), err.Error())

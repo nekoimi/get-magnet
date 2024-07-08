@@ -12,5 +12,4 @@ type DownloadTask interface {
 type WorkerTask interface {
 	Task
 	GetHandler() TaskHandler
-	GetDownloader() Downloader
 }

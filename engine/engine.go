@@ -6,7 +6,7 @@ import (
 	scheduler2 "github.com/nekoimi/get-magnet/engine/scheduler"
 	"github.com/nekoimi/get-magnet/engine/worker"
 	"github.com/nekoimi/get-magnet/event"
-	"github.com/nekoimi/get-magnet/storage"
+	"github.com/nekoimi/get-magnet/pkg/sample_downloader"
 	"log"
 	"modernc.org/mathutil"
 	"sync"
@@ -22,24 +22,24 @@ const (
 
 type Engine struct {
 	// worker操作锁
-	wmux sync.Mutex
-	// workerId 生成
+	workerLock sync.Mutex
+	// workerId生成
 	workerIdNext atomic.Int64
 	// worker最新版本
 	workerLastVersion int64
+	// worker版本生成
 	workerVersionNext atomic.Int64
 	// worker池
 	workers map[int64]*worker.Worker
-
-	// allow to submit
-	allowSubmit bool
-
-	// aria2 rpc 客户端
+	// aria2rpc 客户端
 	aria2 *aria2.Aria2
 	// 任务调度器
 	scheduler *scheduler2.Scheduler
-	// 存储
-	Storage storage.Storage
+	// 下载器
+	downloader contract.Downloader
+
+	// allow to submit
+	allowSubmit bool
 }
 
 // New create new Engine instance
@@ -48,7 +48,7 @@ func New() *Engine {
 		workers:     make(map[int64]*worker.Worker, 0),
 		allowSubmit: true,
 		scheduler:   scheduler2.NewScheduler(),
-		Storage:     storage.NewStorage(storage.Db),
+		downloader:  sample_downloader.New(),
 	}
 
 	event.GetBus().Subscribe(event.ScaleWorker.String(), e.ScaleWorker)
@@ -83,19 +83,20 @@ func (e *Engine) Submit(task contract.WorkerTask) {
 
 // ScaleWorker 更改worker池规模
 func (e *Engine) ScaleWorker(num int) {
-	e.wmux.Lock()
+	e.workerLock.Lock()
+	defer e.workerLock.Unlock()
+
 	e.workerLastVersion = e.workerVersionNext.Add(1)
 	for i := 0; i < mathutil.Min(num, maxWorkerNum); i++ {
 		workerId := e.workerIdNext.Add(1)
 
-		w := worker.NewWorker(workerId, e.workerLastVersion, e)
+		w := worker.NewWorker(workerId, e.workerLastVersion, e.downloader, e)
 		e.workers[workerId] = w
 
 		e.scheduler.Ready(w)
 
 		go w.Run()
 	}
-	e.wmux.Unlock()
 }
 
 func (e *Engine) Success(w *worker.Worker, tasks []contract.WorkerTask, outputs ...any) {
@@ -126,6 +127,9 @@ func (e *Engine) Finally(w *worker.Worker) {
 		e.scheduler.Ready(w)
 	} else {
 		// 不一致: 直接释放掉
+		e.workerLock.Lock()
+		defer e.workerLock.Unlock()
+
 		delete(e.workers, w.Id())
 	}
 }
