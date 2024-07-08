@@ -50,7 +50,7 @@ var (
 	AuthenticationError = &ExtError{
 		Code:       20401,
 		HttpStatus: http.StatusUnauthorized,
-		Msg:        "认证信息异常",
+		Msg:        "身份认证异常",
 	}
 	AuthenticationExpirseError = &ExtError{
 		Code:       20401,

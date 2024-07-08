@@ -31,6 +31,9 @@ type Database struct {
 	MaxIdleConnNum int
 }
 
+const UIDir = "/workspace/ui"
+const UIAriaNgDir = "/workspace/ui/aria-ng"
+
 var cfg *Config
 
 func Default() *Config {

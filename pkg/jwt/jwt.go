@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var TokenExpirseError = errors.New("认证信息已过期")
+var TokenExpireError = errors.New("认证信息已过期")
 
 type Subject interface {
 	GetId() string
@@ -66,7 +66,7 @@ func ParseToken(token string) (string, error) {
 	}
 
 	if !claims.IsValidExpiresAt(time.Now()) {
-		return "", TokenExpirseError
+		return "", TokenExpireError
 	}
 
 	return claims.Subject, nil

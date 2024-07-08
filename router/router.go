@@ -4,21 +4,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/api"
 	"github.com/nekoimi/get-magnet/api/v1"
+	"github.com/nekoimi/get-magnet/config"
 	"github.com/nekoimi/get-magnet/middleware"
 	"log"
-	"net/http"
 )
 
-// const uiStaticDir = "/workspace/ui"
-const uiStaticDir = "C:\\Users\\nekoimi\\Downloads\\vue-next-admin"
-
-//const aria2JsonApi = "/api/aria2/jsonrpc"
-
-//var (
-//	r        *mux.Router
-//	rwmux    sync.RWMutex
-//	routeMap = make(map[string]func(http.ResponseWriter, *http.Request))
-//)
+const aria2JsonApi = "/api/aria2/jsonrpc"
 
 func New() *mux.Router {
 	r := mux.NewRouter()
@@ -33,6 +24,9 @@ func New() *mux.Router {
 		// 登出
 		apiRoute.HandleFunc("/auth/logout", api.Logout)
 
+		// aria2 jsonrpc 代理
+		apiRoute.HandleFunc(aria2JsonApi, api.ReverseAria2())
+
 		v1Api := apiRoute.PathPrefix("/v1").Subrouter()
 		{
 			// 提交下载连接
@@ -41,7 +35,8 @@ func New() *mux.Router {
 	}
 
 	// 静态资源
-	r.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServer(http.Dir(uiStaticDir))))
+	r.PathPrefix("/ui/aria-ng/").Handler(api.Aria2WebUI(config.UIAriaNgDir))
+	r.PathPrefix("/").Handler(api.AdminUI(config.UIDir))
 
 	routeDebugPrint(r)
 
@@ -56,39 +51,3 @@ func routeDebugPrint(r *mux.Router) {
 	})
 }
 
-//// Get 获取路由实例
-//func Get() *mux.Router {
-//	return r
-//}
-
-//// EnableAria2Reverse 开启aria2接口反向代理
-//func EnableAria2Reverse(jsonrpcUrl *url.URL) {
-//	rwmux.Lock()
-//	defer rwmux.Unlock()
-//	delete(routeMap, aria2JsonApi)
-//
-//	// 设置aria2接口代理，方便前端统一接口调用
-//	routeMap[aria2JsonApi] = reverse.NewReverseAria2(jsonrpcUrl)
-//	refreshRouter()
-//	log.Printf("注册aria2接口代理路由: %s => %s \n", aria2JsonApi, jsonrpcUrl)
-//}
-//
-//// DisableAria2Reverse 禁用aria2接口反向代理
-//func DisableAria2Reverse() {
-//	rwmux.Lock()
-//	defer rwmux.Unlock()
-//	delete(routeMap, aria2JsonApi)
-//
-//	refreshRouter()
-//	log.Printf("取消注册aria2接口代理路由: %s\n", aria2JsonApi)
-//}
-//
-//// 刷新路由
-//func refreshRouter() {
-//	r := mux.NewRouter()
-//	r.Use(middleware.AuthMiddleware())
-//	for path, handler := range routeMap {
-//		r.HandleFunc(path, handler)
-//		log.Printf("注册路由: %s\n", path)
-//	}
-//}

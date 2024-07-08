@@ -7,36 +7,49 @@ import (
 	"github.com/nekoimi/get-magnet/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/pkg/jwt"
 	"github.com/nekoimi/get-magnet/pkg/request"
-	"github.com/nekoimi/get-magnet/pkg/response"
+	"github.com/nekoimi/get-magnet/pkg/respond"
 	"log"
 	"net/http"
+	"strings"
 )
 
 var allowRequestUriMap = make(map[string]struct{})
+
+func init() {
+	allowRequestUriMap["/ui/aria-ng"] = struct{}{}
+	allowRequestUriMap["/api/auth/login"] = struct{}{}
+}
 
 func AuthMiddleware() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			uri := r.RequestURI
-			if _, ok := allowRequestUriMap[uri]; ok {
-				next.ServeHTTP(w, r)
-				return
+			for path := range allowRequestUriMap {
+				if uri == path || strings.HasPrefix(uri, path) {
+					next.ServeHTTP(w, r)
+					return
+				}
 			}
 
 			token := r.Header.Get("Authorization")
 			if token == "" {
-				if c, err := r.Cookie("token"); err != nil {
-					log.Printf("获取请求cookie异常: %s\n", err.Error())
-				} else {
+				if c, err := r.Cookie("token"); err == nil {
 					token = c.Value
+				} else {
+					log.Printf("获取请求cookie异常: %s\n", err.Error())
 				}
 			}
 
+			if token == "" {
+				respond.Error(w, error_ext.AuthenticationError)
+				return
+			}
+
 			if sub, err := jwt.ParseToken(token); err != nil {
-				if errors.Is(err, jwt.TokenExpirseError) {
-					response.Error(w, error_ext.AuthenticationExpirseError)
+				if errors.Is(err, jwt.TokenExpireError) {
+					respond.Error(w, error_ext.AuthenticationExpirseError)
 				} else {
-					response.Error(w, err)
+					respond.Error(w, err)
 				}
 				return
 			} else {

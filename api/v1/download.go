@@ -1,10 +1,10 @@
 package v1
 
 import (
-	"github.com/nekoimi/get-magnet/pkg/response"
+	"github.com/nekoimi/get-magnet/pkg/respond"
 	"net/http"
 )
 
 func Submit(w http.ResponseWriter, r *http.Request) {
-	response.Ok(w, nil)
+	respond.Ok(w, nil)
 }
