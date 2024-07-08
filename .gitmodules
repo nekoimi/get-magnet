@@ -1,0 +1,8 @@
+[submodule "ui/get-magnet-ui"]
+	path = ui/get-magnet-ui
+	url = https://github.com/nekoimi/get-magnet-ui.git
+	branch = master
+[submodule "ui/aria-ng"]
+	path = ui/aria-ng
+	url = https://github.com/mayswind/AriaNg.git
+	branch = master
