@@ -54,6 +54,16 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	respond.Ok(w, result)
 }
 
+// Me 获取当前登录用户信息
+func Me(w http.ResponseWriter, r *http.Request) {
+	u, ok := request.JwtUser(w, r)
+	if !ok {
+		return
+	}
+
+	respond.Ok(w, u)
+}
+
 // Logout 退出登录
 func Logout(w http.ResponseWriter, r *http.Request) {
 	u, ok := request.JwtUser(w, r)

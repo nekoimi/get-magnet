@@ -54,8 +54,9 @@ func AuthMiddleware() mux.MiddlewareFunc {
 				return
 			} else {
 				// 将用户信息放到Context传递下去
+
 				authCtx := context.WithValue(r.Context(), request.ContextJwtUser, sub)
-				r.WithContext(authCtx)
+				r = r.WithContext(authCtx)
 			}
 
 			// next

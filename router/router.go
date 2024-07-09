@@ -16,6 +16,9 @@ func New() *mux.Router {
 	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(middleware.LoggingMiddleware)
 	r.Use(middleware.AuthMiddleware())
+
+	// aria2 jsonrpc 代理
+	r.HandleFunc(aria2JsonApi, api.ReverseAria2())
 	// 接口
 	apiRoute := r.PathPrefix("/api").Subrouter()
 	{
@@ -24,11 +27,10 @@ func New() *mux.Router {
 		// 登出
 		apiRoute.HandleFunc("/auth/logout", api.Logout)
 
-		// aria2 jsonrpc 代理
-		apiRoute.HandleFunc(aria2JsonApi, api.ReverseAria2())
-
 		v1Api := apiRoute.PathPrefix("/v1").Subrouter()
 		{
+			// 获取当前用户信息
+			v1Api.HandleFunc("/me", api.Me)
 			// 提交下载连接
 			v1Api.HandleFunc("/download/submit", v1.Submit)
 		}
@@ -50,4 +52,3 @@ func routeDebugPrint(r *mux.Router) {
 		return nil
 	})
 }
-
