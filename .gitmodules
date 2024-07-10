@@ -5,3 +5,4 @@
 [submodule "ui/aria-ng"]
 	path = ui/aria-ng
 	url = https://github.com/nekoimi/AriaNg.git
+	branch = master
