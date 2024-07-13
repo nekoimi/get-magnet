@@ -1,11 +1,11 @@
 package engine
 
 import (
-	"github.com/nekoimi/get-magnet/aria2"
-	"github.com/nekoimi/get-magnet/contract"
-	scheduler2 "github.com/nekoimi/get-magnet/engine/scheduler"
-	"github.com/nekoimi/get-magnet/engine/worker"
-	"github.com/nekoimi/get-magnet/event"
+	"github.com/nekoimi/get-magnet/core/aria2"
+	"github.com/nekoimi/get-magnet/core/contract"
+	"github.com/nekoimi/get-magnet/core/engine/scheduler"
+	"github.com/nekoimi/get-magnet/core/engine/worker"
+	"github.com/nekoimi/get-magnet/core/event"
 	"github.com/nekoimi/get-magnet/pkg/sample_downloader"
 	"log"
 	"modernc.org/mathutil"
@@ -34,7 +34,7 @@ type Engine struct {
 	// aria2rpc 客户端
 	aria2 *aria2.Aria2
 	// 任务调度器
-	scheduler *scheduler2.Scheduler
+	scheduler *scheduler.Scheduler
 	// 下载器
 	downloader contract.Downloader
 
@@ -47,7 +47,7 @@ func New() *Engine {
 	e := &Engine{
 		workers:     make(map[int64]*worker.Worker, 0),
 		allowSubmit: true,
-		scheduler:   scheduler2.NewScheduler(),
+		scheduler:   scheduler.NewScheduler(),
 		downloader:  sample_downloader.New(),
 	}
 

@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 	"github.com/nekoimi/get-magnet/config"
+	"github.com/nekoimi/get-magnet/core/engine"
 	"github.com/nekoimi/get-magnet/database"
-	"github.com/nekoimi/get-magnet/engine"
 	"github.com/nekoimi/get-magnet/router"
 	"github.com/robfig/cron/v3"
 	"log"

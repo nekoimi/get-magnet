@@ -2,9 +2,8 @@ package javdb
 
 import (
 	"github.com/PuerkitoBio/goquery"
-	"github.com/nekoimi/get-magnet/common"
-	"github.com/nekoimi/get-magnet/common/model"
-	"github.com/nekoimi/get-magnet/pkg/db"
+	"github.com/nekoimi/get-magnet/model/common"
+	"github.com/nekoimi/get-magnet/model/common/model"
 	"log"
 	"strings"
 )
@@ -30,23 +29,23 @@ func ChineseSubtitlesMovieList(meta *common.Meta, selection *goquery.Selection) 
 	for _, s := range detailsHrefArr {
 		sqlArgs = append(sqlArgs, s)
 	}
-	sql := "SELECT res_path FROM magnets WHERE res_path IN (?" + strings.Repeat(", ?", len(sqlArgs)-1) + ")"
-	rs, err := db.Get().Query(sql, sqlArgs...)
-	if err != nil {
-		return common.NewEmptyOut(), err
-	}
-	defer rs.Close()
-	for rs.Next() {
-		var resPath string
-		err := rs.Scan(&resPath)
-		if err != nil {
-			log.Printf("sql result err: %s \n", err.Error())
-			continue
-		}
-		log.Printf("exists path: %s \n", resPath)
-
-		existsPathSet[resPath] = 0
-	}
+	//sql := "SELECT res_path FROM magnets WHERE res_path IN (?" + strings.Repeat(", ?", len(sqlArgs)-1) + ")"
+	//rs, err := db.Get().Query(sql, sqlArgs...)
+	//if err != nil {
+	//	return common.NewEmptyOut(), err
+	//}
+	//defer rs.Close()
+	//for rs.Next() {
+	//	var resPath string
+	//	err := rs.Scan(&resPath)
+	//	if err != nil {
+	//		log.Printf("sql result err: %s \n", err.Error())
+	//		continue
+	//	}
+	//	log.Printf("exists path: %s \n", resPath)
+	//
+	//	existsPathSet[resPath] = 0
+	//}
 
 	// 获取不存在的href列表
 	var notExistsPathArr []string

@@ -2,8 +2,8 @@ package scheduler
 
 import (
 	"context"
-	"github.com/nekoimi/get-magnet/contract"
-	"github.com/nekoimi/get-magnet/engine/worker"
+	"github.com/nekoimi/get-magnet/core/contract"
+	"github.com/nekoimi/get-magnet/core/engine/worker"
 	"github.com/nekoimi/get-magnet/pkg/queue"
 	"log"
 )

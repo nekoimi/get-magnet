@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/nekoimi/get-magnet/contract"
+	"github.com/nekoimi/get-magnet/core/contract"
 	"log"
 	"math/rand"
 	"net/http"

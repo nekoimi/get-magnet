@@ -3,8 +3,8 @@ package router
 import (
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/api"
+	"github.com/nekoimi/get-magnet/api/middleware"
 	"github.com/nekoimi/get-magnet/config"
-	"github.com/nekoimi/get-magnet/middleware"
 	"log"
 )
 

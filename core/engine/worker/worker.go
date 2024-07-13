@@ -3,7 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
-	"github.com/nekoimi/get-magnet/contract"
+	contract2 "github.com/nekoimi/get-magnet/core/contract"
 	"log"
 	"time"
 )
@@ -11,27 +11,27 @@ import (
 type Worker struct {
 	id         int64
 	version    int64
-	downloader contract.Downloader
+	downloader contract2.Downloader
 	callback   Callback
-	task       chan contract.WorkerTask
+	task       chan contract2.WorkerTask
 	exit       chan struct{}
 	running    bool
 }
 
 type Callback interface {
-	Success(w *Worker, tasks []contract.WorkerTask, outputs ...any)
-	Error(w *Worker, t contract.WorkerTask, err error)
+	Success(w *Worker, tasks []contract2.WorkerTask, outputs ...any)
+	Error(w *Worker, t contract2.WorkerTask, err error)
 	Finally(w *Worker)
 }
 
 // NewWorker 创建一个新的任务执行worker
-func NewWorker(id int64, version int64, downloader contract.Downloader, callback Callback) *Worker {
+func NewWorker(id int64, version int64, downloader contract2.Downloader, callback Callback) *Worker {
 	return &Worker{
 		id:         id,
 		version:    version,
 		downloader: downloader,
 		callback:   callback,
-		task:       make(chan contract.WorkerTask, 1),
+		task:       make(chan contract2.WorkerTask, 1),
 		exit:       make(chan struct{}),
 		running:    false,
 	}
@@ -61,7 +61,7 @@ func (w *Worker) Version() int64 {
 }
 
 // Deliver 投递任务
-func (w *Worker) Deliver(t contract.WorkerTask) {
+func (w *Worker) Deliver(t contract2.WorkerTask) {
 	w.task <- t
 }
 
@@ -88,7 +88,7 @@ func (w *Worker) Stop() {
 }
 
 // do 执行任务
-func (w *Worker) do(t contract.WorkerTask) {
+func (w *Worker) do(t contract2.WorkerTask) {
 	w.running = true
 	defer func() {
 		w.callback.Finally(w)
@@ -97,8 +97,8 @@ func (w *Worker) do(t contract.WorkerTask) {
 
 	handler := t.GetHandler()
 	switch handler.(type) {
-	case contract.SimpleTaskHandler:
-		simpleHandler := handler.(contract.SimpleTaskHandler)
+	case contract2.SimpleTaskHandler:
+		simpleHandler := handler.(contract2.SimpleTaskHandler)
 		tasks, output, err := simpleHandler.Handle(t.Url())
 		if err != nil {
 			w.callback.Error(w, t, err)
@@ -108,14 +108,14 @@ func (w *Worker) do(t contract.WorkerTask) {
 		w.callback.Success(w, tasks, output)
 		log.Printf("[%s] Handle task done: %s \n", w, t.Url())
 		break
-	case contract.HTMLQueryParseHandler:
+	case contract2.HTMLQueryParseHandler:
 		s, err := w.downloader.Download(t.Url())
 		if err != nil {
 			w.callback.Error(w, t, err)
 			log.Printf("[%s] Download (%s) err: %s \n", w, t.Url(), err.Error())
 			return
 		}
-		parseHandler := handler.(contract.HTMLQueryParseHandler)
+		parseHandler := handler.(contract2.HTMLQueryParseHandler)
 		tasks, output, err := parseHandler.Handle(s)
 		if err != nil {
 			w.callback.Error(w, t, err)

@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
+	"github.com/nekoimi/get-magnet/cmd/server"
 	"github.com/nekoimi/get-magnet/config"
-	"github.com/nekoimi/get-magnet/server"
 	"log"
 )
 

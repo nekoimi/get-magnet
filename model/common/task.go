@@ -2,7 +2,7 @@ package common
 
 import (
 	"github.com/PuerkitoBio/goquery"
-	"github.com/nekoimi/get-magnet/common/model"
+	"github.com/nekoimi/get-magnet/model/common/model"
 	"github.com/nekoimi/get-magnet/pkg/util"
 	"net/url"
 )

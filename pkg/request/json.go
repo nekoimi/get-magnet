@@ -26,7 +26,8 @@ func JwtUser(w http.ResponseWriter, r *http.Request) (jwt.Subject, bool) {
 			respond.Error(w, err)
 			return nil, false
 		}
-		u := &table.Admin{Id: id}
+		u := new(table.Admin)
+		u.Id = id
 		if has, err := database.Instance().Get(u); err != nil {
 			respond.Error(w, err)
 			return nil, false

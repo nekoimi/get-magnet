@@ -5,8 +5,7 @@ import (
 	"errors"
 	"github.com/cenkalti/rpc2"
 	"github.com/nekoimi/arigo"
-	"github.com/nekoimi/get-magnet/contract"
-	"github.com/nekoimi/get-magnet/pkg/aria2_ext"
+	"github.com/nekoimi/get-magnet/core/contract"
 	"github.com/nekoimi/get-magnet/pkg/queue"
 	"github.com/nekoimi/get-magnet/pkg/util"
 	"log"
@@ -17,7 +16,7 @@ import (
 )
 
 type Aria2 struct {
-	cmux            *sync.Mutex
+	cMux            *sync.Mutex
 	_client         *arigo.Client
 	downloadChan    chan contract.DownloadTask
 	bestSelectQueue *queue.Queue[string]
@@ -126,14 +125,14 @@ func (a *Aria2) bestFileSelectWork() {
 			needChangeOps := false
 			for _, f := range files {
 				// if selected non best, need re-change options
-				if f.Selected && !aria2_ext.IsBestFile(f) {
+				if f.Selected && !IsBestFile(f) {
 					needChangeOps = true
 					break
 				}
 			}
 
 			if needChangeOps {
-				allowFiles := aria2_ext.BestSelectFile(files)
+				allowFiles := BestSelectFile(files)
 				var builder strings.Builder
 				for _, a := range allowFiles {
 					builder.WriteString(strconv.Itoa(a.Index))
@@ -181,8 +180,8 @@ func (a *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
 }
 
 func (a *Aria2) client() *arigo.Client {
-	a.cmux.Lock()
-	defer a.cmux.Unlock()
+	a.cMux.Lock()
+	defer a.cMux.Unlock()
 
 	err := a.ping()
 	if err != nil {

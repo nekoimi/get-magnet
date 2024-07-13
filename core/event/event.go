@@ -1,6 +1,8 @@
 package event
 
-import "github.com/nekoimi/get-magnet/internal/bus"
+import (
+	"github.com/nekoimi/get-magnet/core/bus"
+)
 
 type Type int
 
