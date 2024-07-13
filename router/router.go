@@ -3,7 +3,6 @@ package router
 import (
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/api"
-	"github.com/nekoimi/get-magnet/api/v1"
 	"github.com/nekoimi/get-magnet/config"
 	"github.com/nekoimi/get-magnet/middleware"
 	"log"
@@ -31,8 +30,10 @@ func New() *mux.Router {
 		{
 			// 获取当前用户信息
 			v1Api.HandleFunc("/me", api.Me)
+			// 修改当前用户密码
+			v1Api.HandleFunc("/me/changePwd", api.ChangePassword)
 			// 提交下载连接
-			v1Api.HandleFunc("/download/submit", v1.Submit)
+			v1Api.HandleFunc("/download/submit", api.Submit)
 		}
 	}
 
