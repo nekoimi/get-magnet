@@ -20,11 +20,12 @@ type Task struct {
 
 // Meta Task meta info
 type Meta struct {
-	Host    string `json:"host,omitempty"`
-	UrlPath string `json:"url_path,omitempty"`
+	PageIndex int    `json:"page_index,omitempty"`
+	Host      string `json:"host,omitempty"`
+	UrlPath   string `json:"url_path,omitempty"`
 }
 
-func NewTask(urlStr string, handle Handle) *Task {
+func NewTask(pageIndex int, urlStr string, handle Handle) *Task {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		panic(err)
@@ -35,8 +36,9 @@ func NewTask(urlStr string, handle Handle) *Task {
 		Url:        urlStr,
 		Handle:     handle,
 		Meta: &Meta{
-			Host:    u.Scheme + "://" + u.Host,
-			UrlPath: u.Path,
+			PageIndex: pageIndex,
+			Host:      u.Scheme + "://" + u.Host,
+			UrlPath:   u.Path,
 		},
 	}
 }

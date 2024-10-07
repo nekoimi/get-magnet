@@ -21,13 +21,13 @@ func Top250List(meta *task.Meta, selection *goquery.Selection) (*task.Out, error
 		imgUrl := s.Find("div.pic>a>img").AttrOr("src", "")
 		log.Printf("ImgUrl: %s \n", imgUrl)
 
-		keepTasks = append(keepTasks, task.NewTask(detailsUrl, Details))
+		keepTasks = append(keepTasks, task.NewTask(meta.PageIndex+1, detailsUrl, Details))
 	})
 
 	// next
 	if nextUrl, exists := selection.Find("div.paginator>span.next>a").Attr("href"); exists {
 		log.Printf("NextUrl: %s \n", meta.Host+"/top250"+nextUrl)
-		keepTasks = append(keepTasks, task.NewTask(meta.Host+"/top250"+nextUrl, Top250List))
+		keepTasks = append(keepTasks, task.NewTask(meta.PageIndex+1, meta.Host+"/top250"+nextUrl, Top250List))
 	}
 
 	return task.NewOut(keepTasks, nil), nil

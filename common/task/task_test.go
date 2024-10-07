@@ -13,6 +13,6 @@ func TestNewTask(t *testing.T) {
 
 	t.Log(u.Scheme, " ", u.Host, " ", u.Path)
 
-	task := NewTask("https://movie.douban.com/top250", nil)
+	task := NewTask(1, "https://movie.douban.com/top250", nil)
 	t.Log(task)
 }
