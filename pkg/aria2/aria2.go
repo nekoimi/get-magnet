@@ -56,6 +56,8 @@ func (aria *Aria2) Run() {
 		select {
 		case item := <-aria.magnetChan:
 			aria.createDownload(item)
+		default:
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }

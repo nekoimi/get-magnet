@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type Engine struct {
@@ -84,6 +85,8 @@ func (e *Engine) Run() {
 			default:
 				log.Println("Ignore Signal: ", s)
 			}
+		default:
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
