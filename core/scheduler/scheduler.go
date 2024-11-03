@@ -93,6 +93,7 @@ func (s *Scheduler) Run() {
 			s.activeWorkerQueue = append(s.activeWorkerQueue, w)
 		default:
 			if activeWorker == nil || activeTask == nil {
+				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 			activeWorker.taskQueue <- activeTask

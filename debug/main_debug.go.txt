@@ -1,0 +1,55 @@
+package debug
+
+import (
+	"flag"
+	"github.com/nekoimi/get-magnet/core/engine"
+	"github.com/nekoimi/get-magnet/storage"
+	"log"
+	"net/http"
+	"os"
+	"runtime"
+
+	// go get -d github.com/wolfogre/go-pprof-practice
+	_ "net/http/pprof" // 会自动注册 handler 到 http server，方便通过 http 接口获取程序运行采样报告
+)
+
+var cfg = engine.Config{
+	Storage: storage.Db,
+}
+
+func init() {
+	log.SetFlags(log.Lshortfile | log.Ldate | log.Lmicroseconds)
+
+	flag.IntVar(&cfg.WorkerNum, "worker", 1, "start worker count")
+	flag.StringVar(&cfg.DbDsn, "dsn", "", "db dsn")
+	flag.StringVar(&cfg.Jsonrpc, "jsonrpc", "", "aria2 jsonrpc address")
+	flag.StringVar(&cfg.Secret, "secret", "", "aria2 jsonrpc secret")
+}
+
+func main() {
+	runtime.GOMAXPROCS(1)              // 限制 CPU 使用数，避免过载
+	runtime.SetMutexProfileFraction(1) // 开启对锁调用的跟踪
+	runtime.SetBlockProfileRate(1)     // 开启对阻塞操作的跟踪
+
+	flag.Parse()
+	e := engine.New(&cfg)
+
+	// 立即执行
+	//e.Submit(task.NewTask(1, "https://javdb.com/censored?vft=2&vst=2", javdb.ChineseSubtitlesMovieList))
+	// 定时执行
+	//e.CronSubmit("00 2 * * *", task.NewTask(1, "https://javdb.com/censored?vft=2&vst=2", javdb.ChineseSubtitlesMovieList))
+
+	go func() {
+		// 启动一个 http server，注意 pprof 相关的 handler 已经自动注册过了
+		if err := http.ListenAndServe(":6060", nil); err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	}()
+
+	e.Run()
+	//
+	//app := iris.New()
+	//
+	//app.Listen(":8080")
+}
