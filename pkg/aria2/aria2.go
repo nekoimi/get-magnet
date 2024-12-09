@@ -115,6 +115,7 @@ func (aria *Aria2) bestFileSelectWork() {
 			status, err := aria.client.Client().TellStatus(magnetId, "status", "errorCode", "errorMessage", "dir", "files")
 			if err != nil {
 				log.Printf("fetch GID#%s download status err: %s \n", magnetId, err.Error())
+				delete(aria.magnetMap, magnetId)
 				continue
 			}
 
