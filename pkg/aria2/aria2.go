@@ -13,15 +13,43 @@ import (
 	"time"
 )
 
-type Aria2 struct {
-	client *aria2_client.SafeClient
-
-	magnetChan chan *model.Item
-
+type ActiveRepo struct {
 	mmu       *sync.Mutex
 	magnetMap map[string]struct{}
+}
 
-	exit chan struct{}
+func NewActiveRepo() *ActiveRepo {
+	return &ActiveRepo{
+		mmu:       &sync.Mutex{},
+		magnetMap: make(map[string]struct{}),
+	}
+}
+
+func (ar *ActiveRepo) Put(gid string) {
+	ar.mmu.Lock()
+	defer ar.mmu.Unlock()
+	ar.magnetMap[gid] = struct{}{}
+}
+
+func (ar *ActiveRepo) Del(gid string) {
+	ar.mmu.Lock()
+	defer ar.mmu.Unlock()
+	delete(ar.magnetMap, gid)
+}
+
+func (ar *ActiveRepo) Each(callback func(gid string)) {
+	ar.mmu.Lock()
+	defer ar.mmu.Unlock()
+	for gid := range ar.magnetMap {
+		callback(gid)
+	}
+}
+
+type Aria2 struct {
+	client     *aria2_client.SafeClient
+	magnetChan chan *model.Item
+	ar         *ActiveRepo
+	exit       chan struct{}
 }
 
 func New(jsonrpc string, secret string) *Aria2 {
@@ -30,8 +58,7 @@ func New(jsonrpc string, secret string) *Aria2 {
 	aria := &Aria2{
 		client:     client,
 		magnetChan: make(chan *model.Item),
-		mmu:        &sync.Mutex{},
-		magnetMap:  make(map[string]struct{}),
+		ar:         NewActiveRepo(),
 		exit:       make(chan struct{}),
 	}
 
@@ -97,9 +124,7 @@ func (aria *Aria2) createDownload(item *model.Item) {
 		return
 	}
 
-	aria.mmu.Lock()
-	defer aria.mmu.Unlock()
-	aria.magnetMap[g.GID] = struct{}{}
+	aria.ar.Put(g.GID)
 }
 
 func (aria *Aria2) bestFileSelectWork() {
@@ -111,22 +136,25 @@ func (aria *Aria2) bestFileSelectWork() {
 		default:
 		}
 
-		for magnetId := range aria.magnetMap {
-			status, err := aria.client.Client().TellStatus(magnetId, "status", "errorCode", "errorMessage", "dir", "files")
+		var dels []string
+		// Each active items
+		aria.ar.Each(func(gid string) {
+			status, err := aria.client.Client().TellStatus(gid, "status", "errorCode", "errorMessage", "dir", "files")
 			if err != nil {
-				log.Printf("fetch GID#%s download status err: %s \n", magnetId, err.Error())
-				delete(aria.magnetMap, magnetId)
-				continue
+				log.Printf("fetch GID#%s download status err: %s \n", gid, err.Error())
+				dels = append(dels, gid)
+				return
 			}
 
 			if status.Status != arigo.StatusActive {
-				log.Printf("GID#%s Status not active: %s \n", magnetId, status.Status)
-				continue
+				log.Printf("GID#%s Status not active: %s \n", gid, status.Status)
+				dels = append(dels, gid)
+				return
 			}
 
 			files := status.Files
 			if len(files) <= 1 {
-				continue
+				return
 			}
 
 			needChangeOps := false
@@ -147,48 +175,51 @@ func (aria *Aria2) bestFileSelectWork() {
 				}
 				// selectFile, _ := strings.CutSuffix(builder.String(), ",")
 				selectIndex := builder.String()
-				err = aria.client.Client().ChangeOptions(magnetId, arigo.Options{
+				err = aria.client.Client().ChangeOptions(gid, arigo.Options{
 					SelectFile: selectIndex,
 				})
 				if err != nil {
-					log.Printf("change GID#%s options (select-file=%s) err: %s \n", magnetId, selectIndex, err.Error())
+					log.Printf("change GID#%s options (select-file=%s) err: %s \n", gid, selectIndex, err.Error())
 					return
 				}
 
 				log.Println("SELECT-Files: ", selectIndex)
+				dels = append(dels, gid)
 			}
+		})
+
+		for i := range dels {
+			aria.ar.Del(dels[i])
 		}
 	}
 }
 
 func (aria *Aria2) startEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s startEventHandle\n", event.GID)
-
-	aria.mmu.Lock()
-	defer aria.mmu.Unlock()
-	aria.magnetMap[event.GID] = struct{}{}
+	aria.ar.Put(event.GID)
 }
 
 func (aria *Aria2) pauseEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s pauseEventHandle\n", event.GID)
+	aria.ar.Del(event.GID)
 }
 
 func (aria *Aria2) stopEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s stopEventHandle\n", event.GID)
+	aria.ar.Del(event.GID)
 }
 
 func (aria *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s completeEventHandle\n", event.GID)
-
-	aria.mmu.Lock()
-	defer aria.mmu.Unlock()
-	delete(aria.magnetMap, event.GID)
+	aria.ar.Del(event.GID)
 }
 
 func (aria *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s btCompleteEventHandle\n", event.GID)
+	aria.ar.Del(event.GID)
 }
 
 func (aria *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
 	log.Printf("GID#%s errorEventHandle\n", event.GID)
+	aria.ar.Del(event.GID)
 }
