@@ -27,9 +27,9 @@ func main() {
 	e := engine.New(&cfg)
 
 	// 立即执行
-	e.Submit(task.NewTask(1, "https://javdb.com/censored?vft=2&vst=2", javdb.ChineseSubtitlesMovieList))
+	e.Submit(task.NewTask(1, "https://javdb.com/censored?vft=2&vst=1", javdb.ChineseSubtitlesMovieList))
 	// 定时执行
-	e.CronSubmit("00 2 * * *", task.NewTask(1, "https://javdb.com/censored?vft=2&vst=2", javdb.ChineseSubtitlesMovieList))
+	e.CronSubmit("00 2 * * *", task.NewTask(1, "https://javdb.com/censored?vft=2&vst=1", javdb.ChineseSubtitlesMovieList))
 
 	e.Run()
 	//
