@@ -95,7 +95,12 @@ func MovieDetails(meta *task.Meta, s *goquery.Selection) (*task.Out, error) {
 				log.Printf("高清字幕: %s => %s \n", torrentName, torrentUrl)
 				linksMap[torrentUrl] = strings.ToUpper(torrentName)
 			} else {
-				log.Printf("非高清字幕: %s => %s \n", torrentName, torrentUrl)
+				upperTorrentName := strings.ToUpper(torrentName)
+				if strings.Contains(upperTorrentName, "-UC") || strings.Contains(upperTorrentName, "-C") || strings.Contains(upperTorrentName, "-U") {
+					linksMap[torrentUrl] = upperTorrentName
+				} else {
+					log.Printf("非高清字幕: %s => %s \n", torrentName, torrentUrl)
+				}
 			}
 		}
 	})
