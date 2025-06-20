@@ -151,7 +151,7 @@ func (aria *Aria2) bestFileSelectWork() {
 				// 检查任务的下载速度
 				currDownloadSpeed := status.DownloadSpeed
 				var zeroNum int8
-				if currDownloadSpeed <= 0 {
+				if currDownloadSpeed < LowSpeedThreshold {
 					if num, ok := aria.zeroSpeedCounter[gid]; !ok {
 						zeroNum = 1
 					} else {

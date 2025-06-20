@@ -9,6 +9,9 @@ import (
 // ZeroSpeedThreshold 超过几次检查下载速度为0速就暂停
 const ZeroSpeedThreshold = 10
 
+// LowSpeedThreshold 速度小于100KB，speed 单位是 Bytes/s
+const LowSpeedThreshold = 102400
+
 // MinVideoSize 文件最小大小：100M
 const MinVideoSize = 100_000_000
 
