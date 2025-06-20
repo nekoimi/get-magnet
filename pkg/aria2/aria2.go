@@ -166,7 +166,7 @@ func (aria *Aria2) bestFileSelectWork() {
 							log.Printf("Pause %s download status err: %s \n", gid, err.Error())
 							continue
 						}
-						log.Printf("任务：%s 下载速度一直为0，暂停\n", gid)
+						log.Printf("暂停任务：%s 下载速度一直小于 %d 字节/s\n", gid, LowSpeedThreshold)
 						continue
 					}
 
