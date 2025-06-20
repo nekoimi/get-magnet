@@ -130,7 +130,7 @@ func (aria *Aria2) createDownload(item *model.Item) {
 }
 
 func (aria *Aria2) bestFileSelectWork() {
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
