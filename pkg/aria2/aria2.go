@@ -46,20 +46,22 @@ func (ar *ActiveRepo) Each(callback func(gid string)) {
 }
 
 type Aria2 struct {
-	client     *aria2_client.SafeClient
-	magnetChan chan *model.Item
-	ar         *ActiveRepo
-	exit       chan struct{}
+	client           *aria2_client.SafeClient
+	magnetChan       chan *model.Item
+	ar               *ActiveRepo
+	zeroSpeedCounter map[string]int8
+	exit             chan struct{}
 }
 
 func New(jsonrpc string, secret string) *Aria2 {
 	client := aria2_client.New(jsonrpc, secret)
 
 	aria := &Aria2{
-		client:     client,
-		magnetChan: make(chan *model.Item),
-		ar:         NewActiveRepo(),
-		exit:       make(chan struct{}),
+		client:           client,
+		magnetChan:       make(chan *model.Item),
+		ar:               NewActiveRepo(),
+		zeroSpeedCounter: make(map[string]int8),
+		exit:             make(chan struct{}),
 	}
 
 	aria.client.Client().Subscribe(arigo.StartEvent, aria.startEventHandle)
@@ -128,68 +130,91 @@ func (aria *Aria2) createDownload(item *model.Item) {
 }
 
 func (aria *Aria2) bestFileSelectWork() {
+	ticker := time.NewTicker(60 * time.Second)
 	for {
-		time.Sleep(30 * time.Second)
 		select {
-		case <-aria.exit:
-			return
-		default:
-		}
-
-		var dels []string
-		// Each active items
-		aria.ar.Each(func(gid string) {
-			status, err := aria.client.Client().TellStatus(gid, "status", "errorCode", "errorMessage", "dir", "files")
+		case <-ticker.C:
+			// Each active items
+			activeStatus, err := aria.client.Client().TellActive("gid", "status", "errorCode", "errorMessage", "dir", "files", "downloadSpeed")
 			if err != nil {
-				log.Printf("fetch GID#%s download status err: %s \n", gid, err.Error())
-				dels = append(dels, gid)
-				return
+				log.Printf("fetch download status err: %s \n", err.Error())
+				continue
 			}
 
-			if status.Status != arigo.StatusActive {
-				log.Printf("GID#%s Status not active: %s \n", gid, status.Status)
-				dels = append(dels, gid)
-				return
-			}
-
-			files := status.Files
-			if len(files) <= 1 {
-				return
-			}
-
-			needChangeOps := false
-			for _, f := range files {
-				// if selected non best, need re-change options
-				if f.Selected && !IsBestFile(f) {
-					needChangeOps = true
-					break
-				}
-			}
-
-			if needChangeOps {
-				allowFiles := BestSelectFile(files)
-				var builder strings.Builder
-				for _, a := range allowFiles {
-					builder.WriteString(strconv.Itoa(a.Index))
-					builder.WriteString(",")
-				}
-				// selectFile, _ := strings.CutSuffix(builder.String(), ",")
-				selectIndex := builder.String()
-				err = aria.client.Client().ChangeOptions(gid, arigo.Options{
-					SelectFile: selectIndex,
-				})
-				if err != nil {
-					log.Printf("change GID#%s options (select-file=%s) err: %s \n", gid, selectIndex, err.Error())
-					return
+			for _, status := range activeStatus {
+				gid := status.GID
+				if status.Status != arigo.StatusActive {
+					log.Printf("GID#%s Status not active: %s \n", gid, status.Status)
+					continue
 				}
 
-				log.Println("SELECT-Files: ", selectIndex)
-				dels = append(dels, gid)
-			}
-		})
+				// 检查任务的下载速度
+				currDownloadSpeed := status.DownloadSpeed
+				var zeroNum int8
+				if currDownloadSpeed <= 0 {
+					if num, ok := aria.zeroSpeedCounter[gid]; !ok {
+						zeroNum = 1
+					} else {
+						zeroNum = num + 1
+					}
 
-		for i := range dels {
-			aria.ar.Del(dels[i])
+					if zeroNum > ZeroSpeedThreshold {
+						delete(aria.zeroSpeedCounter, gid)
+						// 下载速度一直为0，直接暂停该任务
+						err = aria.client.Client().Pause(gid)
+						if err != nil {
+							log.Printf("Pause %s download status err: %s \n", gid, err.Error())
+							continue
+						}
+						log.Printf("任务：%s 下载速度一直为0，暂停\n", gid)
+						continue
+					}
+
+					aria.zeroSpeedCounter[gid] = zeroNum
+				} else {
+					if num, ok := aria.zeroSpeedCounter[gid]; ok {
+						if num > 0 {
+							aria.zeroSpeedCounter[gid] = num - 1
+						} else {
+							delete(aria.zeroSpeedCounter, gid)
+						}
+					}
+				}
+
+				files := status.Files
+				if len(files) <= 1 {
+					continue
+				}
+
+				needChangeOps := false
+				for _, f := range files {
+					// if selected non best, need re-change options
+					if f.Selected && !IsBestFile(f) {
+						needChangeOps = true
+						break
+					}
+				}
+
+				if needChangeOps {
+					allowFiles := BestSelectFile(files)
+					var builder strings.Builder
+					for _, a := range allowFiles {
+						builder.WriteString(strconv.Itoa(a.Index))
+						builder.WriteString(",")
+					}
+					// selectFile, _ := strings.CutSuffix(builder.String(), ",")
+					selectIndex := builder.String()
+					err = aria.client.Client().ChangeOptions(gid, arigo.Options{
+						SelectFile: selectIndex,
+					})
+					if err != nil {
+						log.Printf("change GID#%s options (select-file=%s) err: %s \n", gid, selectIndex, err.Error())
+						continue
+					}
+
+					log.Println("SELECT-Files: ", selectIndex)
+				}
+			}
 		}
 	}
 }

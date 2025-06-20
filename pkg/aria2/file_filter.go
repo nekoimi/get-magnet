@@ -6,6 +6,9 @@ import (
 	"strings"
 )
 
+// ZeroSpeedThreshold 超过几次检查下载速度为0速就暂停
+const ZeroSpeedThreshold = 10
+
 // MinVideoSize 文件最小大小：100M
 const MinVideoSize = 100_000_000
 
