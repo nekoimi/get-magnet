@@ -197,6 +197,15 @@ func (aria *Aria2) bestFileSelectWork() {
 
 				if needChangeOps {
 					allowFiles := BestSelectFile(files)
+					if len(allowFiles) == 0 {
+						err = aria.client.Client().Pause(gid)
+						if err != nil {
+							log.Printf("Pause %s download task err: %s \n", gid, err.Error())
+						}
+						log.Printf("下载任务没有优选出符合要求的文件：%s\n", gid)
+						continue
+					}
+
 					var builder strings.Builder
 					for _, a := range allowFiles {
 						builder.WriteString(strconv.Itoa(a.Index))
