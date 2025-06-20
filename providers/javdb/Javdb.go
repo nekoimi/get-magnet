@@ -58,9 +58,8 @@ func ChineseSubtitlesMovieList(meta *task.Meta, selection *goquery.Selection) (*
 
 	var keepTasks []*task.Task
 
-	// 当前新获取的path列表存在于数据库记录数小于10， 继续下一页
-	// 抓取页数最大15页
-	if len(existsPathSet) <= 10 || meta.PageIndex < 15 {
+	// 如果存在没有处理过的路径，则继续下一页；最大获取15页
+	if len(notExistsPathArr) > 0 || meta.PageIndex < 15 {
 		// 不存在已经解析的link，继续下一页
 		nextHref, existsNext := selection.Find(".pagination>a.pagination-next").First().Attr("href")
 		if existsNext {

@@ -29,7 +29,20 @@ func main() {
 	// 立即执行
 	e.Submit(task.NewTask(1, "https://javdb.com/censored?vft=2&vst=1", javdb.ChineseSubtitlesMovieList))
 	// 定时执行
-	e.CronSubmit("00 2 * * *", task.NewTask(1, "https://javdb.com/censored?vft=2&vst=1", javdb.ChineseSubtitlesMovieList))
+	e.CronSubmit("00 2 * * *", []*task.Task{
+		task.NewTask(1, "https://javdb.com/censored?vft=2&vst=1", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/actors/nePY4?t=c&sort_type=0", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/actors/kW6?t=c&sort_type=0", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/actors/0rva?t=c&sort_type=0", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/actors/AOqm?t=c&sort_type=0", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/video_codes/NTR?f=cnsub", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/series/a5b3", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/directors/qG3?f=cnsub", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/makers/OXz?f=cnsub", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/publishers/A60?f=cnsub", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/actors/O2Q30?t=c&sort_type=0", javdb.ChineseSubtitlesMovieList),
+		task.NewTask(1, "https://javdb.com/actors/x7wn?t=c&sort_type=0", javdb.ChineseSubtitlesMovieList),
+	})
 
 	e.Run()
 	//

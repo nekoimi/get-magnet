@@ -106,9 +106,11 @@ func (e *Engine) Submit(task *task.Task) {
 }
 
 // CronSubmit use cron func submit
-func (e *Engine) CronSubmit(cron string, task *task.Task) {
+func (e *Engine) CronSubmit(cron string, tasks []*task.Task) {
 	_, err := e.cron.AddFunc(cron, func() {
-		e.Submit(task)
+		for _, t := range tasks {
+			e.Submit(t)
+		}
 		log.Println("cron submit ok")
 	})
 	if err != nil {
