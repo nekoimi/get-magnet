@@ -11,6 +11,7 @@ type Task interface {
 type WorkerTask interface {
 	RawUrl() string
 	ErrorNum() int
+	IncrErrorNum()
 	Handler() WorkerTaskHandler
 }
 
@@ -62,6 +63,14 @@ func (t *TaskEntry) ErrorNum() int {
 	return t.ErrorCount
 }
 
+func (t *TaskEntry) IncrErrorNum() {
+	t.ErrorCount = t.ErrorCount + 1
+}
+
 func (t *TaskEntry) Handler() WorkerTaskHandler {
 	return t.handle
+}
+
+func (t *TaskEntry) Downloader() Downloader {
+	return t.downloader
 }

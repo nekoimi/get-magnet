@@ -16,7 +16,7 @@ import (
 
 const (
 	// 默认启动16个worker
-	defaultWorkerNum = 1
+	defaultWorkerNum = 16
 	// 最大worker数
 	maxWorkerNum = 512
 	// 任务出现错误最多重试次数
@@ -148,7 +148,6 @@ func (e *Engine) error(t WorkerTask, err error) {
 		log.Printf("任务出错次数太多: %s - %s\n", t.RawUrl(), err.Error())
 		return
 	}
-
 	log.Printf("任务处理异常：%s - %s\n", t.RawUrl(), err.Error())
 	e.scheduler.Submit(t)
 }

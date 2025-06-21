@@ -71,6 +71,7 @@ func (w *Worker) do(t WorkerTask) {
 	handler := t.Handler()
 	tasks, outputs, err := handler.Handle(t)
 	if err != nil {
+		t.IncrErrorNum()
 		w.callback.error(t, err)
 		log.Printf("[%s] handle task (%s) err: %s \n", w, t.RawUrl(), err.Error())
 		return

@@ -1,14 +1,14 @@
 package javdb
 
 import (
+	"github.com/PuerkitoBio/goquery"
 	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/get-magnet/internal/db"
+	"github.com/nekoimi/get-magnet/internal/db/table"
 	"log"
 )
 
 type movieList struct {
-}
-
-type movieDetails struct {
 }
 
 func RunEndpoint() crawler.WorkerTaskHandler {
@@ -16,140 +16,130 @@ func RunEndpoint() crawler.WorkerTaskHandler {
 }
 
 func (p *movieList) Handle(t crawler.WorkerTask) (tasks []crawler.WorkerTask, outputs []crawler.Magnet, err error) {
-	log.Println(t.RawUrl())
-	//var detailsHrefArr []string
-	//selection.Find(".movie-list>div>a.box").Each(func(i int, s *goquery.Selection) {
-	//	href, _ := s.Attr("href")
-	//	detailsHrefArr = append(detailsHrefArr, href)
-	//})
-	//
-	//if len(detailsHrefArr) == 0 {
-	//	log.Println("Details href arr is empty！")
-	//}
-	//
-	//// 判断是否需要继续解析执行下一页
-	//// 需要判断details详情页是否处理过
-	//existsPathSet := make(map[string]int8)
-	//// 查询这些连接在数据库中是否存在
-	//var sqlArgs []any
-	//for _, s := range detailsHrefArr {
-	//	sqlArgs = append(sqlArgs, s)
-	//}
-	//sql := "SELECT res_path FROM magnets WHERE res_path IN (?" + strings.Repeat(", ?", len(sqlArgs)-1) + ")"
-	//rs, err := db.Get().Query(sql, sqlArgs...)
-	//if err != nil {
-	//	return common.NewEmptyOut(), err
-	//}
-	//defer rs.Close()
-	//for rs.Next() {
-	//	var resPath string
-	//	err := rs.Scan(&resPath)
-	//	if err != nil {
-	//		log.Printf("sql result err: %s \n", err.Error())
-	//		continue
-	//	}
-	//	log.Printf("exists path: %s \n", resPath)
-	//
-	//	existsPathSet[resPath] = 0
-	//}
-	//
-	//// 获取不存在的href列表
-	//var notExistsPathArr []string
-	//for _, href := range detailsHrefArr {
-	//	if _, ok := existsPathSet[href]; !ok {
-	//		notExistsPathArr = append(notExistsPathArr, href)
-	//	}
-	//}
-	//
-	//var keepTasks []*model2.Task
-	//
-	//// 当前新获取的path列表没有一个是存在于数据库记录的
-	//if len(existsPathSet) == 0 {
-	//	// 不存在已经解析的link，继续下一页
-	//	nextHref, existsNext := selection.Find(".pagination>a.pagination-next").First().Attr("href")
-	//	if existsNext {
-	//		// 提交下一页的任务
-	//		log.Printf("nextHref: %s, fullNextUrl: %s \n", nextHref, meta.Host+nextHref)
-	//		keepTasks = append(keepTasks, model2.NewTask(meta.Host+nextHref, ChineseSubtitlesMovieList))
-	//	}
-	//}
-	//
-	//for _, href := range notExistsPathArr {
-	//	keepTasks = append(keepTasks, model2.NewTask(meta.Host+href, MovieDetails))
-	//}
+	if task, ok := t.(*crawler.TaskEntry); ok {
+		rawUrl := task.RawUrl()
+		log.Printf("处理任务：%s\n", task.RawUrl())
+		s, err := task.Downloader().Download(rawUrl)
+		if err != nil {
+			return nil, nil, err
+		}
 
-	return make([]crawler.WorkerTask, 0), make([]crawler.Magnet, 0), nil
+		var detailsHrefs []string
+		s.Find(".movie-list>div>a.box").Each(func(i int, s *goquery.Selection) {
+			href, _ := s.Attr("href")
+			detailsHrefs = append(detailsHrefs, href)
+		})
+		if len(detailsHrefs) == 0 {
+			return nil, nil, err
+		}
+
+		// 获取新任务列表
+		var newTasks []crawler.WorkerTask
+		for _, href := range detailsHrefs {
+			m := new(table.Magnets)
+			m.ResPath = task.RawURLPath
+			if count, err := db.Instance().Count(m); err != nil {
+				log.Printf("查询资源(%s)是否存在异常：%s\n", href, err.Error())
+				continue
+			} else if count > 0 {
+				// 已经存在
+				continue
+			}
+
+			// 添加详情解析任务
+			newTasks = append(newTasks, crawler.NewWorkerTask(task.RawURLHost+href, &movieDetails{}))
+		}
+
+		// 当前新获取的path列表存在需要处理的新任务
+		if len(newTasks) > 0 {
+			// 不存在已经解析的link，继续下一页
+			nextHref, existsNext := s.Find(".pagination>a.pagination-next").First().Attr("href")
+			if existsNext {
+				// 提交下一页的任务，添加列表解析任务
+				newTasks = append(newTasks, crawler.NewWorkerTask(task.RawURLHost+nextHref, &movieList{}))
+			}
+		}
+
+		return newTasks, nil, err
+	}
+	return nil, nil, nil
 }
 
-//func (p *movieDetails) Handle(t contract.WorkerTask) (tasks []contract.WorkerTask, outputs []contract.Magnet, err error) {
-//ss := s.Find("section.section>div.container").First()
-//
-//// Title
-//var title = s.Find("title").Text()
-//// Number
-//var number = ss.Find(".movie-panel-info>div.first-block>span.value").Text()
-//// Links
-//var linksMap = make(map[string]string)
-//ss.Find("#magnets-content>.item>div>a").Each(func(i int, as *goquery.Selection) {
-//	if torrentUrl, exists := as.Attr("href"); exists {
-//		torrentName := as.Find("span.name").Text()
-//		tagsText := as.Find("div.tags").Text()
-//		if strings.Contains(tagsText, "高清") && strings.Contains(tagsText, "字幕") {
-//			log.Printf("高清字幕: %s => %s \n", torrentName, torrentUrl)
-//			linksMap[torrentUrl] = strings.ToUpper(torrentName)
-//		} else {
-//			log.Printf("非高清字幕: %s => %s \n", torrentName, torrentUrl)
-//		}
-//	}
-//})
-//
-//// Links clean
-//var links []string
-//for link, _ := range linksMap {
-//	links = append(links, link)
-//}
-//
-//if len(links) <= 0 {
-//	// Ignore
-//	return model2.NewEmptyOut(), nil
-//}
-//
-//// optimalLink
-//var optimalLink string
-//for link, linkName := range linksMap {
-//	if strings.Contains(linkName, "-UC") {
-//		optimalLink = link
-//		break
-//	}
-//}
-//if len(optimalLink) <= 0 {
-//	for link, linkName := range linksMap {
-//		if strings.Contains(linkName, "-C") {
-//			optimalLink = link
-//			break
-//		}
-//	}
-//	if len(optimalLink) <= 0 {
-//		for link, linkName := range linksMap {
-//			if strings.Contains(linkName, "-U") {
-//				optimalLink = link
-//				break
-//			}
-//		}
-//
-//		if len(optimalLink) <= 0 {
-//			optimalLink = links[0]
-//		}
-//	}
-//}
-//
-//log.Printf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
-//return model2.NewSingleOut(nil, &model2.Item{
-//	Title:       title,
-//	Number:      number,
-//	OptimalLink: optimalLink,
-//	Links:       links,
-//	ResHost:     meta.Host,
-//	ResPath:     meta.UrlPath,
-//}), nil
-//}
+type movieDetails struct {
+}
+
+func (p *movieDetails) Handle(t crawler.WorkerTask) (tasks []crawler.WorkerTask, outputs []crawler.Magnet, err error) {
+	log.Printf("处理详情任务：%s\n", t.RawUrl())
+
+	return nil, nil, err
+	//ss := s.Find("section.section>div.container").First()
+	//
+	//// Title
+	//var title = s.Find("title").Text()
+	//// Number
+	//var number = ss.Find(".movie-panel-info>div.first-block>span.value").Text()
+	//// Links
+	//var linksMap = make(map[string]string)
+	//ss.Find("#magnets-content>.item>div>a").Each(func(i int, as *goquery.Selection) {
+	//	if torrentUrl, exists := as.Attr("href"); exists {
+	//		torrentName := as.Find("span.name").Text()
+	//		tagsText := as.Find("div.tags").Text()
+	//		if strings.Contains(tagsText, "高清") && strings.Contains(tagsText, "字幕") {
+	//			log.Printf("高清字幕: %s => %s \n", torrentName, torrentUrl)
+	//			linksMap[torrentUrl] = strings.ToUpper(torrentName)
+	//		} else {
+	//			log.Printf("非高清字幕: %s => %s \n", torrentName, torrentUrl)
+	//		}
+	//	}
+	//})
+	//
+	//// Links clean
+	//var links []string
+	//for link, _ := range linksMap {
+	//	links = append(links, link)
+	//}
+	//
+	//if len(links) <= 0 {
+	//	// Ignore
+	//	return model2.NewEmptyOut(), nil
+	//}
+	//
+	//// optimalLink
+	//var optimalLink string
+	//for link, linkName := range linksMap {
+	//	if strings.Contains(linkName, "-UC") {
+	//		optimalLink = link
+	//		break
+	//	}
+	//}
+	//if len(optimalLink) <= 0 {
+	//	for link, linkName := range linksMap {
+	//		if strings.Contains(linkName, "-C") {
+	//			optimalLink = link
+	//			break
+	//		}
+	//	}
+	//	if len(optimalLink) <= 0 {
+	//		for link, linkName := range linksMap {
+	//			if strings.Contains(linkName, "-U") {
+	//				optimalLink = link
+	//				break
+	//			}
+	//		}
+	//
+	//		if len(optimalLink) <= 0 {
+	//			optimalLink = links[0]
+	//		}
+	//	}
+	//}
+	//
+	//log.Printf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
+	//return model2.NewSingleOut(nil, &model2.Item{
+	//	Title:       title,
+	//	Number:      number,
+	//	OptimalLink: optimalLink,
+	//	Links:       links,
+	//	ResHost:     meta.Host,
+	//	ResPath:     meta.UrlPath,
+	//}), nil
+}
