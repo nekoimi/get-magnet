@@ -30,22 +30,29 @@ type Magnet struct {
 }
 
 type TaskEntry struct {
-	RawURL     string `json:"raw_url,omitempty"`
-	RawURLHost string `json:"raw_url_host,omitempty"`
-	RawURLPath string `json:"raw_url_path,omitempty"`
-	ErrorCount int    `json:"error_count,omitempty"`
+	// 任务ID
+	TaskId string
+	// 是否是动态处理的任务
+	IsDynamic bool
+	// 任务信息
+	RawURL     string
+	RawURLHost string
+	RawURLPath string
+	ErrorCount int
 	handle     WorkerTaskHandler
 	downloader Downloader
 }
 
-// NewWorkerTask 创建默认任务实体
-func NewWorkerTask(rawURL string, handle WorkerTaskHandler) WorkerTask {
+// NewStaticWorkerTask 创建默认任务实体
+func NewStaticWorkerTask(rawURL string, handle WorkerTaskHandler) WorkerTask {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil
 	}
 
 	return &TaskEntry{
+		TaskId:     "",
+		IsDynamic:  false,
 		RawURL:     rawURL,
 		RawURLHost: u.Scheme + "://" + u.Host,
 		RawURLPath: u.Path,

@@ -11,7 +11,7 @@ import (
 type movieList struct {
 }
 
-func ListHandler() crawler.WorkerTaskHandler {
+func Handler() crawler.WorkerTaskHandler {
 	return &movieList{}
 }
 
@@ -47,7 +47,7 @@ func (p *movieList) Handle(t crawler.WorkerTask) (tasks []crawler.WorkerTask, ou
 			}
 
 			// 添加详情解析任务
-			newTasks = append(newTasks, crawler.NewWorkerTask(task.RawURLHost+href, &movieDetails{}))
+			newTasks = append(newTasks, crawler.NewStaticWorkerTask(task.RawURLHost+href, &movieDetails{}))
 		}
 
 		// 当前新获取的path列表存在需要处理的新任务
@@ -56,7 +56,7 @@ func (p *movieList) Handle(t crawler.WorkerTask) (tasks []crawler.WorkerTask, ou
 			nextHref, existsNext := s.Find(".pagination>a.pagination-next").First().Attr("href")
 			if existsNext {
 				// 提交下一页的任务，添加列表解析任务
-				newTasks = append(newTasks, crawler.NewWorkerTask(task.RawURLHost+nextHref, &movieList{}))
+				newTasks = append(newTasks, crawler.NewStaticWorkerTask(task.RawURLHost+nextHref, &movieList{}))
 			}
 		}
 
