@@ -28,7 +28,7 @@ func init() {
 func main() {
 	s := server.Default(cfg)
 
-	bus.Event().Publish(bus.SubmitTask.String(), crawler.NewWorkerTask("https://javdb.com/censored?vft=2&vst=1", javdb.RunEndpoint()))
+	bus.Event().Publish(bus.SubmitTask.String(), crawler.NewWorkerTask("https://javdb.com/censored?vft=2&vst=1", javdb.ListHandler()))
 
 	s.Run()
 }
