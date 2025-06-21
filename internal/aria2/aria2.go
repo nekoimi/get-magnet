@@ -2,7 +2,6 @@ package aria2
 
 import (
 	"errors"
-	"github.com/cenkalti/rpc2"
 	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
@@ -15,6 +14,9 @@ import (
 	"time"
 )
 
+// MaxRetryConnNum 最大断线重连次数
+const MaxRetryConnNum = 5
+
 type Aria2 struct {
 	// aria2 操作锁
 	amux *sync.Mutex
@@ -26,6 +28,8 @@ type Aria2 struct {
 	activeRepo *ActiveRepo
 	// 退出
 	exit chan struct{}
+	// wait
+	exitWG sync.WaitGroup
 }
 
 func NewClient() *Aria2 {
@@ -34,6 +38,7 @@ func NewClient() *Aria2 {
 		speedCache: cache.New(LowSpeedTimeout, 5*time.Minute),
 		activeRepo: newActiveRepo(),
 		exit:       make(chan struct{}, 1),
+		exitWG:     sync.WaitGroup{},
 	}
 }
 
@@ -86,14 +91,18 @@ func (a *Aria2) Stop() {
 	}
 
 	log.Println("停止aria2客户端")
+	a.exitWG.Wait()
 }
 
 // 下载文件优选
 func (a *Aria2) bestFileSelectWork() {
+	a.exitWG.Add(1)
 	ticker := time.NewTicker(time.Minute)
 	for {
 		select {
 		case <-a.exit:
+			log.Println("aria2 best file select exit.")
+			a.exitWG.Done()
 			return
 		case <-ticker.C:
 			if a.activeRepo.isEmpty() {
@@ -224,26 +233,33 @@ func (a *Aria2) client() *arigo.Client {
 	a.amux.Lock()
 	defer a.amux.Unlock()
 
-	err := a.ping()
-	if err != nil {
-		if errors.Is(err, rpc2.ErrShutdown) {
-			for {
-				err := a.connect()
-				if err != nil {
-					log.Printf("检测到aria2连接断开, 重新连接... %s\n", err.Error())
-					time.Sleep(5 * time.Second)
-					continue
+	pingErr := a.ping()
+	if pingErr != nil {
+		reConnNum := 0
+		for {
+			err := a.connect()
+			if err != nil {
+				reConnNum++
+				if reConnNum > MaxRetryConnNum {
+					break
 				}
-
-				break
+				log.Printf("检测到aria2客户端异常, 重新连接 %d ... %s\n", reConnNum, err.Error())
+				time.Sleep(5 * time.Second)
+				continue
 			}
+			return a._client
 		}
+		panic(pingErr)
 	}
 
 	return a._client
 }
 
 func (a *Aria2) ping() error {
+	if a._client == nil {
+		return errors.New("aria2客户端未初始化连接")
+	}
+
 	_, err := a._client.GetVersion()
 	return err
 }

@@ -5,11 +5,13 @@ import (
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	"log"
 	"modernc.org/mathutil"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const (
@@ -79,15 +81,7 @@ func (e *Engine) Run() {
 
 	e.scaleWorkerPool(defaultWorkerNum)
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("aria2运行异常: %s\n", string(debug.Stack()))
-			}
-		}()
-
-		e.aria2.Start()
-	}()
+	apptools.AutoRestart("aria2客户端", e.aria2.Start, 10*time.Second)
 
 	e.scheduler.Start()
 }
