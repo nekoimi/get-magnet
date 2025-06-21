@@ -2,8 +2,8 @@ package request
 
 import (
 	"encoding/json"
-	"github.com/nekoimi/get-magnet/internal/database"
-	"github.com/nekoimi/get-magnet/internal/database/table"
+	"github.com/nekoimi/get-magnet/internal/db"
+	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
@@ -28,7 +28,7 @@ func JwtUser(w http.ResponseWriter, r *http.Request) (jwt.Subject, bool) {
 		}
 		u := new(table.Admin)
 		u.Id = id
-		if has, err := database.Instance().Get(u); err != nil {
+		if has, err := db.Instance().Get(u); err != nil {
 			respond.Error(w, err)
 			return nil, false
 		} else if !has {

@@ -1,29 +1,32 @@
-package sample_downloader
+package crawler
 
 import (
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/nekoimi/get-magnet/internal/contract"
 	"log"
 	"math/rand"
 	"net/http"
 	"time"
 )
 
-type sampleDownloader struct {
+type Downloader interface {
+	Download(url string) (*goquery.Selection, error)
+}
+
+type DefaultDownloader struct {
 	client *http.Client
 }
 
-func New() contract.Downloader {
-	return &sampleDownloader{
+func NewDefaultDownloader() Downloader {
+	return &DefaultDownloader{
 		client: &http.Client{
 			Timeout: 3 * time.Second,
 		},
 	}
 }
 
-func (s *sampleDownloader) Download(url string) (selection *goquery.Selection, err error) {
+func (s *DefaultDownloader) Download(url string) (selection *goquery.Selection, err error) {
 	log.Printf("download url: %s \n", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

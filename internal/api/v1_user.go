@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/nekoimi/get-magnet/internal/database"
-	"github.com/nekoimi/get-magnet/internal/database/table"
+	"github.com/nekoimi/get-magnet/internal/db"
+	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
@@ -44,7 +44,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := database.Instance().Table(new(table.Admin)).ID(u.GetId()).Cols("password").Update(map[string]interface{}{
+	if _, err := db.Instance().Table(new(table.Admin)).ID(u.GetId()).Cols("password").Update(map[string]interface{}{
 		"password": encodePassword,
 	}); err != nil {
 		respond.Error(w, err)

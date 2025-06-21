@@ -1,10 +1,10 @@
-package database
+package db
 
 import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/database/migrate"
-	"github.com/nekoimi/get-magnet/internal/database/table"
+	"github.com/nekoimi/get-magnet/internal/db/migrate"
+	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"log"
 	"xorm.io/xorm"

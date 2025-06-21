@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/nekoimi/get-magnet/internal/database"
-	"github.com/nekoimi/get-magnet/internal/database/table"
+	"github.com/nekoimi/get-magnet/internal/db"
+	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
@@ -32,7 +32,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	admin := &table.Admin{Username: p.Username}
-	if has, err := database.Instance().Get(admin); err != nil {
+	if has, err := db.Instance().Get(admin); err != nil {
 		respond.Error(w, err)
 		return
 	} else if !has {

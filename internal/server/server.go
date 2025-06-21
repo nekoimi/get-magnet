@@ -1,10 +1,10 @@
 package server
 
 import (
-	"fmt"
+	"context"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/database"
-	"github.com/nekoimi/get-magnet/internal/engine"
+	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/router"
 	"github.com/robfig/cron/v3"
 	"log"
@@ -12,54 +12,74 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 type Server struct {
-	signalChan chan os.Signal
-	http       *http.Server
-	cron       *cron.Cron
-	engine     *engine.Engine
+	shutdown chan struct{}
+	cfg      *config.Config
+	http     *http.Server
+	cron     *cron.Cron
+	engine   *crawler.Engine
 }
 
-func New(cfg *config.Config) *Server {
-	database.Init(cfg.DB)
-
+func Default(cfg *config.Config) *Server {
 	s := &Server{
-		signalChan: make(chan os.Signal, 1),
-		http: &http.Server{
-			Addr:    fmt.Sprintf(":%d", cfg.Port),
-			Handler: router.New(),
-		},
-		cron:   cron.New(),
-		engine: engine.New(),
+		shutdown: make(chan struct{}),
+		cfg:      cfg,
+		http:     router.HttpServer(cfg.Port),
+		cron:     cron.New(),
+		engine:   crawler.New(),
 	}
-
-	signal.Notify(s.signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	return s
 }
 
 func (s *Server) Run() {
+	ctx, cancel := context.WithCancel(context.Background())
+	go handleSignal(cancel)
+
+	// 初始化数据库
+	db.Init(s.cfg.DB)
+
 	go s.cron.Run()
-	// go s.engine.Run()
+	go s.engine.Run()
 
 	go func() {
-		err := s.http.ListenAndServe()
-		if err != nil {
-			panic(err)
+		if err := s.http.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatalf("ListenAndServe error: %v", err)
 		}
 	}()
 
-	log.Println("Service is running")
+	<-ctx.Done()
 
-	for range s.signalChan {
-		s.Stop()
+	s.stop()
+}
+
+func (s *Server) Cron() *cron.Cron {
+	return s.cron
+}
+
+func (s *Server) stop() {
+	<-s.cron.Stop().Done()
+	s.engine.Stop()
+	_ = db.Instance().Close()
+
+	// 创建 shutdown 上下文：最多等待 10 秒退出
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+	if err := s.http.Shutdown(shutdownCtx); err != nil {
+		log.Printf("HTTP server Shutdown error: %v", err)
+	} else {
+		log.Println("HTTP server 已优雅退出")
 	}
 }
 
-func (s *Server) Stop() {
-	<-s.cron.Stop().Done()
-	//s.engine.Stop()
-	_ = database.Instance().Close()
-	os.Exit(0)
+// 捕获信号并取消上下文
+func handleSignal(cancel context.CancelFunc) {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	sig := <-sigCh
+	log.Printf("收到退出信号: %v，正在关闭...\n", sig)
+	cancel()
 }

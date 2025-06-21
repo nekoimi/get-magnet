@@ -1,17 +1,27 @@
 package queue
 
-import "sync"
+import (
+	"log"
+	"sync"
+	"time"
+)
 
 type Queue[T any] struct {
-	mux   sync.Mutex
-	cond  *sync.Cond
-	items []T
+	mux     *sync.Mutex
+	name    string
+	cond    *sync.Cond
+	items   []T
+	opCount uint64
 }
 
 // New 创建一个新队列
-func New[T any]() *Queue[T] {
+func New[T any](name string) *Queue[T] {
 	q := new(Queue[T])
-	q.cond = sync.NewCond(&q.mux)
+	q.mux = &sync.Mutex{}
+	q.name = name
+	q.cond = sync.NewCond(q.mux)
+	q.items = make([]T, 0)
+	q.opCount = 0
 	return q
 }
 
@@ -30,9 +40,9 @@ func (q *Queue[T]) Poll() (T, bool) {
 	q.mux.Lock()
 	defer q.mux.Unlock()
 
-	var zero T
+	var empty T
 	if len(q.items) == 0 {
-		return zero, false
+		return empty, false
 	}
 
 	item := q.items[0]
@@ -40,18 +50,45 @@ func (q *Queue[T]) Poll() (T, bool) {
 	return item, true
 }
 
-// PollWait 从队头获取一个元素，如果队列为空，则阻塞等待
-func (q *Queue[T]) PollWait() T {
+// PollWaitTimeout 从队头获取一个元素，如果队列为空，则阻塞等待
+func (q *Queue[T]) PollWaitTimeout(timeout time.Duration) (T, bool) {
+	var empty T
+	timer := time.NewTimer(timeout)
+
 	q.mux.Lock()
-	defer q.mux.Unlock()
+	q.opCount = q.opCount + 1
+
+	log.Printf("[%s-%d]init-lock\n", q.name, q.opCount)
+	defer func() {
+		timer.Stop()
+		q.mux.Unlock()
+		log.Printf("[%s-%d]defer-unlock\n", q.name, q.opCount)
+	}()
 
 	for len(q.items) == 0 {
-		q.cond.Wait()
+		waitCh := make(chan struct{})
+		go func() {
+			log.Printf("[%s-%d]wait-unlock\n", q.name, q.opCount)
+			q.cond.Wait()
+			log.Printf("[%s-%d]wait-lock\n", q.name, q.opCount)
+			close(waitCh)
+		}()
+
+		select {
+		case <-waitCh:
+			log.Printf("[%s-%d]waitCh\n", q.name, q.opCount)
+			continue
+
+		case <-timer.C:
+			q.mux.Lock()
+			log.Printf("[%s-%d]timeout-lock\n", q.name, q.opCount)
+			return empty, false
+		}
 	}
 
 	item := q.items[0]
 	q.items = q.items[1:]
-	return item
+	return item, true
 }
 
 // Size 获取队列中元素的数量

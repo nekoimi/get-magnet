@@ -1,8 +1,8 @@
 package migrate
 
 import (
-	"github.com/nekoimi/get-magnet/internal/database/table"
-	util2 "github.com/nekoimi/get-magnet/internal/pkg/util"
+	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"xorm.io/xorm"
 )
 
@@ -40,8 +40,8 @@ func initDefaultAdmin(e *xorm.Engine) error {
 		return err
 	} else if !exist {
 		// 创建默认管理员
-		sha256Str := util2.Sha256Encode(defaultAdminPassword)
-		encodePassword, err := util2.BcryptEncode(sha256Str)
+		sha256Str := util.Sha256Encode(defaultAdminPassword)
+		encodePassword, err := util.BcryptEncode(sha256Str)
 		if err != nil {
 			return err
 		}
