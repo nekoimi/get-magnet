@@ -3,8 +3,7 @@ package bus
 type Type int
 
 const (
-	ScaleWorker Type = iota
-	Download
+	Download Type = iota
 	SubmitTask
 	Aria2Test
 	Aria2LinkUp
@@ -19,9 +18,6 @@ var (
 
 func init() {
 	eventBus = newEventBus()
-
-	// 扩容worker数量
-	eventMap[ScaleWorker] = "event.scale.worker"
 	// 下载事件
 	eventMap[Download] = "event.download"
 	// 提交任务

@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"fmt"
+	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"log"
 	"time"
 )
@@ -10,7 +11,7 @@ type Worker struct {
 	id       uint64
 	version  uint64
 	callback WorkerCallback
-	tasks    chan WorkerTask
+	tasks    chan task.Task
 	exit     chan struct{}
 	running  bool
 }
@@ -21,7 +22,7 @@ func newWorker(id uint64, version uint64, callback WorkerCallback) *Worker {
 		id:       id,
 		version:  version,
 		callback: callback,
-		tasks:    make(chan WorkerTask, 1),
+		tasks:    make(chan task.Task, 1),
 		exit:     make(chan struct{}),
 		running:  false,
 	}
@@ -49,7 +50,7 @@ func (w *Worker) Run() {
 }
 
 // Work 投递任务
-func (w *Worker) Work(t WorkerTask) {
+func (w *Worker) Work(t task.Task) {
 	w.tasks <- t
 }
 
@@ -69,7 +70,7 @@ func (w *Worker) Stop() {
 }
 
 // do 执行任务
-func (w *Worker) do(t WorkerTask) {
+func (w *Worker) do(t task.Task) {
 	w.running = true
 	defer func() {
 		w.Release()

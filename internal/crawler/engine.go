@@ -3,6 +3,7 @@ package crawler
 import (
 	"github.com/nekoimi/get-magnet/internal/aria2"
 	"github.com/nekoimi/get-magnet/internal/bus"
+	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
@@ -16,7 +17,7 @@ import (
 
 const (
 	// 默认启动16个worker
-	defaultWorkerNum = 16
+	defaultWorkerNum = 4
 	// 最大worker数
 	maxWorkerNum = 512
 	// 任务出现错误最多重试次数
@@ -42,9 +43,9 @@ type Engine struct {
 
 type WorkerCallback interface {
 	// worker处理任务成功
-	success(tasks []WorkerTask, outputs []Magnet)
+	success(tasks []task.Task, outputs []task.MagnetEntry)
 	// worker处理任务异常
-	error(t WorkerTask, err error)
+	error(t task.Task, err error)
 	// worker释放，空闲出来
 	release(w *Worker)
 }
@@ -61,7 +62,6 @@ func New() *Engine {
 		scheduler:         NewScheduler(),
 	}
 
-	bus.Event().Subscribe(bus.ScaleWorker.String(), e.scaleWorkerPool)
 	bus.Event().Subscribe(bus.Download.String(), e.createDownload)
 	bus.Event().Subscribe(bus.SubmitTask.String(), e.scheduler.Submit)
 	bus.Event().Subscribe(bus.Aria2Test.String(), func() {})
@@ -79,23 +79,40 @@ func (e *Engine) Run() {
 		}
 	}()
 
-	e.scaleWorkerPool(defaultWorkerNum)
+	//go func() {
+	//	ticker := time.NewTicker(60 * time.Second)
+	//	for {
+	//		select {
+	//		case <-ticker.C:
+	//			e.workerLock.RLock()
+	//			log.Printf("[WATCH-DEBUG] workers池数量：%d\n", len(e.workers))
+	//			for _, w := range e.workers {
+	//				log.Printf("[WATCH-DEBUG] worker：%s\n", w.String())
+	//			}
+	//			e.workerLock.RUnlock()
+	//		}
+	//	}
+	//}()
 
+	// 初始化worker池
+	e.initWorkerPool(defaultWorkerNum)
+	// 启动aria2连接
 	apptools.AutoRestart("aria2客户端", e.aria2.Start, 10*time.Second)
-
-	e.watchDebug()
+	// 启动任务生成
+	apptools.DelayStart("任务生成", startTaskSeeders, 10*time.Second)
+	// 启动任务调度器
 	e.scheduler.Start()
 }
 
 // 添加下载任务
-func (e *Engine) createDownload(task Aria2Task) {
-	if err := e.aria2.Submit(task.Url); err != nil {
+func (e *Engine) createDownload(downloadUrl string) {
+	if err := e.aria2.Submit(downloadUrl); err != nil {
 		log.Println(err.Error())
 	}
 }
 
-// 更新worker池
-func (e *Engine) scaleWorkerPool(num int) {
+// 初始化worker池
+func (e *Engine) initWorkerPool(num int) {
 	e.workerLock.Lock()
 	defer e.workerLock.Unlock()
 
@@ -113,7 +130,7 @@ func (e *Engine) scaleWorkerPool(num int) {
 	}
 }
 
-func (e *Engine) success(tasks []WorkerTask, outputs []Magnet) {
+func (e *Engine) success(tasks []task.Task, outputs []task.MagnetEntry) {
 	for _, t := range tasks {
 		e.scheduler.Submit(t)
 	}
@@ -133,11 +150,11 @@ func (e *Engine) success(tasks []WorkerTask, outputs []Magnet) {
 		}
 
 		// 提交下载
-		e.createDownload(Aria2Task{Url: output.OptimalLink})
+		e.createDownload(output.OptimalLink)
 	}
 }
 
-func (e *Engine) error(t WorkerTask, err error) {
+func (e *Engine) error(t task.Task, err error) {
 	if t.ErrorNum() >= taskErrorMax {
 		log.Printf("任务出错次数太多: %s - %s\n", t.RawUrl(), err.Error())
 		return
@@ -162,6 +179,7 @@ func (e *Engine) release(w *Worker) {
 
 // Stop shutdown engine
 func (e *Engine) Stop() {
+	stopTaskSeeders()
 	e.scheduler.Stop()
 
 	var wg sync.WaitGroup
@@ -177,21 +195,4 @@ func (e *Engine) Stop() {
 	e.aria2.Stop()
 
 	log.Println("stop engine")
-}
-
-func (e *Engine) watchDebug() {
-	go func() {
-		ticker := time.NewTicker(10 * time.Second)
-		for {
-			select {
-			case <-ticker.C:
-				e.workerLock.RLock()
-				log.Printf("[WATCH-DEBUG] workers池数量：%d\n", len(e.workers))
-				for _, w := range e.workers {
-					log.Printf("[WATCH-DEBUG] worker：%s\n", w.String())
-				}
-				e.workerLock.RUnlock()
-			}
-		}
-	}()
 }

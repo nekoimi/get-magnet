@@ -6,7 +6,6 @@ import (
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/router"
-	"github.com/robfig/cron/v3"
 	"log"
 	"net/http"
 	"os"
@@ -19,7 +18,6 @@ type Server struct {
 	shutdown chan struct{}
 	cfg      *config.Config
 	http     *http.Server
-	cron     *cron.Cron
 	engine   *crawler.Engine
 }
 
@@ -28,7 +26,6 @@ func Default(cfg *config.Config) *Server {
 		shutdown: make(chan struct{}),
 		cfg:      cfg,
 		http:     router.HttpServer(cfg.Port),
-		cron:     cron.New(),
 		engine:   crawler.New(),
 	}
 
@@ -42,7 +39,6 @@ func (s *Server) Run() {
 	// 初始化数据库
 	db.Init(s.cfg.DB)
 
-	go s.cron.Run()
 	go s.engine.Run()
 
 	go func() {
@@ -56,12 +52,7 @@ func (s *Server) Run() {
 	s.stop()
 }
 
-func (s *Server) Cron() *cron.Cron {
-	return s.cron
-}
-
 func (s *Server) stop() {
-	<-s.cron.Stop().Done()
 	s.engine.Stop()
 	_ = db.Instance().Close()
 

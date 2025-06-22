@@ -1,14 +1,14 @@
 package javdb
 
 import (
-	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"log"
 )
 
 type movieDetails struct {
 }
 
-func (p *movieDetails) Handle(t crawler.WorkerTask) (tasks []crawler.WorkerTask, outputs []crawler.Magnet, err error) {
+func (p *movieDetails) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	log.Printf("处理详情任务：%s\n", t.RawUrl())
 
 	return nil, nil, err

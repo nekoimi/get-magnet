@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/pkg/queue"
 	"log"
 	"sync"
@@ -9,7 +10,7 @@ import (
 
 type Scheduler struct {
 	workerQueue *queue.Queue[*Worker]
-	taskQueue   *queue.Queue[WorkerTask]
+	taskQueue   *queue.Queue[task.Task]
 	exit        chan struct{}
 	exitWG      sync.WaitGroup
 }
@@ -18,14 +19,14 @@ type Scheduler struct {
 func NewScheduler() *Scheduler {
 	return &Scheduler{
 		workerQueue: queue.New[*Worker]("worker-queue"),
-		taskQueue:   queue.New[WorkerTask]("task-queue"),
+		taskQueue:   queue.New[task.Task]("task-queue"),
 		exit:        make(chan struct{}),
 		exitWG:      sync.WaitGroup{},
 	}
 }
 
 // Submit 提交一个任务
-func (s *Scheduler) Submit(task WorkerTask) {
+func (s *Scheduler) Submit(task task.Task) {
 	s.taskQueue.Add(task)
 }
 
@@ -40,7 +41,7 @@ func (s *Scheduler) Start() {
 	for {
 		var (
 			activeWorker *Worker
-			activeTask   WorkerTask
+			activeTask   task.Task
 		)
 
 		select {

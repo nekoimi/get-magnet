@@ -2,24 +2,31 @@ package javdb
 
 import (
 	"github.com/PuerkitoBio/goquery"
-	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/get-magnet/internal/bus"
+	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/robfig/cron/v3"
 	"log"
 )
 
-type movieList struct {
+type Seeder struct {
 }
 
-func Handler() crawler.WorkerTaskHandler {
-	return &movieList{}
+func (p *Seeder) Name() string {
+	return "JavDB"
 }
 
-func (p *movieList) Handle(t crawler.WorkerTask) (tasks []crawler.WorkerTask, outputs []crawler.Magnet, err error) {
-	if task, ok := t.(*crawler.TaskEntry); ok {
-		rawUrl := task.RawUrl()
-		log.Printf("处理任务：%s\n", task.RawUrl())
-		s, err := task.Downloader().Download(rawUrl)
+func (p *Seeder) Exec(cron *cron.Cron) error {
+	bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/censored?vft=2&vst=1", &Seeder{}))
+	return nil
+}
+
+func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
+	if taskEntry, ok := t.(*task.Entry); ok {
+		rawUrl := taskEntry.RawUrl()
+		log.Printf("处理任务：%s\n", taskEntry.RawUrl())
+		s, err := taskEntry.Downloader().Download(rawUrl)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -34,10 +41,10 @@ func (p *movieList) Handle(t crawler.WorkerTask) (tasks []crawler.WorkerTask, ou
 		}
 
 		// 获取新任务列表
-		var newTasks []crawler.WorkerTask
+		var newTasks []task.Task
 		for _, href := range detailsHrefs {
 			m := new(table.Magnets)
-			m.ResPath = task.RawURLPath
+			m.ResPath = taskEntry.RawURLPath
 			if count, err := db.Instance().Count(m); err != nil {
 				log.Printf("查询资源(%s)是否存在异常：%s\n", href, err.Error())
 				continue
@@ -47,7 +54,7 @@ func (p *movieList) Handle(t crawler.WorkerTask) (tasks []crawler.WorkerTask, ou
 			}
 
 			// 添加详情解析任务
-			newTasks = append(newTasks, crawler.NewStaticWorkerTask(task.RawURLHost+href, &movieDetails{}))
+			newTasks = append(newTasks, task.NewStaticWorkerTask(taskEntry.RawURLHost+href, &movieDetails{}))
 		}
 
 		// 当前新获取的path列表存在需要处理的新任务
@@ -56,7 +63,7 @@ func (p *movieList) Handle(t crawler.WorkerTask) (tasks []crawler.WorkerTask, ou
 			nextHref, existsNext := s.Find(".pagination>a.pagination-next").First().Attr("href")
 			if existsNext {
 				// 提交下一页的任务，添加列表解析任务
-				newTasks = append(newTasks, crawler.NewStaticWorkerTask(task.RawURLHost+nextHref, &movieList{}))
+				newTasks = append(newTasks, task.NewStaticWorkerTask(taskEntry.RawURLHost+nextHref, &Seeder{}))
 			}
 		}
 

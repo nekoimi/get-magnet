@@ -59,11 +59,11 @@ func (a *Aria2) Start() {
 	a.bestFileSelectWork()
 }
 
-func (a *Aria2) Submit(url string) error {
-	return a.BatchSubmit([]string{url})
+func (a *Aria2) Submit(downloadUrl string) error {
+	return a.BatchSubmit([]string{downloadUrl})
 }
 
-func (a *Aria2) BatchSubmit(urls []string) error {
+func (a *Aria2) BatchSubmit(downloadUrls []string) error {
 	ops, err := a.client().GetGlobalOptions()
 	if err != nil {
 		log.Printf("查询aria2全局配置异常: %s - %s\n", err.Error(), debug.Stack())
@@ -71,7 +71,7 @@ func (a *Aria2) BatchSubmit(urls []string) error {
 	}
 
 	saveDir := ops.Dir + "/" + util.NowDate("-")
-	if _, err = a.client().AddURI(arigo.URIs(urls...), &arigo.Options{
+	if _, err = a.client().AddURI(arigo.URIs(downloadUrls...), &arigo.Options{
 		Dir: saveDir,
 	}); err != nil {
 		log.Printf("添加aria2下载任务异常: %s \n", err.Error())

@@ -2,10 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
 	"github.com/nekoimi/get-magnet/internal/server"
 	"log"
 	"os"
@@ -27,8 +24,6 @@ func init() {
 
 func main() {
 	s := server.Default(cfg)
-
-	bus.Event().Publish(bus.SubmitTask.String(), crawler.NewStaticWorkerTask("https://javdb.com/censored?vft=2&vst=1", javdb.Handler()))
 
 	s.Run()
 }
