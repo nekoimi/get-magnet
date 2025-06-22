@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const RetryLimit = 5
+
 type Downloader interface {
 	Download(url string) (*goquery.Selection, error)
 }
@@ -24,27 +26,50 @@ func NewDefaultDownloader() Downloader {
 	return &DefaultDownloader{
 		client: &http.Client{
 			Jar:     jar,
-			Timeout: 3 * time.Second,
+			Timeout: 10 * time.Second,
 		},
 	}
 }
 
 func (s *DefaultDownloader) Download(url string) (selection *goquery.Selection, err error) {
-	log.Printf("download url: %s \n", url)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Referer", url)
-	req.Header.Set("User-Agent", randUserAgent())
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	var req *http.Request
+	var resp *http.Response
+	defer func() {
+		if resp != nil {
+			resp.Body.Close()
+		}
+	}()
 
-	if resp.StatusCode != 200 {
-		return nil, errors.New(fmt.Sprintf("%s StatusCode not ok => %d", url, resp.StatusCode))
+	retryNum := 1
+	for {
+		if retryNum > RetryLimit {
+			break
+		}
+		log.Printf("download url - retryNum(%d): %s \n", retryNum, url)
+		retryNum++
+
+		req, err = http.NewRequest("GET", url, nil)
+		if err != nil {
+			continue
+		}
+		req.Header.Set("Referer", url)
+		req.Header.Set("User-Agent", randUserAgent())
+		resp, err = s.client.Do(req)
+		if err != nil {
+			continue
+		}
+
+		if resp.StatusCode == 429 {
+			time.Sleep(60 * time.Second)
+			continue
+		}
+
+		if resp.StatusCode != 200 {
+			return nil, errors.New(fmt.Sprintf("%s StatusCode not ok => %d", url, resp.StatusCode))
+		}
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)

@@ -17,7 +17,7 @@ func (p *Seeder) Name() string {
 	return "JavDB"
 }
 
-func (p *Seeder) Exec(cron *cron.Cron) error {
+func (p *Seeder) Exec(cron *cron.Cron) {
 	// 每天晚上2点执行
 	cron.AddFunc("00 2 * * *", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/censored?vft=2&vst=1", &Seeder{}))
@@ -29,8 +29,6 @@ func (p *Seeder) Exec(cron *cron.Cron) error {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/x7wn?t=c&sort_type=0", &Seeder{}))
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/0rva?t=c&sort_type=0", &Seeder{}))
 	})
-
-	return nil
 }
 
 func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
@@ -55,12 +53,11 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 		var newTasks []task.Task
 		for _, href := range detailsHrefs {
 			m := new(table.Magnets)
-			m.ResPath = taskEntry.RawURLPath
+			m.ResPath = href
 			if count, err := db.Instance().Count(m); err != nil {
 				log.Printf("查询资源(%s)是否存在异常：%s\n", href, err.Error())
 				continue
 			} else if count > 0 {
-				// 已经存在
 				continue
 			}
 

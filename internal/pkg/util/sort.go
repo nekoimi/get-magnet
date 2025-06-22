@@ -5,7 +5,7 @@ import "sort"
 // SortBy 自定义排序方法
 // a < b => asc	  升序
 // a > b => desc  降序
-type SortBy[T any] func(a *T, b *T) bool
+type SortBy[T any] func(a T, b T) bool
 
 // wrapper impl sort.Interface
 type sortWrapper[T any] struct {
@@ -18,7 +18,7 @@ func (sw *sortWrapper[T]) Len() int {
 }
 
 func (sw *sortWrapper[T]) Less(i int, j int) bool {
-	return sw.sortBy(&sw.objects[i], &sw.objects[j])
+	return sw.sortBy(sw.objects[i], sw.objects[j])
 }
 
 func (sw *sortWrapper[T]) Swap(i, j int) {

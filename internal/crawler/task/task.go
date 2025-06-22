@@ -8,7 +8,7 @@ import (
 
 type Seeder interface {
 	Name() string
-	Exec(cron *cron.Cron) error
+	Exec(cron *cron.Cron)
 }
 
 // Handler 任务处理器
@@ -47,6 +47,13 @@ type MagnetEntry struct {
 	Links       []string `json:"links,omitempty"`
 	ResHost     string   `json:"res_host,omitempty"`
 	ResPath     string   `json:"res_path,omitempty"`
+}
+
+// TorrentLink 磁力链接信息
+type TorrentLink struct {
+	Sort int
+	Name string
+	Link string
 }
 
 // NewStaticWorkerTask 创建默认任务实体

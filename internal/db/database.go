@@ -62,8 +62,8 @@ func initMigrates(e *xorm.Engine) {
 // 初始化数据表迁移
 func runMigrates(e *xorm.Engine) {
 	migrates := migrate.GetAll()
-	util.Sort[migrate.Migrate](migrates, func(a *migrate.Migrate, b *migrate.Migrate) bool {
-		return (*a).Version() < (*b).Version()
+	util.Sort[migrate.Migrate](migrates, func(a migrate.Migrate, b migrate.Migrate) bool {
+		return a.Version() < b.Version()
 	})
 	log.Println("数据表迁移执行...")
 	for _, m := range migrates {
