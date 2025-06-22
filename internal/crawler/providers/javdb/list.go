@@ -18,7 +18,18 @@ func (p *Seeder) Name() string {
 }
 
 func (p *Seeder) Exec(cron *cron.Cron) error {
-	bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/censored?vft=2&vst=1", &Seeder{}))
+	// 每天晚上2点执行
+	cron.AddFunc("00 2 * * *", func() {
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/censored?vft=2&vst=1", &Seeder{}))
+	})
+
+	// 每周执行
+	cron.AddFunc("00 12 * * 0", func() {
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/O2Q30?t=c&sort_type=0", &Seeder{}))
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/x7wn?t=c&sort_type=0", &Seeder{}))
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/0rva?t=c&sort_type=0", &Seeder{}))
+	})
+
 	return nil
 }
 
