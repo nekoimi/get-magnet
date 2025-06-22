@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"net/http/cookiejar"
 	"time"
 )
 
@@ -19,8 +20,10 @@ type DefaultDownloader struct {
 }
 
 func NewDefaultDownloader() Downloader {
+	jar, _ := cookiejar.New(nil)
 	return &DefaultDownloader{
 		client: &http.Client{
+			Jar:     jar,
 			Timeout: 3 * time.Second,
 		},
 	}
