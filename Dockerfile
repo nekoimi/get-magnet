@@ -1,11 +1,9 @@
 FROM golang:1.22-alpine as builder
 
 ENV CGO_ENABLED=0
-#ENV GOOS=linux
-#ENV GOARCH=amd64
 
 WORKDIR /build
-COPY docker .
+COPY . .
 RUN go install
 RUN go build --ldflags "-extldflags -static" -o get-magnet main.go
 
@@ -21,5 +19,7 @@ RUN apk add tzdata \
     && apk del tzdata
 
 WORKDIR /workspace
+
+EXPOSE 8093
 
 CMD ["get-magnet"]

@@ -13,7 +13,7 @@ var cfg = config.Default()
 func init() {
 	log.SetFlags(log.Lshortfile | log.Ldate | log.Lmicroseconds)
 
-	flag.IntVar(&cfg.Port, "port", 8080, "http服务端口")
+	flag.IntVar(&cfg.Port, "port", 8093, "http服务端口")
 	flag.StringVar(&cfg.JwtSecret, "jwtSecret", "get-magnet", "jwt secret")
 	flag.StringVar(&cfg.DB.Dns, "dsn", os.Getenv("DB_DSN"), "数据库连接参数")
 	flag.StringVar(&cfg.Aria2Ops.JsonRpc, "jsonrpc", os.Getenv("ARIA2_JSONRPC"), "数据库连接参数")
