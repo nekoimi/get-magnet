@@ -1,11 +1,11 @@
 FROM golang:1.22-alpine as builder
 
 ENV CGO_ENABLED=0
-ENV GOOS=linux
-ENV GOARCH=amd64
+#ENV GOOS=linux
+#ENV GOARCH=amd64
 
 WORKDIR /build
-COPY . .
+COPY docker .
 RUN go install
 RUN go build --ldflags "-extldflags -static" -o get-magnet main.go
 
