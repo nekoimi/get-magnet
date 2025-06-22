@@ -50,13 +50,13 @@ func (s *Scheduler) Start() {
 			return
 		default:
 			if activeWorker == nil {
-				if w, ok := s.workerQueue.PollWaitTimeout(5 * time.Second); ok {
+				if w, ok := s.workerQueue.PollWaitTimeout(3 * time.Second); ok {
 					activeWorker = w
 				}
 			}
 
 			if activeTask == nil {
-				if t, ok := s.taskQueue.PollWaitTimeout(5 * time.Second); ok {
+				if t, ok := s.taskQueue.PollWaitTimeout(3 * time.Second); ok {
 					activeTask = t
 				}
 			}

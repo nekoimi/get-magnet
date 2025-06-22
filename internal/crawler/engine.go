@@ -25,7 +25,7 @@ const (
 
 type Engine struct {
 	// worker操作锁
-	workerLock *sync.Mutex
+	workerLock *sync.RWMutex
 	// workerId生成
 	workerIdNext *atomic.Uint64
 	// worker最新版本
@@ -52,7 +52,7 @@ type WorkerCallback interface {
 // New create new Engine instance
 func New() *Engine {
 	e := &Engine{
-		workerLock:        &sync.Mutex{},
+		workerLock:        &sync.RWMutex{},
 		workerIdNext:      new(atomic.Uint64),
 		workerLastVersion: 0,
 		workerVersionNext: new(atomic.Uint64),
@@ -83,6 +83,7 @@ func (e *Engine) Run() {
 
 	apptools.AutoRestart("aria2客户端", e.aria2.Start, 10*time.Second)
 
+	e.watchDebug()
 	e.scheduler.Start()
 }
 
@@ -105,17 +106,10 @@ func (e *Engine) scaleWorkerPool(num int) {
 		w := newWorker(workerId, e.workerLastVersion, e)
 		e.workers[workerId] = w
 
+		// start worker
+		go w.Run()
+
 		e.scheduler.Ready(w)
-
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("worker(%s)运行异常: %s\n", w.String(), string(debug.Stack()))
-				}
-			}()
-
-			w.Run()
-		}()
 	}
 }
 
@@ -158,7 +152,7 @@ func (e *Engine) release(w *Worker) {
 		// 版本一致: 保留该worker实例，继续执行后续任务
 		e.scheduler.Ready(w)
 	} else {
-		// 不一致: 直接释放掉
+		// 版本不一致: 直接释放掉
 		e.workerLock.Lock()
 		defer e.workerLock.Unlock()
 
@@ -183,4 +177,21 @@ func (e *Engine) Stop() {
 	e.aria2.Stop()
 
 	log.Println("stop engine")
+}
+
+func (e *Engine) watchDebug() {
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		for {
+			select {
+			case <-ticker.C:
+				e.workerLock.RLock()
+				log.Printf("[WATCH-DEBUG] workers池数量：%d\n", len(e.workers))
+				for _, w := range e.workers {
+					log.Printf("[WATCH-DEBUG] worker：%s\n", w.String())
+				}
+				e.workerLock.RUnlock()
+			}
+		}
+	}()
 }

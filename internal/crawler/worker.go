@@ -35,7 +35,15 @@ func (w *Worker) Run() {
 		case <-w.exit:
 			return
 		case t := <-w.tasks:
-			w.do(t)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("worker(%s)处理任务(%s)panic: %v\n", w.String(), t.RawUrl(), r)
+					}
+				}()
+
+				w.do(t)
+			}()
 		}
 	}
 }
