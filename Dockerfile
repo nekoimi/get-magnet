@@ -1,10 +1,10 @@
-FROM golang:1.22-alpine as builder
+FROM golang:1.22-alpine AS builder
 
 ENV CGO_ENABLED=0
 
 WORKDIR /build
 COPY . .
-RUN go install
+RUN go install ./cmd
 RUN go build --ldflags "-extldflags -static" -o get-magnet main.go
 
 FROM alpine:latest
