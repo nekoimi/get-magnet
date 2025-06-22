@@ -4,8 +4,8 @@ ENV CGO_ENABLED=0
 
 WORKDIR /build
 COPY . .
-RUN go install ./cmd
-RUN go build --ldflags "-extldflags -static" -o get-magnet main.go
+RUN go install cmd
+RUN go build --ldflags "-extldflags -static" -o get-magnet cmd/main.go
 
 FROM alpine:latest
 
