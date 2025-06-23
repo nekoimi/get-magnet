@@ -11,7 +11,7 @@ services:
     environment:
       TZ: Asia/Shanghai
       LOG_LEVEL: debug
-      DB_DSN: user:password@(127.0.0.1:3306)/get_magnet_db
+      DB_DSN:
       ARIA2_JSONRPC:
       ARIA2_SECRET:
       HTTP_PROXY: socks5://127.0.0.1:2080
