@@ -56,6 +56,18 @@ func (a *Aria2) Start() {
 	a.client().Subscribe(arigo.BTCompleteEvent, a.btCompleteEventHandle)
 	a.client().Subscribe(arigo.ErrorEvent, a.errorEventHandle)
 
+	// 初始化获取的任务
+	actives, err := a.client().TellActive("gid")
+	if err != nil {
+		log.Printf("查询当前活跃的下载任务信息异常: %s \n", err.Error())
+		panic(err)
+	}
+
+	for _, active := range actives {
+		a.activeRepo.put(active.GID)
+		log.Printf("init active task: %s\n", active.GID)
+	}
+
 	a.bestFileSelectWork()
 }
 

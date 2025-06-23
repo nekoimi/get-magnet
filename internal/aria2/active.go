@@ -6,13 +6,13 @@ import (
 )
 
 type ActiveRepo struct {
-	mmu       *sync.Mutex
+	mmu       *sync.RWMutex
 	magnetMap map[string]time.Time
 }
 
 func newActiveRepo() *ActiveRepo {
 	return &ActiveRepo{
-		mmu:       &sync.Mutex{},
+		mmu:       &sync.RWMutex{},
 		magnetMap: make(map[string]time.Time),
 	}
 }
@@ -36,8 +36,8 @@ func (ar *ActiveRepo) isEmpty() bool {
 }
 
 func (ar *ActiveRepo) each(callback func(gid string, createdAt time.Time)) {
-	ar.mmu.Lock()
-	defer ar.mmu.Unlock()
+	ar.mmu.RLock()
+	defer ar.mmu.RUnlock()
 	for gid, t := range ar.magnetMap {
 		callback(gid, t)
 	}

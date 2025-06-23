@@ -4,6 +4,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/aria2"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
+	"github.com/nekoimi/get-magnet/internal/crawler/worker"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
@@ -34,20 +35,11 @@ type Engine struct {
 	// worker版本生成
 	workerVersionNext *atomic.Uint64
 	// worker池
-	workers map[uint64]*Worker
+	workers map[uint64]*worker.Worker
 	// aria2rpc 客户端
 	aria2 *aria2.Aria2
 	// 任务调度器
 	scheduler *Scheduler
-}
-
-type WorkerCallback interface {
-	// worker处理任务成功
-	success(tasks []task.Task, outputs []task.MagnetEntry)
-	// worker处理任务异常
-	error(t task.Task, err error)
-	// worker释放，空闲出来
-	release(w *Worker)
 }
 
 // New create new Engine instance
@@ -57,7 +49,7 @@ func New() *Engine {
 		workerIdNext:      new(atomic.Uint64),
 		workerLastVersion: 0,
 		workerVersionNext: new(atomic.Uint64),
-		workers:           make(map[uint64]*Worker, defaultWorkerNum),
+		workers:           make(map[uint64]*worker.Worker, defaultWorkerNum),
 		aria2:             aria2.NewClient(),
 		scheduler:         NewScheduler(),
 	}
@@ -75,7 +67,7 @@ func New() *Engine {
 func (e *Engine) Run() {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("engine运行异常: %s\n", string(debug.Stack()))
+			log.Printf("engine运行异常: %v, %s\n", r, string(debug.Stack()))
 		}
 	}()
 
@@ -120,7 +112,7 @@ func (e *Engine) initWorkerPool(num int) {
 	for i := 0; i < mathutil.Min(num, maxWorkerNum); i++ {
 		workerId := e.workerIdNext.Add(1)
 
-		w := newWorker(workerId, e.workerLastVersion, e)
+		w := worker.NewWorker(workerId, e.workerLastVersion, e)
 		e.workers[workerId] = w
 
 		// start worker
@@ -130,7 +122,7 @@ func (e *Engine) initWorkerPool(num int) {
 	}
 }
 
-func (e *Engine) success(tasks []task.Task, outputs []task.MagnetEntry) {
+func (e *Engine) Success(w *worker.Worker, tasks []task.Task, outputs []task.MagnetEntry) {
 	for _, t := range tasks {
 		e.scheduler.Submit(t)
 	}
@@ -152,20 +144,26 @@ func (e *Engine) success(tasks []task.Task, outputs []task.MagnetEntry) {
 		// 提交下载
 		e.createDownload(output.OptimalLink)
 	}
+
+	e.release(w)
 }
 
-func (e *Engine) error(t task.Task, err error) {
+func (e *Engine) Error(w *worker.Worker, t task.Task, err error) {
 	if t.ErrorNum() >= taskErrorMax {
 		log.Printf("任务出错次数太多: %s - %s\n", t.RawUrl(), err.Error())
 		return
 	}
+
 	log.Printf("任务处理异常：%s - %s\n", t.RawUrl(), err.Error())
+
 	e.scheduler.Submit(t)
+
+	e.release(w)
 }
 
-func (e *Engine) release(w *Worker) {
+func (e *Engine) release(w *worker.Worker) {
 	// 判断worker版本, 是否和最新版本一致
-	if e.workerLastVersion == w.version {
+	if e.workerLastVersion == w.Version() {
 		// 版本一致: 保留该worker实例，继续执行后续任务
 		e.scheduler.Ready(w)
 	} else {
@@ -173,7 +171,7 @@ func (e *Engine) release(w *Worker) {
 		e.workerLock.Lock()
 		defer e.workerLock.Unlock()
 
-		delete(e.workers, w.id)
+		delete(e.workers, w.Id())
 	}
 }
 
@@ -185,7 +183,7 @@ func (e *Engine) Stop() {
 	var wg sync.WaitGroup
 	wg.Add(len(e.workers))
 	for _, w := range e.workers {
-		go func(w *Worker) {
+		go func(w *worker.Worker) {
 			w.Stop()
 			wg.Done()
 		}(w)
