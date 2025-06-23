@@ -11,12 +11,11 @@ FROM alpine:latest
 
 LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
+ENV TZ=Asia/Shanghai
+
 COPY --from=builder /build/get-magnet   /usr/bin/get-magnet
 
-RUN apk add tzdata \
-    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && echo "Asia/Shanghai" > /etc/timezone \
-    && apk del tzdata
+RUN apk add --no-cache tzdata && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 WORKDIR /workspace
 
