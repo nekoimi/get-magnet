@@ -8,7 +8,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 )
@@ -36,7 +36,7 @@ func AuthMiddleware() mux.MiddlewareFunc {
 				if c, err := r.Cookie("token"); err == nil {
 					token = c.Value
 				} else {
-					log.Printf("获取请求cookie异常: %s\n", err.Error())
+					log.Debugf("获取请求cookie异常: %s\n", err.Error())
 				}
 			}
 

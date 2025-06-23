@@ -4,7 +4,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/robfig/cron/v3"
-	"log"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -18,7 +18,7 @@ func init() {
 
 func startTaskSeeders() {
 	for _, p := range seeders {
-		log.Printf("启动%s任务生成...\n", p.Name())
+		log.Debugf("启动%s任务生成...\n", p.Name())
 		p.Exec(crontab)
 	}
 

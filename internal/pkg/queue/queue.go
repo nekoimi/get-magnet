@@ -1,7 +1,7 @@
 package queue
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
 )
@@ -58,30 +58,30 @@ func (q *Queue[T]) PollWaitTimeout(timeout time.Duration) (T, bool) {
 	q.mux.Lock()
 	q.opCount = q.opCount + 1
 
-	log.Printf("[%s-%d]init-lock\n", q.name, q.opCount)
+	log.Debugf("[%s-%d]init-lock\n", q.name, q.opCount)
 	defer func() {
 		timer.Stop()
 		q.mux.Unlock()
-		log.Printf("[%s-%d]defer-unlock\n", q.name, q.opCount)
+		log.Debugf("[%s-%d]defer-unlock\n", q.name, q.opCount)
 	}()
 
 	for len(q.items) == 0 {
 		waitCh := make(chan struct{})
 		go func() {
-			log.Printf("[%s-%d]wait-unlock\n", q.name, q.opCount)
+			log.Debugf("[%s-%d]wait-unlock\n", q.name, q.opCount)
 			q.cond.Wait()
-			log.Printf("[%s-%d]wait-lock\n", q.name, q.opCount)
+			log.Debugf("[%s-%d]wait-lock\n", q.name, q.opCount)
 			close(waitCh)
 		}()
 
 		select {
 		case <-waitCh:
-			log.Printf("[%s-%d]waitCh\n", q.name, q.opCount)
+			log.Debugf("[%s-%d]waitCh\n", q.name, q.opCount)
 			continue
 
 		case <-timer.C:
 			q.mux.Lock()
-			log.Printf("[%s-%d]timeout-lock\n", q.name, q.opCount)
+			log.Debugf("[%s-%d]timeout-lock\n", q.name, q.opCount)
 			return empty, false
 		}
 	}

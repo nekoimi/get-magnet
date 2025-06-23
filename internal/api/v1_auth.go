@@ -8,7 +8,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -61,7 +61,7 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("登录用户: %s\n", u.GetId())
+	log.Debugf("登录用户: %s\n", u.GetId())
 
 	respond.Ok(w, nil)
 }

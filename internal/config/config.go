@@ -1,7 +1,9 @@
 package config
 
 import (
-	xormLog "xorm.io/xorm/log"
+	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
+	log "github.com/sirupsen/logrus"
+	"os"
 )
 
 type Config struct {
@@ -9,6 +11,8 @@ type Config struct {
 	Port int
 	// Jwt secret
 	JwtSecret string
+	// 日志级别
+	WorkerNum int
 	// 数据库配置
 	DB *Database
 	// aria2参数
@@ -19,12 +23,6 @@ type Config struct {
 type Database struct {
 	// 数据库连接配置
 	Dns string
-
-	// 是否打印SQL语句
-	ShowSQL bool
-
-	// 日志级别
-	LogLevel xormLog.LogLevel
 
 	// 连接池最大连接数
 	MaxOpenConnNum int
@@ -45,13 +43,28 @@ const UIAriaNgDir = "/workspace/ui/aria-ng"
 
 var cfg *Config
 
+func init() {
+	log.SetFormatter(&log.TextFormatter{
+		ForceColors:     true,
+		FullTimestamp:   true,
+		TimestampFormat: "2006-01-02 15:04:05",
+	})
+	log.SetOutput(os.Stdout)
+	log.SetReportCaller(false)
+
+	logLevel := apptools.Getenv("LOG_LEVEL", "debug")
+	level, err := log.ParseLevel(logLevel)
+	if err != nil {
+		panic(err)
+	}
+	log.SetLevel(level)
+}
+
 func Default() *Config {
 	cfg = new(Config)
 	cfg.Port = 8080
 	cfg.DB = &Database{
 		Dns:            "",
-		ShowSQL:        true,
-		LogLevel:       xormLog.LOG_DEBUG,
 		MaxOpenConnNum: 16,
 		MaxIdleConnNum: 8,
 	}
@@ -60,6 +73,17 @@ func Default() *Config {
 		Secret:  "",
 	}
 	return cfg
+}
+
+func (c *Config) LoadFromEnv() {
+	cfg.Port = apptools.GetenvInt("PORT", 8093)
+	cfg.JwtSecret = apptools.Getenv("JWT_SECRET", "get-magnet")
+	cfg.WorkerNum = apptools.GetenvInt("WORKER_NUM", 4)
+	cfg.DB.Dns = apptools.Getenv("DB_DSN", "")
+	cfg.Aria2Ops.JsonRpc = apptools.Getenv("ARIA2_JSONRPC", "")
+	cfg.Aria2Ops.Secret = apptools.Getenv("ARIA2_SECRET", "")
+
+	log.Debugln("加载配置完成")
 }
 
 func Get() *Config {

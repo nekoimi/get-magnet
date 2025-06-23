@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
@@ -45,7 +45,7 @@ func (s *DefaultDownloader) Download(url string) (selection *goquery.Selection, 
 		if retryNum > RetryLimit {
 			break
 		}
-		log.Printf("download url - retryNum(%d): %s \n", retryNum, url)
+		log.Debugf("download url - retryNum(%d): %s \n", retryNum, url)
 		retryNum++
 
 		req, err = http.NewRequest("GET", url, nil)

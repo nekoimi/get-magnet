@@ -4,7 +4,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"strings"
 )
 
@@ -22,7 +22,7 @@ type movieDetails struct {
 func (p *movieDetails) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Printf("处理详情任务：%s\n", taskEntry.RawUrl())
+		log.Debugf("处理详情任务：%s\n", taskEntry.RawUrl())
 
 		var root *goquery.Selection
 		root, err = taskEntry.Downloader().Download(rawUrl)
@@ -63,7 +63,7 @@ func (p *movieDetails) Handle(t task.Task) (tasks []task.Task, outputs []task.Ma
 
 		// optimalLink
 		var optimalLink = torrentLinks[0].Link
-		log.Printf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
+		log.Debugf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
 
 		var links []string
 		for _, link := range torrentLinks {

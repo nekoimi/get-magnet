@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -47,7 +47,7 @@ func (w *Worker) Version() uint64 {
 
 // Run 启动任务执行worker，监听任务并执行
 func (w *Worker) Run() {
-	log.Printf("启动Worker: %s...\n", w)
+	log.Debugf("启动Worker: %s...\n", w)
 	for {
 		select {
 		case <-w.exit:
@@ -57,7 +57,7 @@ func (w *Worker) Run() {
 				defer func() {
 					if r := recover(); r != nil {
 						w.resultHandler.Error(w, t, errors.New(fmt.Sprintf("panic: %v\n", r)))
-						log.Printf("worker(%s)处理任务(%s)panic: %v\n", w, t.RawUrl(), r)
+						log.Errorf("worker(%s)处理任务(%s)panic: %v\n", w, t.RawUrl(), r)
 					}
 				}()
 
@@ -75,11 +75,11 @@ func (w *Worker) Work(t task.Task) {
 // Stop 停止任务执行worker
 func (w *Worker) Stop() {
 	for w.running {
-		log.Printf("等待Worker执行完毕: %s\n", w)
+		log.Debugf("等待Worker执行完毕: %s\n", w)
 		time.Sleep(3 * time.Second)
 	}
 	close(w.exit)
-	log.Printf("停止Worker: %s\n", w)
+	log.Debugf("停止Worker: %s\n", w)
 }
 
 // do 执行任务
@@ -94,11 +94,11 @@ func (w *Worker) do(t task.Task) {
 	if err != nil {
 		t.IncrErrorNum()
 		w.resultHandler.Error(w, t, err)
-		log.Printf("[%s] handle task (%s) err: %s \n", w, t.RawUrl(), err.Error())
+		log.Errorf("[%s] handle task (%s) err: %s \n", w, t.RawUrl(), err.Error())
 		return
 	}
 	w.resultHandler.Success(w, tasks, outputs)
-	log.Printf("[%s] handle task done: %s \n", w, t.RawUrl())
+	log.Debugf("[%s] handle task done: %s \n", w, t.RawUrl())
 }
 
 func (w *Worker) String() string {

@@ -7,7 +7,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/robfig/cron/v3"
-	"log"
+	log "github.com/sirupsen/logrus"
 )
 
 type Seeder struct {
@@ -34,7 +34,7 @@ func (p *Seeder) Exec(cron *cron.Cron) {
 func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Printf("处理任务：%s\n", taskEntry.RawUrl())
+		log.Debugf("处理任务：%s\n", taskEntry.RawUrl())
 		s, err := taskEntry.Downloader().Download(rawUrl)
 		if err != nil {
 			return nil, nil, err
@@ -55,7 +55,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			m := new(table.Magnets)
 			m.ResPath = href
 			if count, err := db.Instance().Count(m); err != nil {
-				log.Printf("查询资源(%s)是否存在异常：%s\n", href, err.Error())
+				log.Errorf("查询资源(%s)是否存在异常：%s\n", href, err.Error())
 				continue
 			} else if count > 0 {
 				continue

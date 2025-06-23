@@ -6,7 +6,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/api"
 	"github.com/nekoimi/get-magnet/internal/api/middleware"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -58,7 +58,7 @@ func newRouter() *mux.Router {
 func routeDebugPrint(r *mux.Router) {
 	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		path, _ := route.GetPathTemplate()
-		log.Printf("Route: %s\n", path)
+		log.Debugf("Route: %s\n", path)
 		return nil
 	})
 }

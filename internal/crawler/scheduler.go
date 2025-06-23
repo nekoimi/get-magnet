@@ -4,7 +4,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/crawler/worker"
 	"github.com/nekoimi/get-magnet/internal/pkg/queue"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
 )
@@ -47,7 +47,7 @@ func (s *Scheduler) Start() {
 
 		select {
 		case <-s.exit:
-			log.Println("scheduler exit")
+			log.Debugf("scheduler exit")
 			s.exitWG.Done()
 			return
 		default:
@@ -66,7 +66,7 @@ func (s *Scheduler) Start() {
 			if activeWorker == nil || activeTask == nil {
 				continue
 			}
-			log.Printf("调度任务(%s)到%s\n", activeTask.RawUrl(), activeWorker.String())
+			log.Debugf("调度任务(%s)到%s\n", activeTask.RawUrl(), activeWorker.String())
 			activeWorker.Work(activeTask)
 		}
 	}

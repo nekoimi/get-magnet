@@ -6,7 +6,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/patrickmn/go-cache"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -47,7 +47,7 @@ func (a *Aria2) Start() {
 	if err != nil {
 		panic(err)
 	}
-	log.Printf("aria2版本信息: %s\n", version.Version)
+	log.Infof("aria2版本信息: %s\n", version.Version)
 
 	a.client().Subscribe(arigo.StartEvent, a.startEventHandle)
 	a.client().Subscribe(arigo.PauseEvent, a.pauseEventHandle)
@@ -59,13 +59,13 @@ func (a *Aria2) Start() {
 	// 初始化获取的任务
 	actives, err := a.client().TellActive("gid")
 	if err != nil {
-		log.Printf("查询当前活跃的下载任务信息异常: %s \n", err.Error())
+		log.Errorf("查询当前活跃的下载任务信息异常: %s \n", err.Error())
 		panic(err)
 	}
 
 	for _, active := range actives {
 		a.activeRepo.put(active.GID)
-		log.Printf("init active task: %s\n", active.GID)
+		log.Debugf("init active task: %s\n", active.GID)
 	}
 
 	a.bestFileSelectWork()
@@ -78,7 +78,7 @@ func (a *Aria2) Submit(downloadUrl string) error {
 func (a *Aria2) BatchSubmit(downloadUrls []string) error {
 	ops, err := a.client().GetGlobalOptions()
 	if err != nil {
-		log.Printf("查询aria2全局配置异常: %s - %s\n", err.Error(), debug.Stack())
+		log.Errorf("查询aria2全局配置异常: %s - %s\n", err.Error(), debug.Stack())
 		return err
 	}
 
@@ -86,7 +86,7 @@ func (a *Aria2) BatchSubmit(downloadUrls []string) error {
 	if _, err = a.client().AddURI(arigo.URIs(downloadUrls...), &arigo.Options{
 		Dir: saveDir,
 	}); err != nil {
-		log.Printf("添加aria2下载任务异常: %s \n", err.Error())
+		log.Errorf("添加aria2下载任务异常: %s \n", err.Error())
 		return err
 	}
 	return nil
@@ -98,11 +98,11 @@ func (a *Aria2) Stop() {
 	if a._client != nil {
 		err := a.client().Close()
 		if err != nil {
-			log.Printf("aria2客户端关闭异常: %s \n", err.Error())
+			log.Errorf("aria2客户端关闭异常: %s \n", err.Error())
 		}
 	}
 
-	log.Println("停止aria2客户端")
+	log.Debugln("停止aria2客户端")
 	a.exitWG.Wait()
 }
 
@@ -113,7 +113,7 @@ func (a *Aria2) bestFileSelectWork() {
 	for {
 		select {
 		case <-a.exit:
-			log.Println("aria2 best file select exit.")
+			log.Debugln("aria2 best file select exit.")
 			a.exitWG.Done()
 			return
 		case <-ticker.C:
@@ -121,14 +121,14 @@ func (a *Aria2) bestFileSelectWork() {
 				// 如果当前没有活跃的任务，查询已经停止的任务启动起来
 				tasks, err := a.client().TellWaiting(0, 30, "gid", "status")
 				if err != nil {
-					log.Printf("查询等待的下载任务信息异常: %s \n", err.Error())
-					return
+					log.Errorf("查询等待的下载任务信息异常: %s \n", err.Error())
+					continue
 				}
 				for _, task := range tasks {
 					if task.Status == arigo.StatusPaused {
 						err = a.client().Unpause(task.GID)
 						if err != nil {
-							log.Printf("恢复下载任务(%s)异常: %s \n", task.GID, err.Error())
+							log.Errorf("恢复下载任务(%s)异常: %s \n", task.GID, err.Error())
 							continue
 						}
 					}
@@ -137,7 +137,7 @@ func (a *Aria2) bestFileSelectWork() {
 				a.activeRepo.each(func(gid string, createdAt time.Time) {
 					status, err := a.client().TellStatus(gid, "status", "files", "downloadSpeed")
 					if err != nil {
-						log.Printf("查询下载任务GID#%s状态信息异常: %s \n", gid, err.Error())
+						log.Errorf("查询下载任务GID#%s状态信息异常: %s \n", gid, err.Error())
 						return
 					}
 
@@ -151,10 +151,10 @@ func (a *Aria2) bestFileSelectWork() {
 						// 检查不通过，需要降低当前任务的优先级
 						err = a.client().Pause(gid)
 						if err != nil {
-							log.Printf("暂停下载任务(%s)异常: %s \n", gid, err.Error())
+							log.Errorf("暂停下载任务(%s)异常: %s \n", gid, err.Error())
 							return
 						}
-						log.Printf("暂停任务：%s 下载速度一直小于 %d 字节/s\n", gid, LowSpeedThreshold)
+						log.Debugf("暂停任务：%s 下载速度一直小于 %d 字节/s\n", gid, LowSpeedThreshold)
 						return
 					}
 
@@ -179,10 +179,10 @@ func (a *Aria2) bestFileSelectWork() {
 						if len(allowFiles) == 0 {
 							err = a.client().Pause(gid)
 							if err != nil {
-								log.Printf("暂停下载任务(%s)异常: %s \n", gid, err.Error())
+								log.Errorf("暂停下载任务(%s)异常: %s \n", gid, err.Error())
 								return
 							}
-							log.Printf("下载任务没有优选出符合要求的文件：%s\n", gid)
+							log.Debugf("下载任务没有优选出符合要求的文件：%s\n", gid)
 							return
 						}
 
@@ -196,7 +196,7 @@ func (a *Aria2) bestFileSelectWork() {
 							SelectFile: selectIndex,
 						})
 						if err != nil {
-							log.Printf("下载任务(%s)文件优选异常: %s \n", gid, err.Error())
+							log.Errorf("下载任务(%s)文件优选异常: %s \n", gid, err.Error())
 							return
 						}
 					}
@@ -207,27 +207,27 @@ func (a *Aria2) bestFileSelectWork() {
 }
 
 func (a *Aria2) startEventHandle(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s startEventHandle\n", event.GID)
+	log.Debugf("GID#%s startEventHandle\n", event.GID)
 	a.activeRepo.put(event.GID)
 }
 
 func (a *Aria2) pauseEventHandle(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s pauseEventHandle\n", event.GID)
+	log.Debugf("GID#%s pauseEventHandle\n", event.GID)
 	a.activeRepo.del(event.GID)
 }
 
 func (a *Aria2) stopEventHandle(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s stopEventHandle\n", event.GID)
+	log.Debugf("GID#%s stopEventHandle\n", event.GID)
 	a.activeRepo.del(event.GID)
 }
 
 func (a *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s completeEventHandle\n", event.GID)
+	log.Debugf("GID#%s completeEventHandle\n", event.GID)
 	a.activeRepo.del(event.GID)
 }
 
 func (a *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {
-	log.Printf("GID#%s btCompleteEventHandle\n", event.GID)
+	log.Debugf("GID#%s btCompleteEventHandle\n", event.GID)
 	a.activeRepo.del(event.GID)
 }
 
@@ -235,10 +235,10 @@ func (a *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
 	a.activeRepo.del(event.GID)
 	status, err := a.client().TellStatus(event.GID, "status", "errorCode", "errorMessage")
 	if err != nil {
-		log.Printf("查询下载任务GID#%s状态信息异常: %s \n", event.GID, err.Error())
+		log.Errorf("查询下载任务GID#%s状态信息异常: %s \n", event.GID, err.Error())
 		return
 	}
-	log.Printf("下载任务GID#%s出错：[%s] %s - %s\n", event.GID, status.Status, status.ErrorCode, status.ErrorMessage)
+	log.Errorf("下载任务GID#%s出错：[%s] %s - %s\n", event.GID, status.Status, status.ErrorCode, status.ErrorMessage)
 }
 
 func (a *Aria2) client() *arigo.Client {
@@ -255,7 +255,7 @@ func (a *Aria2) client() *arigo.Client {
 				if reConnNum > MaxRetryConnNum {
 					break
 				}
-				log.Printf("检测到aria2客户端异常, 重新连接 %d ... %s\n", reConnNum, err.Error())
+				log.Warnf("检测到aria2客户端异常, 重新连接 %d ... %s\n", reConnNum, err.Error())
 				time.Sleep(5 * time.Second)
 				continue
 			}

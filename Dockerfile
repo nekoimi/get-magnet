@@ -22,4 +22,4 @@ WORKDIR /workspace
 
 EXPOSE 8093
 
-CMD ["get-magnet"]
+ENTRYPOINT ["get-magnet"]
