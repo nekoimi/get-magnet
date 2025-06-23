@@ -66,7 +66,7 @@ func (a *Aria2) Start() {
 		log.Debugf("init active task: %s\n", active.GID)
 	}
 
-	a.watchDownloadingTasks()
+	a.checkDownloadStatusLoop()
 }
 
 func (a *Aria2) Submit(downloadUrl string) error {
@@ -104,7 +104,7 @@ func (a *Aria2) Stop() {
 }
 
 // 下载任务状态检测
-func (a *Aria2) watchDownloadingTasks() {
+func (a *Aria2) checkDownloadStatusLoop() {
 	a.exitWG.Add(1)
 	ticker := time.NewTicker(LowSpeedInterval)
 	for {
