@@ -35,7 +35,7 @@ type Aria2 struct {
 func NewClient() *Aria2 {
 	return &Aria2{
 		amux:       &sync.Mutex{},
-		speedCache: cache.New(LowSpeedTimeout, 5*time.Minute),
+		speedCache: cache.New(LowSpeedTimeout, LowSpeedCleanupInterval),
 		activeRepo: newActiveRepo(),
 		exit:       make(chan struct{}, 1),
 		exitWG:     sync.WaitGroup{},
@@ -109,7 +109,7 @@ func (a *Aria2) Stop() {
 // 下载文件优选
 func (a *Aria2) bestFileSelectWork() {
 	a.exitWG.Add(1)
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(LowSpeedInterval)
 	for {
 		select {
 		case <-a.exit:
@@ -131,6 +131,7 @@ func (a *Aria2) bestFileSelectWork() {
 							log.Errorf("恢复下载任务(%s)异常: %s \n", task.GID, err.Error())
 							continue
 						}
+						log.Infof("恢复下载任务(%s)\n", task.GID)
 					}
 				}
 			} else {
@@ -147,14 +148,14 @@ func (a *Aria2) bestFileSelectWork() {
 					}
 
 					// 检查任务的下载速度
-					if !a.checkDownloadSpeed(gid, status.DownloadSpeed) {
+					if a.isPauseCheckDownloadSpeed(gid, status.DownloadSpeed) {
 						// 检查不通过，需要降低当前任务的优先级
 						err = a.client().Pause(gid)
 						if err != nil {
 							log.Errorf("暂停下载任务(%s)异常: %s \n", gid, err.Error())
 							return
 						}
-						log.Debugf("暂停任务：%s 下载速度一直小于 %d 字节/s\n", gid, LowSpeedThreshold)
+						log.Infof("暂停任务：%s 下载速度一直小于 %d 字节/s\n", gid, LowSpeedThreshold)
 						return
 					}
 

@@ -7,8 +7,17 @@ import (
 	"time"
 )
 
+// LowSpeedMinute 低速下载区间测速检查时长
+const LowSpeedMinute = 25
+
 // LowSpeedTimeout 低速下载多长时间超时
-const LowSpeedTimeout = 25 * time.Minute
+const LowSpeedTimeout = 30 * time.Minute
+
+// LowSpeedInterval 低速下载检查周期
+const LowSpeedInterval = 1 * time.Minute
+
+// LowSpeedCleanupInterval 低速下载记录清除检查周期
+const LowSpeedCleanupInterval = 5 * time.Minute
 
 // LowSpeedThreshold 速度小于100KB，speed 单位是 Bytes/s
 const LowSpeedThreshold = 102400
