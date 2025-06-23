@@ -7,7 +7,7 @@ import (
 )
 
 type Queue[T any] struct {
-	mux     *sync.Mutex
+	mux     *sync.RWMutex
 	name    string
 	cond    *sync.Cond
 	items   []T
@@ -17,7 +17,7 @@ type Queue[T any] struct {
 // New 创建一个新队列
 func New[T any](name string) *Queue[T] {
 	q := new(Queue[T])
-	q.mux = &sync.Mutex{}
+	q.mux = &sync.RWMutex{}
 	q.name = name
 	q.cond = sync.NewCond(q.mux)
 	q.items = make([]T, 0)
@@ -93,8 +93,8 @@ func (q *Queue[T]) PollWaitTimeout(timeout time.Duration) (T, bool) {
 
 // Size 获取队列中元素的数量
 func (q *Queue[T]) Size() int {
-	q.mux.Lock()
-	defer q.mux.Unlock()
+	q.mux.RLock()
+	defer q.mux.RUnlock()
 
 	return len(q.items)
 }
