@@ -8,8 +8,6 @@ import (
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"runtime/debug"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -68,7 +66,7 @@ func (a *Aria2) Start() {
 		log.Debugf("init active task: %s\n", active.GID)
 	}
 
-	a.bestFileSelectWork()
+	a.watchDownloadingTasks()
 }
 
 func (a *Aria2) Submit(downloadUrl string) error {
@@ -96,8 +94,7 @@ func (a *Aria2) Stop() {
 	a.exit <- struct{}{}
 
 	if a._client != nil {
-		err := a.client().Close()
-		if err != nil {
+		if err := a.client().Close(); err != nil {
 			log.Errorf("aria2客户端关闭异常: %s \n", err.Error())
 		}
 	}
@@ -106,8 +103,8 @@ func (a *Aria2) Stop() {
 	a.exitWG.Wait()
 }
 
-// 下载文件优选
-func (a *Aria2) bestFileSelectWork() {
+// 下载任务状态检测
+func (a *Aria2) watchDownloadingTasks() {
 	a.exitWG.Add(1)
 	ticker := time.NewTicker(LowSpeedInterval)
 	for {
@@ -117,92 +114,69 @@ func (a *Aria2) bestFileSelectWork() {
 			a.exitWG.Done()
 			return
 		case <-ticker.C:
-			if a.activeRepo.isEmpty() {
-				// 如果当前没有活跃的任务，查询已经停止的任务启动起来
-				tasks, err := a.client().TellWaiting(0, 30, "gid", "status")
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Errorf("检查低速下载 panic: %v\n", r)
+					}
+				}()
+
+				tasks, err := a.client().TellActive("gid", "status", "files", "downloadSpeed")
 				if err != nil {
-					log.Errorf("查询等待的下载任务信息异常: %s \n", err.Error())
-					continue
+					log.Errorf("查询当前活跃的下载任务信息异常: %s \n", err.Error())
+					return
 				}
-				for _, task := range tasks {
-					if task.Status == arigo.StatusPaused {
-						err = a.client().Unpause(task.GID)
-						if err != nil {
-							log.Errorf("恢复下载任务(%s)异常: %s \n", task.GID, err.Error())
+				if len(tasks) == 0 {
+					log.Debugf("检测到当前下载任务为空，尝试启动暂停的下载任务...")
+					// 如果当前没有活跃的任务，查询已经停止的任务启动起来
+					if tasks, err = a.client().TellWaiting(0, 30, "gid", "status"); err != nil {
+						log.Errorf("查询等待的下载任务信息异常: %s \n", err.Error())
+						return
+					}
+					for _, task := range tasks {
+						if task.Status == arigo.StatusPaused {
+							if err = a.client().Unpause(task.GID); err != nil {
+								log.Errorf("恢复下载任务(%s)异常: %s \n", task.GID, err.Error())
+								continue
+							}
+							log.Infof("恢复下载任务(%s)\n", task.GID)
+						}
+					}
+					log.Debugf("启动暂停的下载任务：%d\n", len(tasks))
+				} else {
+					log.Debugf("检查下载任务：%d\n", len(tasks))
+					for _, task := range tasks {
+						if task.Status != arigo.StatusActive {
+							// 下载任务不活跃，不做处理
+							log.Debugf("下载任务(%s)状态不活跃，不做处理：%s\n", task.GID, task.Status)
 							continue
 						}
-						log.Infof("恢复下载任务(%s)\n", task.GID)
+
+						gid := task.GID
+						// 检查任务的下载速度
+						if a.isPauseCheckDownloadSpeed(gid, task.DownloadSpeed) {
+							log.Debugf("下载任务(%s)低速下载，将暂停...", task.GID)
+							// 检查不通过，需要降低当前任务的优先级
+							if err = a.client().Pause(gid); err != nil {
+								log.Errorf("暂停下载任务(%s)异常: %s \n", gid, err.Error())
+							} else {
+								log.Infof("暂停任务：%s 下载速度一直小于 %d 字节/s\n", gid, LowSpeedThreshold)
+							}
+						}
+
+						// 下载文件优选
+						if selectIndex, ok := a.downloadFileBestSelect(task.Files); ok {
+							if err = a.client().ChangeOptions(gid, arigo.Options{
+								SelectFile: selectIndex,
+							}); err != nil {
+								log.Errorf("下载任务(%s)文件优选异常：%s \n", gid, err.Error())
+							} else {
+								log.Infof("下载任务(%s)文件优选：%s", gid, selectIndex)
+							}
+						}
 					}
 				}
-			} else {
-				a.activeRepo.each(func(gid string, createdAt time.Time) {
-					status, err := a.client().TellStatus(gid, "status", "files", "downloadSpeed")
-					if err != nil {
-						log.Errorf("查询下载任务GID#%s状态信息异常: %s \n", gid, err.Error())
-						return
-					}
-
-					if status.Status != arigo.StatusActive {
-						// 下载任务不活跃，不做处理
-						return
-					}
-
-					// 检查任务的下载速度
-					if a.isPauseCheckDownloadSpeed(gid, status.DownloadSpeed) {
-						// 检查不通过，需要降低当前任务的优先级
-						err = a.client().Pause(gid)
-						if err != nil {
-							log.Errorf("暂停下载任务(%s)异常: %s \n", gid, err.Error())
-							return
-						}
-						log.Infof("暂停任务：%s 下载速度一直小于 %d 字节/s\n", gid, LowSpeedThreshold)
-						return
-					}
-
-					// 下载文件优选
-					files := status.Files
-					if len(files) <= 1 {
-						// 只有一个文件，不做处理
-						return
-					}
-
-					needChangeOps := false
-					for _, f := range files {
-						// if selected non best, need re-change options
-						if f.Selected && !isBestFile(f) {
-							needChangeOps = true
-							break
-						}
-					}
-
-					if needChangeOps {
-						allowFiles := bestSelectFile(files)
-						if len(allowFiles) == 0 {
-							err = a.client().Pause(gid)
-							if err != nil {
-								log.Errorf("暂停下载任务(%s)异常: %s \n", gid, err.Error())
-								return
-							}
-							log.Debugf("下载任务没有优选出符合要求的文件：%s\n", gid)
-							return
-						}
-
-						var builder strings.Builder
-						for _, a := range allowFiles {
-							builder.WriteString(strconv.Itoa(a.Index))
-							builder.WriteString(",")
-						}
-						selectIndex := builder.String()
-						err = a.client().ChangeOptions(gid, arigo.Options{
-							SelectFile: selectIndex,
-						})
-						if err != nil {
-							log.Errorf("下载任务(%s)文件优选异常: %s \n", gid, err.Error())
-							return
-						}
-					}
-				})
-			}
+			}()
 		}
 	}
 }

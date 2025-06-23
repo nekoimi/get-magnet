@@ -3,12 +3,13 @@ package aria2
 import (
 	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
+	"strconv"
 	"strings"
 	"time"
 )
 
-// LowSpeedMinute 低速下载区间测速检查时长
-const LowSpeedMinute = 25
+// LowSpeedNum 低速下载区间测速检查数量
+const LowSpeedNum = 25
 
 // LowSpeedTimeout 低速下载多长时间超时
 const LowSpeedTimeout = 30 * time.Minute
@@ -41,4 +42,37 @@ func isBestFile(f arigo.File) bool {
 
 func isTorrentFile(filename string) bool {
 	return strings.HasSuffix(filename, ".torrent")
+}
+
+func (a *Aria2) downloadFileBestSelect(files []arigo.File) (selectIndex string, ok bool) {
+	if len(files) <= 1 {
+		// 只有一个文件，不做处理
+		return "", false
+	}
+
+	needChangeOps := false
+	for _, f := range files {
+		// if selected non best, need re-change options
+		if f.Selected && !isBestFile(f) {
+			needChangeOps = true
+			break
+		}
+	}
+
+	if needChangeOps {
+		allowFiles := bestSelectFile(files)
+		if len(allowFiles) == 0 {
+			// 不做处理
+			return "", false
+		}
+
+		var builder strings.Builder
+		for _, a := range allowFiles {
+			builder.WriteString(strconv.Itoa(a.Index))
+			builder.WriteString(",")
+		}
+		return builder.String(), true
+	}
+
+	return "", false
 }
