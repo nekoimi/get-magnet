@@ -3,6 +3,7 @@ package aria2
 import (
 	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -75,4 +76,23 @@ func (a *Aria2) downloadFileBestSelect(files []arigo.File) (selectIndex string, 
 	}
 
 	return "", false
+}
+
+func mainFilename(files []arigo.File) string {
+	if len(files) == 0 {
+		return "unknow"
+	}
+
+	var maxFile arigo.File
+	var maxSize uint
+
+	for i := range files {
+		length := files[i].Length
+		if length > maxSize {
+			maxSize = length
+			maxFile = files[i]
+		}
+	}
+
+	return filepath.Base(maxFile.Path)
 }
