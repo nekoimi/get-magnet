@@ -78,21 +78,26 @@ func (a *Aria2) downloadFileBestSelect(files []arigo.File) (selectIndex string, 
 	return "", false
 }
 
-func mainFilename(files []arigo.File) string {
-	if len(files) == 0 {
+func aria2Filename(status arigo.Status) string {
+	if len(status.Files) == 0 {
 		return "unknow"
 	}
 
 	var maxFile arigo.File
 	var maxSize uint
 
-	for i := range files {
-		length := files[i].Length
+	statusFiles := status.Files
+	for i := range statusFiles {
+		length := statusFiles[i].Length
 		if length > maxSize {
 			maxSize = length
-			maxFile = files[i]
+			maxFile = statusFiles[i]
 		}
 	}
 
-	return filepath.Base(maxFile.Path)
+	name := filepath.Base(maxFile.Path)
+	if name == "." {
+		return status.GID
+	}
+	return name
 }

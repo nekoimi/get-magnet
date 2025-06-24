@@ -100,7 +100,9 @@ func (e *Engine) Run() {
 // 添加下载任务
 func (e *Engine) createDownload(downloadUrl string) {
 	if err := e.aria2.Submit(downloadUrl); err != nil {
-		log.Errorln(err.Error())
+		log.Errorf("提交下载任务异常：%s - %s\n", downloadUrl, err.Error())
+	} else {
+		log.Infof("提交下载任务：%s\n", downloadUrl)
 	}
 }
 

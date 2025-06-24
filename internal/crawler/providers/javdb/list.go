@@ -18,9 +18,10 @@ func (p *Seeder) Name() string {
 }
 
 func (p *Seeder) Exec(cron *cron.Cron) {
-	// 每天晚上2点执行
+	// 每天2点执行
 	cron.AddFunc("00 2 * * *", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/censored?vft=2&vst=1", &Seeder{}))
+		log.Infoln("启动任务：https://javdb.com/censored?vft=2&vst=1")
 	})
 
 	// 每周执行
@@ -34,7 +35,7 @@ func (p *Seeder) Exec(cron *cron.Cron) {
 func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Debugf("处理任务：%s\n", taskEntry.RawUrl())
+		log.Infof("处理任务：%s\n", taskEntry.RawUrl())
 		s, err := taskEntry.Downloader().Download(rawUrl)
 		if err != nil {
 			return nil, nil, err
