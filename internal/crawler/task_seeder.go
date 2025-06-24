@@ -13,7 +13,7 @@ var (
 )
 
 func init() {
-	register(&javdb.Seeder{})
+	register(javdb.TaskSeeder())
 }
 
 func startTaskSeeders() {

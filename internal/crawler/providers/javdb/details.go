@@ -3,26 +3,38 @@ package javdb
 import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
+	"github.com/nekoimi/get-magnet/internal/pkg/singleton"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"strings"
 )
 
-var torrentFilterKeys = map[string]int{
-	"-UC.":            1,
-	"-C.":             2,
-	"-U.":             3,
-	"-UNCENSORED-HD.": 4,
-	"-AI.":            5,
+type details struct {
 }
 
-type movieDetails struct {
+var (
+	// 实例
+	detailsSingleton = singleton.New[*details](func() *details {
+		return &details{}
+	})
+	// 资源过滤优选排序关键字集合
+	torrentFilterKeys = map[string]int{
+		"-UC.":            1,
+		"-C.":             2,
+		"-U.":             3,
+		"-UNCENSORED-HD.": 4,
+		"-AI.":            5,
+	}
+)
+
+func detailsHandler() task.Handler {
+	return detailsSingleton.Get()
 }
 
-func (p *movieDetails) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
+func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Debugf("处理详情任务：%s\n", taskEntry.RawUrl())
+		log.Infof("处理详情任务：%s\n", taskEntry.RawUrl())
 
 		var root *goquery.Selection
 		root, err = taskEntry.Downloader().Download(rawUrl)

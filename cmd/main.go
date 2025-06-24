@@ -5,13 +5,9 @@ import (
 	"github.com/nekoimi/get-magnet/internal/server"
 )
 
-var cfg = config.Default()
-
-func init() {
-	cfg.LoadFromEnv()
-}
-
 func main() {
+	cfg := config.Default()
+
 	s := server.Default(cfg)
 
 	s.Run()

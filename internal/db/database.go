@@ -7,40 +7,44 @@ import (
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	log "github.com/sirupsen/logrus"
+	"sync"
 	"xorm.io/xorm"
 )
 
 var (
-	err    error
-	engine *xorm.Engine
+	err        error
+	engine     *xorm.Engine
+	engineOnce sync.Once
 )
 
 // Init 初始化数据库操作
 func Init(cfg *config.Database) {
-	log.Debugf("连接数据库")
-	engine, err = xorm.NewEngine(MySQL.String(), cfg.Dns)
-	if err != nil {
-		log.Errorf("连接数据库异常: %s\n", err.Error())
-		panic(err)
-	}
+	engineOnce.Do(func() {
+		log.Debugf("连接数据库")
+		engine, err = xorm.NewEngine(MySQL.String(), cfg.Dns)
+		if err != nil {
+			log.Errorf("连接数据库异常: %s\n", err.Error())
+			panic(err)
+		}
 
-	// 初始化设置
-	engine.ShowSQL(true)
-	engine.SetLogger(newXormLogger())
-	// 连接池设置
-	engine.SetMaxIdleConns(cfg.MaxIdleConnNum)
-	engine.SetMaxOpenConns(cfg.MaxOpenConnNum)
+		// 初始化设置
+		engine.ShowSQL(true)
+		engine.SetLogger(newXormLogger())
+		// 连接池设置
+		engine.SetMaxIdleConns(cfg.MaxIdleConnNum)
+		engine.SetMaxOpenConns(cfg.MaxOpenConnNum)
 
-	err = engine.Ping()
-	if err != nil {
-		log.Errorf("数据库连接不可用: %s\n", err.Error())
-		panic(err)
-	}
+		err = engine.Ping()
+		if err != nil {
+			log.Errorf("数据库连接不可用: %s\n", err.Error())
+			panic(err)
+		}
 
-	// 初始化数据迁移
-	initMigrates(engine)
-	// 数据表迁移
-	runMigrates(engine)
+		// 初始化数据迁移
+		initMigrates(engine)
+		// 数据表迁移
+		runMigrates(engine)
+	})
 }
 
 // Instance 获取数据库操作实例

@@ -6,11 +6,23 @@ import (
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/get-magnet/internal/pkg/singleton"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 )
 
 type Seeder struct {
+}
+
+var (
+	// seeder实例
+	seederSingleton = singleton.New[*Seeder](func() *Seeder {
+		return &Seeder{}
+	})
+)
+
+func TaskSeeder() *Seeder {
+	return seederSingleton.Get()
 }
 
 func (p *Seeder) Name() string {
@@ -20,15 +32,15 @@ func (p *Seeder) Name() string {
 func (p *Seeder) Exec(cron *cron.Cron) {
 	// 每天2点执行
 	cron.AddFunc("00 2 * * *", func() {
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/censored?vft=2&vst=1", &Seeder{}))
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/censored?vft=2&vst=1", TaskSeeder()))
 		log.Infoln("启动任务：https://javdb.com/censored?vft=2&vst=1")
 	})
 
 	// 每周执行
 	cron.AddFunc("00 12 * * 0", func() {
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/O2Q30?t=c&sort_type=0", &Seeder{}))
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/x7wn?t=c&sort_type=0", &Seeder{}))
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/0rva?t=c&sort_type=0", &Seeder{}))
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/O2Q30?t=c&sort_type=0", TaskSeeder()))
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/x7wn?t=c&sort_type=0", TaskSeeder()))
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewStaticWorkerTask("https://javdb.com/actors/0rva?t=c&sort_type=0", TaskSeeder()))
 	})
 }
 
@@ -63,7 +75,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			}
 
 			// 添加详情解析任务
-			newTasks = append(newTasks, task.NewStaticWorkerTask(taskEntry.RawURLHost+href, &movieDetails{}))
+			newTasks = append(newTasks, task.NewStaticWorkerTask(taskEntry.RawURLHost+href, detailsHandler()))
 		}
 
 		// 当前新获取的path列表存在需要处理的新任务
@@ -72,7 +84,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			nextHref, existsNext := s.Find(".pagination>a.pagination-next").First().Attr("href")
 			if existsNext {
 				// 提交下一页的任务，添加列表解析任务
-				newTasks = append(newTasks, task.NewStaticWorkerTask(taskEntry.RawURLHost+nextHref, &Seeder{}))
+				newTasks = append(newTasks, task.NewStaticWorkerTask(taskEntry.RawURLHost+nextHref, TaskSeeder()))
 			}
 		}
 

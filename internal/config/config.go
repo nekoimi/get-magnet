@@ -72,10 +72,14 @@ func Default() *Config {
 		JsonRpc: "",
 		Secret:  "",
 	}
+
+	// 加载环境变量配置
+	cfg.loadEnv()
+
 	return cfg
 }
 
-func (c *Config) LoadFromEnv() {
+func (c *Config) loadEnv() {
 	cfg.Port = apptools.GetenvInt("PORT", 8093)
 	cfg.JwtSecret = apptools.Getenv("JWT_SECRET", "get-magnet")
 	cfg.WorkerNum = apptools.GetenvInt("WORKER_NUM", 4)

@@ -71,7 +71,7 @@ func NewStaticWorkerTask(rawURL string, handle Handler) Task {
 		RawURLPath: u.Path,
 		ErrorCount: 0,
 		handle:     handle,
-		downloader: download.NewDefaultDownloader(),
+		downloader: download.Default(),
 	}
 }
 
