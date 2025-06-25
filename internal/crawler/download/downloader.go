@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -15,6 +16,7 @@ import (
 const RetryLimit = 5
 
 type Downloader interface {
+	SetCookies(u *url.URL, cookies []*http.Cookie)
 	Download(url string) (*goquery.Selection, error)
 }
 
@@ -38,8 +40,12 @@ func Default() Downloader {
 			},
 		}
 	})
-	
+
 	return defaultDownloader
+}
+
+func (s *DefaultDownloader) SetCookies(u *url.URL, cookies []*http.Cookie) {
+	s.client.Jar.SetCookies(u, cookies)
 }
 
 func (s *DefaultDownloader) Download(url string) (selection *goquery.Selection, err error) {
