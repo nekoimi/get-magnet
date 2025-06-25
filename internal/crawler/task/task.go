@@ -41,12 +41,13 @@ type Entry struct {
 
 // MagnetEntry 任务结果信息
 type MagnetEntry struct {
+	Origin      string   `json:"origin,omitempty"`
 	Title       string   `json:"title,omitempty"`
 	Number      string   `json:"number,omitempty"`
 	OptimalLink string   `json:"optimal_link,omitempty"`
 	Links       []string `json:"links,omitempty"`
-	ResHost     string   `json:"res_host,omitempty"`
-	ResPath     string   `json:"res_path,omitempty"`
+	RawURLHost  string   `json:"raw_url_host,omitempty"`
+	RawURLPath  string   `json:"raw_url_path,omitempty"`
 }
 
 // TorrentLink 磁力链接信息

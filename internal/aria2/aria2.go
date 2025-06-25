@@ -70,18 +70,14 @@ func (a *Aria2) Start() {
 	a.checkDownloadStatusLoop()
 }
 
-func (a *Aria2) Submit(downloadUrl string) error {
-	return a.BatchSubmit([]string{downloadUrl})
-}
-
-func (a *Aria2) BatchSubmit(downloadUrls []string) error {
+func (a *Aria2) Submit(origin string, downloadUrl string) error {
 	ops, err := a.globalOptions()
 	if err != nil {
 		return err
 	}
 
-	saveDir := ops.Dir + "/" + util.NowDate("-")
-	if _, err = a.client().AddURI(arigo.URIs(downloadUrls...), &arigo.Options{
+	saveDir := ops.Dir + "/" + origin + "/" + util.NowDate("-")
+	if _, err = a.client().AddURI(arigo.URIs(downloadUrl), &arigo.Options{
 		Dir: saveDir,
 	}); err != nil {
 		log.Errorf("添加aria2下载任务异常: %s \n", err.Error())

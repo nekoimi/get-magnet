@@ -66,7 +66,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 		var newTasks []task.Task
 		for _, href := range detailsHrefs {
 			m := new(table.Magnets)
-			m.ResPath = href
+			m.RawURLPath = href
 			if count, err := db.Instance().Count(m); err != nil {
 				log.Errorf("查询资源(%s)是否存在异常：%s\n", href, err.Error())
 				continue

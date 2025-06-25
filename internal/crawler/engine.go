@@ -98,8 +98,8 @@ func (e *Engine) Run() {
 }
 
 // 添加下载任务
-func (e *Engine) createDownload(downloadUrl string) {
-	if err := e.aria2.Submit(downloadUrl); err != nil {
+func (e *Engine) createDownload(origin string, downloadUrl string) {
+	if err := e.aria2.Submit(origin, downloadUrl); err != nil {
 		log.Errorf("提交下载任务异常：%s - %s\n", downloadUrl, err.Error())
 	} else {
 		log.Infof("提交下载任务：%s\n", downloadUrl)
@@ -132,12 +132,13 @@ func (e *Engine) Success(w *worker.Worker, tasks []task.Task, outputs []task.Mag
 
 	for _, output := range outputs {
 		_, err := db.Instance().InsertOne(&table.Magnets{
+			Origin:      output.Origin,
 			Title:       output.Title,
 			Number:      output.Number,
 			OptimalLink: output.OptimalLink,
 			Links:       output.Links,
-			ResHost:     output.ResHost,
-			ResPath:     output.ResPath,
+			RawURLHost:  output.RawURLHost,
+			RawURLPath:  output.RawURLPath,
 			Status:      0,
 		})
 		if err != nil {
@@ -145,7 +146,7 @@ func (e *Engine) Success(w *worker.Worker, tasks []task.Task, outputs []task.Mag
 		}
 
 		// 提交下载
-		e.createDownload(output.OptimalLink)
+		e.createDownload(output.Origin, output.OptimalLink)
 	}
 
 	e.release(w)

@@ -82,12 +82,13 @@ func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetE
 			links = append(links, link.Link)
 		}
 		outputs = append(outputs, task.MagnetEntry{
+			Origin:      TaskSeeder().Name(),
 			Title:       title,
 			Number:      number,
 			OptimalLink: optimalLink,
 			Links:       links,
-			ResHost:     taskEntry.RawURLHost,
-			ResPath:     taskEntry.RawURLPath,
+			RawURLHost:  taskEntry.RawURLHost,
+			RawURLPath:  taskEntry.RawURLPath,
 		})
 
 		return
