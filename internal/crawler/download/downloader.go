@@ -73,18 +73,24 @@ func (s *DefaultDownloader) Download(url string) (selection *goquery.Selection, 
 		req.Header.Set("User-Agent", randUserAgent())
 		resp, err = s.client.Do(req)
 		if err != nil {
+			log.Errorf("download url error: %s - %s", url, err.Error())
 			continue
 		}
 
 		if resp.StatusCode == 429 {
+			// 请求次数过多，等待一段时间
 			time.Sleep(60 * time.Second)
 			continue
 		}
 
-		if resp.StatusCode != 200 {
-			return nil, errors.New(fmt.Sprintf("%s StatusCode not ok => %d", url, resp.StatusCode))
+		if resp.StatusCode == 200 {
+			break
 		}
+
+		err = errors.New(fmt.Sprintf("download url error: %s, StatusCode not ok => %d", url, resp.StatusCode))
 	}
+
+	// 检查处理错误
 	if err != nil {
 		return nil, err
 	}

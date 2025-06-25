@@ -24,6 +24,8 @@ type Task interface {
 	Handler() Handler
 }
 
+type Option func(t *Entry)
+
 // Entry 任务信息
 type Entry struct {
 	// 任务ID
@@ -57,23 +59,28 @@ type TorrentLink struct {
 	Link string
 }
 
-// NewStaticWorkerTask 创建默认任务实体
-func NewStaticWorkerTask(rawURL string, handle Handler) Task {
+// NewTask 创建默认任务实体
+func NewTask(rawURL string, opts ...Option) Task {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil
 	}
 
-	return &Entry{
+	t := &Entry{
 		TaskId:     "",
 		IsDynamic:  false,
 		RawURL:     rawURL,
 		RawURLHost: u.Scheme + "://" + u.Host,
 		RawURLPath: u.Path,
 		ErrorCount: 0,
-		handle:     handle,
 		downloader: download.Default(),
 	}
+
+	for _, opt := range opts {
+		opt(t)
+	}
+
+	return t
 }
 
 func (t *Entry) RawUrl() string {
@@ -94,4 +101,16 @@ func (t *Entry) Handler() Handler {
 
 func (t *Entry) Downloader() download.Downloader {
 	return t.downloader
+}
+
+func WithHandle(handle Handler) Option {
+	return func(t *Entry) {
+		t.handle = handle
+	}
+}
+
+func WithDownloader(downloader download.Downloader) Option {
+	return func(t *Entry) {
+		t.downloader = downloader
+	}
 }
