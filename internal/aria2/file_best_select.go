@@ -1,8 +1,8 @@
 package aria2
 
 import (
-	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
+	"github.com/siku2/arigo"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -10,10 +10,10 @@ import (
 )
 
 // LowSpeedNum 低速下载区间测速检查数量
-const LowSpeedNum = 25
+const LowSpeedNum = 30
 
 // LowSpeedTimeout 低速下载多长时间超时
-const LowSpeedTimeout = 30 * time.Minute
+const LowSpeedTimeout = 35 * time.Minute
 
 // LowSpeedInterval 低速下载检查周期
 const LowSpeedInterval = 1 * time.Minute
@@ -78,7 +78,7 @@ func (a *Aria2) downloadFileBestSelect(files []arigo.File) (selectIndex string, 
 	return "", false
 }
 
-func aria2Filename(status arigo.Status) string {
+func display(status arigo.Status) string {
 	if len(status.Files) == 0 {
 		return "unknow"
 	}
@@ -97,7 +97,7 @@ func aria2Filename(status arigo.Status) string {
 
 	name := filepath.Base(maxFile.Path)
 	if name == "." {
-		return status.GID
+		return "GID#" + status.GID
 	}
 	return name
 }

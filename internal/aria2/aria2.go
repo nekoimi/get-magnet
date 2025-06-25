@@ -2,11 +2,12 @@ package aria2
 
 import (
 	"errors"
-	"github.com/nekoimi/arigo"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/patrickmn/go-cache"
+	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
+	"modernc.org/mathutil"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -63,7 +64,7 @@ func (a *Aria2) Start() {
 
 	for _, task := range tasks {
 		a.activeRepo.put(task.GID)
-		log.Debugf("init active task: %s\n", aria2Filename(task))
+		log.Debugf("init active task: %s\n", display(task))
 	}
 
 	a.checkDownloadStatusLoop()
@@ -74,9 +75,8 @@ func (a *Aria2) Submit(downloadUrl string) error {
 }
 
 func (a *Aria2) BatchSubmit(downloadUrls []string) error {
-	ops, err := a.client().GetGlobalOptions()
+	ops, err := a.globalOptions()
 	if err != nil {
-		log.Errorf("查询aria2全局配置异常: %s - %s\n", err.Error(), debug.Stack())
 		return err
 	}
 
@@ -117,51 +117,61 @@ func (a *Aria2) checkDownloadStatusLoop() {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						log.Errorf("检查低速下载 panic: %v\n", r)
+						log.Errorf("检查下载状态 panic: %v\n", r)
 					}
 				}()
 
+				ops, err := a.globalOptions()
+				if err != nil {
+					panic(err)
+				}
+
+				maxDownloadNum := mathutil.Max(int(ops.MaxConcurrentDownloads), 1)
 				tasks, err := a.client().TellActive("gid", "status", "files", "downloadSpeed")
 				if err != nil {
 					log.Errorf("查询当前活跃的下载任务信息异常: %s \n", err.Error())
 					return
 				}
-				if len(tasks) == 0 {
-					log.Debugf("检测到当前下载任务为空，尝试启动暂停的下载任务...")
+
+				if len(tasks) < maxDownloadNum {
+					num := maxDownloadNum - len(tasks)
+					log.Debugf("检测到当前下载任务数量小于最大下载数量，尝试启动暂停的下载任务: size-%d ...", num)
 					// 如果当前没有活跃的任务，查询已经停止的任务启动起来
-					if tasks, err = a.client().TellWaiting(0, 30, "gid", "status", "files"); err != nil {
+					if tasks, err = a.client().TellWaiting(0, uint(num), "gid", "status", "files"); err != nil {
 						log.Errorf("查询等待的下载任务信息异常: %s \n", err.Error())
 						return
 					}
 					for _, task := range tasks {
 						if task.Status == arigo.StatusPaused {
 							if err = a.client().Unpause(task.GID); err != nil {
-								log.Errorf("恢复下载任务(%s)异常: %s \n", aria2Filename(task), err.Error())
+								log.Errorf("恢复下载任务(%s)异常: %s \n", display(task), err.Error())
 								continue
 							}
-							log.Infof("恢复下载任务(%s)\n", aria2Filename(task))
+							log.Infof("恢复下载任务(%s)\n", display(task))
 							time.Sleep(300 * time.Microsecond)
 						}
 					}
 					log.Debugf("启动暂停的下载任务：size-%d\n", len(tasks))
-				} else {
+				}
+
+				if len(tasks) > 0 {
 					log.Debugf("检查下载任务：size-%d\n", len(tasks))
 					for _, task := range tasks {
 						if task.Status != arigo.StatusActive {
 							// 下载任务不活跃，不做处理
-							log.Debugf("下载任务(%s)状态不活跃，不做处理：%s\n", aria2Filename(task), task.Status)
+							log.Debugf("下载任务(%s)状态不活跃，不做处理：%s\n", display(task), task.Status)
 							continue
 						}
 
 						gid := task.GID
 						// 检查任务的下载速度
 						if a.isPauseCheckDownloadSpeed(gid, task.DownloadSpeed) {
-							log.Debugf("下载任务(%s)低速下载，将暂停...", aria2Filename(task))
+							log.Debugf("下载任务(%s)低速下载，将暂停...", display(task))
 							// 检查不通过，需要降低当前任务的优先级
 							if err = a.client().Pause(gid); err != nil {
-								log.Errorf("暂停下载任务(%s)异常: %s \n", aria2Filename(task), err.Error())
+								log.Errorf("暂停下载任务(%s)异常: %s \n", display(task), err.Error())
 							} else {
-								log.Infof("暂停任务：(%s) 下载速度一直小于 %d 字节/s\n", aria2Filename(task), LowSpeedThreshold)
+								log.Infof("暂停任务：(%s) 下载速度一直小于 %d 字节/s\n", display(task), LowSpeedThreshold)
 							}
 							time.Sleep(300 * time.Microsecond)
 						}
@@ -171,9 +181,9 @@ func (a *Aria2) checkDownloadStatusLoop() {
 							if err = a.client().ChangeOptions(gid, arigo.Options{
 								SelectFile: selectIndex,
 							}); err != nil {
-								log.Errorf("下载任务(%s)文件优选异常：%s \n", aria2Filename(task), err.Error())
+								log.Errorf("下载任务(%s)文件优选异常：%s \n", display(task), err.Error())
 							} else {
-								log.Infof("下载任务(%s)文件优选：%s", aria2Filename(task), selectIndex)
+								log.Infof("下载任务(%s)文件优选：%s", display(task), selectIndex)
 							}
 						}
 					}
@@ -215,7 +225,7 @@ func (a *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
 		log.Errorf("查询下载任务GID#%s状态信息异常: %s \n", event.GID, err.Error())
 		return
 	}
-	log.Errorf("下载任务(%s)出错：[%s] %s - %s\n", aria2Filename(status), status.Status, status.ErrorCode, status.ErrorMessage)
+	log.Errorf("下载任务(%s)出错：[%s] %s - %s\n", display(status), status.Status, status.ErrorCode, status.ErrorMessage)
 }
 
 func (a *Aria2) client() *arigo.Client {
@@ -261,4 +271,13 @@ func (a *Aria2) connect() error {
 	}
 	a._client = client
 	return nil
+}
+
+func (a *Aria2) globalOptions() (arigo.Options, error) {
+	ops, err := a.client().GetGlobalOptions()
+	if err != nil {
+		log.Errorf("查询aria2全局配置异常: %s - %s\n", err.Error(), debug.Stack())
+		return arigo.Options{}, err
+	}
+	return ops, nil
 }

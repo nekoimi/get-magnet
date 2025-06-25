@@ -7,7 +7,7 @@ COPY . .
 RUN go install cmd
 RUN go build --ldflags "-extldflags -static" -o get-magnet cmd/main.go
 
-FROM alpine:latest
+FROM zenika/alpine-chrome:latest
 
 LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
