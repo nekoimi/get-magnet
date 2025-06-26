@@ -6,6 +6,12 @@ import (
 	"testing"
 )
 
+func TestAria2_Start(t *testing.T) {
+	// Failed to open the file xxxxx cause: File name too long
+	t.Log(len("hello"))
+	t.Log(len("你好"))
+}
+
 func TestAria2_Client(t *testing.T) {
 	client, err := arigo.Dial("wss://aria2.sakuraio.com/jsonrpc", "nekoimi")
 	if err != nil {

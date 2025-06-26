@@ -1,12 +1,14 @@
 package aria2
 
 import (
+	"errors"
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
 	"github.com/siku2/arigo"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // LowSpeedNum 低速下载区间测速检查数量
@@ -27,14 +29,52 @@ const LowSpeedThreshold = 102400
 // MinVideoSize 文件最小大小：100M
 const MinVideoSize = 100_000_000
 
+// MaxFileNameLength 最大文件名长度 255
+const MaxFileNameLength = 255
+
 func bestSelectFile(files []arigo.File) []arigo.File {
 	var allowFiles []arigo.File
 	for _, f := range files {
+		// 检查文件名称，超过限制就跳过该文件
+		if err := isValidFileName(f.Path); err != nil {
+			continue
+		}
+
 		if isBestFile(f) {
 			allowFiles = append(allowFiles, f)
 		}
 	}
 	return allowFiles
+}
+
+// 检查文件名是否合法（长度与非法字符）
+func isValidFileName(path string) error {
+	base := filepath.Base(path)
+
+	// 检查是否为空
+	if strings.TrimSpace(base) == "" {
+		return errors.New("文件名为空")
+	}
+
+	// 检查是否包含非法字符（可扩展）
+	illegalChars := []string{"/", "\\", "\x00"} // 你可以根据需求增加
+	for _, ch := range illegalChars {
+		if strings.Contains(base, ch) {
+			return errors.New("文件名包含非法字符: " + ch)
+		}
+	}
+
+	// 检查文件名长度（字节数，非字符数）
+	if len(base) > MaxFileNameLength {
+		return errors.New("文件名过长（字节数超过 255）")
+	}
+
+	// 可选：检查字符数量（非必要）
+	if utf8.RuneCountInString(base) == 0 {
+		return errors.New("文件名无效")
+	}
+
+	return nil
 }
 
 func isBestFile(f arigo.File) bool {
