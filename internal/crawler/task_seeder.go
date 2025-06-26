@@ -13,6 +13,7 @@ var (
 )
 
 func init() {
+	//register(test.TaskSeeder())
 	register(javdb.TaskSeeder())
 	//register(sehuatang.TaskSeeder())
 }

@@ -1,6 +1,7 @@
 package aria2
 
 import (
+	"context"
 	"errors"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
@@ -17,6 +18,7 @@ import (
 const MaxRetryConnNum = 5
 
 type Aria2 struct {
+	ctx context.Context
 	// aria2 操作锁
 	amux *sync.Mutex
 	// aria2 jsonrpc 客户端
@@ -41,7 +43,9 @@ func NewClient() *Aria2 {
 	}
 }
 
-func (a *Aria2) Start() {
+func (a *Aria2) Start(ctx context.Context) {
+	a.ctx = ctx
+
 	version, err := a.client().GetVersion()
 	if err != nil {
 		panic(err)
@@ -130,24 +134,28 @@ func (a *Aria2) checkDownloadStatusLoop() {
 				}
 
 				if len(tasks) < maxDownloadNum {
-					num := maxDownloadNum - len(tasks)
-					log.Debugf("检测到当前下载任务数量小于最大下载数量，尝试启动暂停的下载任务: size-%d ...", num)
+					//num := maxDownloadNum - len(tasks)
+					//log.Debugf("检测到当前下载任务数量小于最大下载数量，尝试启动暂停的下载任务: size-%d ...", num)
 					// 如果当前没有活跃的任务，查询已经停止的任务启动起来
-					if tasks, err = a.client().TellWaiting(0, uint(num), "gid", "status", "files"); err != nil {
-						log.Errorf("查询等待的下载任务信息异常: %s \n", err.Error())
+					if err = a.client().UnpauseAll(); err != nil {
+						log.Errorf("恢复下载任务信息异常: %s \n", err.Error())
 						return
 					}
-					for _, task := range tasks {
-						if task.Status == arigo.StatusPaused {
-							if err = a.client().Unpause(task.GID); err != nil {
-								log.Errorf("恢复下载任务(%s)异常: %s \n", display(task), err.Error())
-								continue
-							}
-							log.Infof("恢复下载任务(%s)\n", display(task))
-							time.Sleep(300 * time.Microsecond)
-						}
-					}
-					log.Debugf("启动暂停的下载任务：size-%d\n", len(tasks))
+					//if tasks, err = a.client().TellWaiting(0, uint(num), "gid", "status", "files"); err != nil {
+					//	log.Errorf("查询等待的下载任务信息异常: %s \n", err.Error())
+					//	return
+					//}
+					//for _, task := range tasks {
+					//	if task.Status == arigo.StatusPaused {
+					//		if err = a.client().Unpause(task.GID); err != nil {
+					//			log.Errorf("恢复下载任务(%s)异常: %s \n", display(task), err.Error())
+					//			continue
+					//		}
+					//		log.Infof("恢复下载任务(%s)\n", display(task))
+					//		time.Sleep(300 * time.Microsecond)
+					//	}
+					//}
+					//log.Debugf("启动暂停的下载任务：size-%d\n", len(tasks))
 				}
 
 				if len(tasks) > 0 {
@@ -230,19 +238,32 @@ func (a *Aria2) client() *arigo.Client {
 
 	pingErr := a.ping()
 	if pingErr != nil {
+		exit := false
 		reConnNum := 0
 		for {
-			err := a.connect()
-			if err != nil {
-				reConnNum++
-				if reConnNum > MaxRetryConnNum {
-					break
+			select {
+			case <-a.ctx.Done():
+				exit = true
+				log.Debugf("aria2取消重连...")
+				break
+			default:
+				err := a.connect()
+				if err != nil {
+					reConnNum++
+					if reConnNum > MaxRetryConnNum {
+						exit = true
+						break
+					}
+					log.Warnf("检测到aria2客户端异常, 重新连接 %d ... %s\n", reConnNum, err.Error())
+					time.Sleep(3 * time.Second)
+					continue
 				}
-				log.Warnf("检测到aria2客户端异常, 重新连接 %d ... %s\n", reConnNum, err.Error())
-				time.Sleep(5 * time.Second)
-				continue
+				return a._client
 			}
-			return a._client
+
+			if exit {
+				break
+			}
 		}
 		panic(pingErr)
 	}

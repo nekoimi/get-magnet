@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"context"
 	"github.com/nekoimi/get-magnet/internal/aria2"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/config"
@@ -25,6 +26,8 @@ const (
 )
 
 type Engine struct {
+	ctx    context.Context
+	cancel context.CancelFunc
 	// worker操作锁
 	workerLock *sync.RWMutex
 	// workerId生成
@@ -43,7 +46,10 @@ type Engine struct {
 
 // New create new Engine instance
 func New() *Engine {
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	e := &Engine{
+		ctx:               ctx,
+		cancel:            cancelFunc,
 		workerLock:        &sync.RWMutex{},
 		workerIdNext:      new(atomic.Uint64),
 		workerLastVersion: 0,
@@ -75,6 +81,8 @@ func (e *Engine) Run() {
 			ticker := time.NewTicker(60 * time.Second)
 			for {
 				select {
+				case <-e.ctx.Done():
+					return
 				case <-ticker.C:
 					e.workerLock.RLock()
 					log.Debugf("[WATCH-DEBUG] workers池数量：%d\n", len(e.workers))
@@ -90,7 +98,7 @@ func (e *Engine) Run() {
 	// 初始化worker池
 	e.initWorkerPool(config.Get().WorkerNum)
 	// 启动aria2连接
-	apptools.AutoRestart("aria2客户端", e.aria2.Start, 10*time.Second)
+	apptools.AutoRestart(e.ctx, "aria2客户端", e.aria2.Start, 10*time.Second)
 	// 启动任务生成
 	apptools.DelayStart("任务生成", startTaskSeeders, 10*time.Second)
 	// 启动任务调度器
@@ -181,6 +189,8 @@ func (e *Engine) release(w *worker.Worker) {
 
 // Stop shutdown engine
 func (e *Engine) Stop() {
+	e.cancel()
+
 	stopTaskSeeders()
 	e.scheduler.Stop()
 

@@ -80,8 +80,11 @@ func (q *Queue[T]) PollWaitTimeout(timeout time.Duration) (T, bool) {
 			continue
 
 		case <-timer.C:
-			q.mux.Lock()
-			log.Debugf("[%s-%d]timeout-lock\n", q.name, q.opCount)
+			if q.mux.TryLock() {
+				log.Debugf("[%s-%d]timeout-lock\n", q.name, q.opCount)
+			} else {
+				log.Debugf("[%s-%d]timeout-wait\n", q.name, q.opCount)
+			}
 			return empty, false
 		}
 	}

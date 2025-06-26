@@ -47,7 +47,7 @@ func (p *Seeder) Exec(cron *cron.Cron) {
 func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Infof("处理任务：%s\n", taskEntry.RawUrl())
+		log.Infof("处理任务：%s\n", rawUrl)
 		s, err := taskEntry.Downloader().Download(rawUrl)
 		if err != nil {
 			return nil, nil, err
