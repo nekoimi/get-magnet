@@ -10,7 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 )
@@ -70,6 +69,27 @@ func (a *Aria2) Start(ctx context.Context) {
 	for _, task := range tasks {
 		a.activeRepo.put(task.GID)
 		log.Debugf("init active task: %s\n", display(task))
+	}
+
+	// 初始化处理异常任务
+	offset := 0
+	fetchNum := 20
+	for {
+		stops, err := a.client().TellStopped(offset, uint(fetchNum), "gid", "status", "infoHash", "files", "bittorrent", "errorCode", "errorMessage")
+		if err != nil {
+			log.Errorf("查询当前停止的下载任务信息异常: %s \n", err.Error())
+			panic(err)
+		}
+
+		if len(stops) == 0 {
+			break
+		}
+
+		offset = offset + fetchNum
+
+		for _, stop := range stops {
+			a.onErrorFileNameTooLong(stop)
+		}
 	}
 
 	a.checkDownloadStatusLoop()
@@ -182,7 +202,7 @@ func (a *Aria2) checkDownloadStatusLoop() {
 						}
 
 						// 下载文件优选
-						if selectIndex, ok := a.downloadFileBestSelect(task.Files); ok {
+						if selectIndex, ok := downloadFileBestSelect(task.Files); ok {
 							if err = a.client().ChangeOptions(gid, arigo.Options{
 								SelectFile: selectIndex,
 							}); err != nil {
@@ -225,7 +245,7 @@ func (a *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {
 
 func (a *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
 	a.activeRepo.del(event.GID)
-	status, err := a.client().TellStatus(event.GID, "gid", "status", "files", "errorCode", "errorMessage")
+	status, err := a.client().TellStatus(event.GID, "gid", "status", "infoHash", "files", "bittorrent", "errorCode", "errorMessage")
 	if err != nil {
 		log.Errorf("查询下载任务GID#%s状态信息异常: %s \n", event.GID, err.Error())
 		return
@@ -233,10 +253,7 @@ func (a *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
 	log.Errorf("下载任务(%s)出错：[%s] %s - %s\n", display(status), status.Status, status.ErrorCode, status.ErrorMessage)
 
 	// 处理文件出错的情况
-	if status.ErrorCode == arigo.CouldNotOpenExistingFile {
-		if strings.Contains(status.ErrorMessage, ErrorFileNameTooLong) {
-		}
-	}
+	a.onErrorFileNameTooLong(status)
 }
 
 func (a *Aria2) client() *arigo.Client {

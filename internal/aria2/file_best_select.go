@@ -85,7 +85,7 @@ func isTorrentFile(filename string) bool {
 	return strings.HasSuffix(filename, ".torrent")
 }
 
-func (a *Aria2) downloadFileBestSelect(files []arigo.File) (selectIndex string, ok bool) {
+func downloadFileBestSelect(files []arigo.File) (selectIndex string, ok bool) {
 	if len(files) <= 1 {
 		// 只有一个文件，不做处理
 		return "", false

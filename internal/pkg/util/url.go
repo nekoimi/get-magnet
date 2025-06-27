@@ -5,6 +5,12 @@ import (
 	"net/url"
 )
 
+const MagnetLinkPrefix = "magnet:?xt=urn:btih:"
+
+func BuildMagnetLink(infoHash string) string {
+	return MagnetLinkPrefix + infoHash
+}
+
 func CleanHost(host string) string {
 	u, err := url.Parse(host)
 	if err != nil {
