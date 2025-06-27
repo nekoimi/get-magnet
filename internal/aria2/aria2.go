@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 )
@@ -230,6 +231,12 @@ func (a *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
 		return
 	}
 	log.Errorf("下载任务(%s)出错：[%s] %s - %s\n", display(status), status.Status, status.ErrorCode, status.ErrorMessage)
+
+	// 处理文件出错的情况
+	if status.ErrorCode == arigo.CouldNotOpenExistingFile {
+		if strings.Contains(status.ErrorMessage, ErrorFileNameTooLong) {
+		}
+	}
 }
 
 func (a *Aria2) client() *arigo.Client {

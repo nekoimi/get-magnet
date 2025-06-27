@@ -11,7 +11,7 @@ type Magnets struct {
 	Number      string    `json:"number,omitempty"`
 	OptimalLink string    `json:"optimal_link,omitempty"`
 	Links       []string  `json:"links,omitempty"`
-	RawURLHost  string    `json:"raw_url_host,omitempty"`
-	RawURLPath  string    `json:"raw_url_path,omitempty"`
+	RawURLHost  string    `xorm:"raw_url_host" json:"raw_url_host,omitempty"`
+	RawURLPath  string    `xorm:"raw_url_path" json:"raw_url_path,omitempty"`
 	Status      uint8     `json:"status,omitempty"`
 }
