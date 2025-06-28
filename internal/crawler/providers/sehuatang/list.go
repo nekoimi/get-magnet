@@ -11,6 +11,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
+	"net/url"
 )
 
 const Name = "SeHuaTang"
@@ -97,13 +98,20 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 		// 获取新任务列表
 		var newTasks []task.Task
 		for _, href := range detailsHrefs {
-			if repository.ExistsByPath(href) {
+			joinUrl := util.JoinUrl(taskEntry.RawURLHost, href)
+
+			u, err := url.Parse(joinUrl)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			if repository.ExistsByPath(u.RequestURI()) {
 				continue
 			}
 
 			// 添加详情解析任务
 			newTasks = append(newTasks, task.NewTask(
-				util.JoinUrl(taskEntry.RawURLHost, href),
+				joinUrl,
 				task.WithHandle(detailsHandler()),
 				task.WithDownloader(p.downloader)))
 		}
