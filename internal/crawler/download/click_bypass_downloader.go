@@ -9,6 +9,7 @@ import (
 	"golang.org/x/net/http/httpproxy"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 )
 
@@ -80,7 +81,7 @@ func (s *ClickBypassDownloader) Download(rawUrl string) (selection *goquery.Sele
 
 func (s *ClickBypassDownloader) handleBypassRefreshCookies(rawUrl string) {
 	proxyEnv := httpproxy.FromEnvironment()
-	launch := launcher.New().Proxy(proxyEnv.HTTPProxy).MustLaunch()
+	launch := launcher.New().Bin(os.Getenv("ROD_BROWSER_PATH")).Proxy(proxyEnv.HTTPProxy).MustLaunch()
 	log.Debugf("启动页面 %s 浏览...", rawUrl)
 	browser := rod.New().ControlURL(launch).MustConnect()
 	defer func() {

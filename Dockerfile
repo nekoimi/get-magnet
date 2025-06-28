@@ -13,6 +13,8 @@ FROM zenika/alpine-chrome:latest
 LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
 ENV TZ=Asia/Shanghai
+# 设置 Chromium 启动路径给 Rod 用
+ENV ROD_BROWSER_PATH=/usr/bin/chromium-browser
 
 USER root
 
