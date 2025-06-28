@@ -14,12 +14,14 @@ import (
 )
 
 const Name = "SeHuaTang"
+const FC2PPV = "FC2PPV"
 
 type Seeder struct {
 	downloader download.Downloader
 }
 
 var (
+	pageIndex = 1
 	// seeder实例
 	seederSingleton = singleton.New[*Seeder](func() *Seeder {
 		return &Seeder{
@@ -51,10 +53,24 @@ func (p *Seeder) Name() string {
 }
 
 func (p *Seeder) Exec(cron *cron.Cron) {
+	// FC2PPV
+	bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
+		"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=36&filter=typeid&typeid=368",
+		task.WithHandle(TaskSeeder()),
+		task.WithDownloader(p.downloader),
+	))
+
 	// 每天1点执行
 	cron.AddFunc("55 1 * * *", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
 			"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=2&typeid=684&typeid=684&filter=typeid&page=1",
+			task.WithHandle(TaskSeeder()),
+			task.WithDownloader(p.downloader),
+		))
+
+		// FC2PPV
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
+			"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=36&filter=typeid&typeid=368",
 			task.WithHandle(TaskSeeder()),
 			task.WithDownloader(p.downloader),
 		))
@@ -101,10 +117,11 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 		}
 
 		// 当前新获取的path列表存在需要处理的新任务
-		if len(newTasks) > 0 {
+		if len(newTasks) > 0 && pageIndex < 25 {
 			// 不存在已经解析的link，继续下一页
 			nextHref, existsNext := root.Find("#fd_page_bottom").First().Find("#fd_page_bottom > div > a:nth-child(2)").Attr("href")
 			if existsNext {
+				pageIndex++
 				// 提交下一页的任务，添加列表解析任务
 				newTasks = append(newTasks, task.NewTask(
 					util.JoinUrl(taskEntry.RawURLHost, nextHref),
