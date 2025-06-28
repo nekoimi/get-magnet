@@ -2,7 +2,6 @@ package sehuatang
 
 import (
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-rod/rod"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
@@ -11,9 +10,11 @@ import (
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
+	"net/url"
 )
 
 const Name = "SeHuaTang"
+const FC2PPV = "FC2PPV"
 
 type Seeder struct {
 	downloader download.Downloader
@@ -23,21 +24,7 @@ var (
 	// seeder实例
 	seederSingleton = singleton.New[*Seeder](func() *Seeder {
 		return &Seeder{
-			downloader: download.NewClickBypassDownloader(
-				func(root *goquery.Selection) bool {
-					return root.Find("#hd").Size() == 0
-				},
-				func(page *rod.Page) error {
-					btn := page.MustElementByJS(`() => document.querySelector("body > a:nth-child(5)")`)
-					text, err := btn.Text()
-					if err != nil {
-						return err
-					}
-					log.Debugf("点击访问按钮: %s", text)
-					btn.MustClick()
-					return nil
-				},
-			),
+			downloader: GetBypassDownloader(),
 		}
 	})
 )
@@ -50,13 +37,24 @@ func (p *Seeder) Name() string {
 	return Name
 }
 
+func (p *Seeder) Downloader() download.Downloader {
+	return p.downloader
+}
+
 func (p *Seeder) Exec(cron *cron.Cron) {
 	// 每天1点执行
 	cron.AddFunc("55 1 * * *", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
 			"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=2&typeid=684&typeid=684&filter=typeid&page=1",
 			task.WithHandle(TaskSeeder()),
-			task.WithDownloader(p.downloader),
+			task.WithDownloader(GetBypassDownloader()),
+		))
+
+		// FC2PPV
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
+			"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=36&filter=typeid&typeid=368",
+			task.WithHandle(TaskSeeder()),
+			task.WithDownloader(GetBypassDownloader()),
 		))
 		log.Infof("启动任务：%s", p.Name())
 	})
@@ -89,15 +87,23 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 		// 获取新任务列表
 		var newTasks []task.Task
 		for _, href := range detailsHrefs {
-			if repository.ExistsByPath(href) {
+			joinUrl := util.JoinUrl(taskEntry.RawURLHost, href)
+
+			u, err := url.Parse(joinUrl)
+			if err != nil {
+				log.Errorf("url解析错误：%s", joinUrl)
+				continue
+			}
+
+			if repository.ExistsByPath(u.RequestURI()) {
 				continue
 			}
 
 			// 添加详情解析任务
 			newTasks = append(newTasks, task.NewTask(
-				util.JoinUrl(taskEntry.RawURLHost, href),
+				joinUrl,
 				task.WithHandle(detailsHandler()),
-				task.WithDownloader(p.downloader)))
+				task.WithDownloader(GetBypassDownloader())))
 		}
 
 		// 当前新获取的path列表存在需要处理的新任务
@@ -109,7 +115,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 				newTasks = append(newTasks, task.NewTask(
 					util.JoinUrl(taskEntry.RawURLHost, nextHref),
 					task.WithHandle(TaskSeeder()),
-					task.WithDownloader(p.downloader)))
+					task.WithDownloader(GetBypassDownloader())))
 			}
 		}
 

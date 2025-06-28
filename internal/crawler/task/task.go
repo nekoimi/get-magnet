@@ -71,7 +71,7 @@ func NewTask(rawURL string, opts ...Option) Task {
 		IsDynamic:  false,
 		RawURL:     rawURL,
 		RawURLHost: u.Scheme + "://" + u.Host,
-		RawURLPath: u.Path,
+		RawURLPath: u.RequestURI(),
 		ErrorCount: 0,
 		downloader: download.Default(),
 	}
