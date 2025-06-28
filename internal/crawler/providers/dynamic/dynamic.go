@@ -3,7 +3,7 @@ package dynamic
 import (
 	"github.com/dop251/goja"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
-	"log"
+	log "github.com/sirupsen/logrus"
 )
 
 type dynamicProvider struct {
@@ -20,6 +20,6 @@ func (p *dynamicProvider) Handle(t task.Task) (tasks []task.Task, outputs []task
 		return nil, nil, err
 	}
 
-	log.Println(v)
+	log.Debugln(v)
 	return nil, nil, nil
 }

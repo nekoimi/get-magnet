@@ -1,7 +1,7 @@
 package migrate
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 	"xorm.io/xorm"
 )
 
@@ -23,11 +23,11 @@ func registerMigrate(m Migrate) {
 // AutoCreateTable 自动创建数据表
 func AutoCreateTable(e *xorm.Engine, tableBean any) error {
 	if exists, err := e.IsTableExist(tableBean); err != nil {
-		log.Fatalf("检查数据表状态异常: %s\n", err.Error())
+		log.Errorf("检查数据表状态异常: %s\n", err.Error())
 		return err
 	} else if !exists {
 		if err := e.CreateTables(tableBean); err != nil {
-			log.Fatalf("创建数据表异常: %s\n", err.Error())
+			log.Errorf("创建数据表异常: %s\n", err.Error())
 			return err
 		}
 	}

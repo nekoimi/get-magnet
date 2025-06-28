@@ -2,7 +2,7 @@ package bus
 
 import (
 	"github.com/asaskevich/EventBus"
-	"log"
+	log "github.com/sirupsen/logrus"
 )
 
 type Bus struct {
@@ -23,6 +23,6 @@ func (b *Bus) Publish(topic string, args ...interface{}) {
 func (b *Bus) Subscribe(topic string, fn interface{}) {
 	err := b.eventBus.SubscribeAsync(topic, fn, true)
 	if err != nil {
-		log.Printf("Event Subscribe error: %s\n", err.Error())
+		log.Errorf("Event Subscribe error: %s\n", err.Error())
 	}
 }

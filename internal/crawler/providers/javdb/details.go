@@ -3,26 +3,39 @@ package javdb
 import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
+	"github.com/nekoimi/get-magnet/internal/db/repository"
+	"github.com/nekoimi/get-magnet/internal/pkg/singleton"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"strings"
 )
 
-var torrentFilterKeys = map[string]int{
-	"-UC.":            1,
-	"-C.":             2,
-	"-U.":             3,
-	"-UNCENSORED-HD.": 4,
-	"-AI.":            5,
+type details struct {
 }
 
-type movieDetails struct {
+var (
+	// 实例
+	detailsSingleton = singleton.New[*details](func() *details {
+		return &details{}
+	})
+	// 资源过滤优选排序关键字集合
+	torrentFilterKeys = map[string]int{
+		"-UC.":            1,
+		"-C.":             2,
+		"-U.":             3,
+		"-UNCENSORED-HD.": 4,
+		"-AI.":            5,
+	}
+)
+
+func detailsHandler() task.Handler {
+	return detailsSingleton.Get()
 }
 
-func (p *movieDetails) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
+func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Printf("处理详情任务：%s\n", taskEntry.RawUrl())
+		log.Infof("处理详情任务：%s\n", rawUrl)
 
 		var root *goquery.Selection
 		root, err = taskEntry.Downloader().Download(rawUrl)
@@ -30,11 +43,15 @@ func (p *movieDetails) Handle(t task.Task) (tasks []task.Task, outputs []task.Ma
 			return
 		}
 
-		s := root.Find("section.section>div.container").First()
 		// Title
 		var title = root.Find("title").Text()
+		s := root.Find("section.section>div.container").First()
 		// Number
 		var number = s.Find(".movie-panel-info>div.first-block>span.value").Text()
+		if repository.ExistsByNumber(number) {
+			// 已经存在了
+			return
+		}
 
 		// TorrentLinks
 		var torrentLinks = make([]task.TorrentLink, 0)
@@ -63,19 +80,20 @@ func (p *movieDetails) Handle(t task.Task) (tasks []task.Task, outputs []task.Ma
 
 		// optimalLink
 		var optimalLink = torrentLinks[0].Link
-		log.Printf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
+		log.Debugf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
 
 		var links []string
 		for _, link := range torrentLinks {
 			links = append(links, link.Link)
 		}
 		outputs = append(outputs, task.MagnetEntry{
+			Origin:      TaskSeeder().Name(),
 			Title:       title,
 			Number:      number,
 			OptimalLink: optimalLink,
 			Links:       links,
-			ResHost:     taskEntry.RawURLHost,
-			ResPath:     taskEntry.RawURLPath,
+			RawURLHost:  taskEntry.RawURLHost,
+			RawURLPath:  taskEntry.RawURLPath,
 		})
 
 		return

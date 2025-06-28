@@ -2,14 +2,13 @@ package util
 
 import (
 	"encoding/json"
-	"errors"
-	"log"
+	log "github.com/sirupsen/logrus"
 )
 
 func ToJson(v any) string {
 	bs, err := json.Marshal(v)
 	if err != nil {
-		log.Println(errors.New("ToJson err: " + err.Error()))
+		log.Errorf("tojson err: %s", err.Error())
 		return ""
 	}
 

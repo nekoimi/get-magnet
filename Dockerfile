@@ -4,22 +4,25 @@ ENV CGO_ENABLED=0
 
 WORKDIR /build
 COPY . .
-RUN go install -v -x cmd
+RUN go install cmd
 RUN go build --ldflags "-extldflags -static" -o get-magnet cmd/main.go
 
-FROM alpine:latest
+FROM zenika/alpine-chrome:latest
 
 LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
+ENV TZ=Asia/Shanghai
+# 设置 Chromium 启动路径给 Rod 用
+ENV ROD_BROWSER_PATH=/usr/bin/chromium-browser
+
+USER root
+
 COPY --from=builder /build/get-magnet   /usr/bin/get-magnet
 
-RUN apk add tzdata \
-    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && echo "Asia/Shanghai" > /etc/timezone \
-    && apk del tzdata
+RUN apk add --no-cache tzdata && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 WORKDIR /workspace
 
 EXPOSE 8093
 
-CMD ["get-magnet"]
+ENTRYPOINT ["get-magnet"]

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/http/httputil"
 )
@@ -9,7 +9,7 @@ import (
 func ReverseAria2() func(http.ResponseWriter, *http.Request) {
 	proxy := httputil.NewSingleHostReverseProxy(nil)
 	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, err error) {
-		log.Printf("aria2接口代理错误: %s\n", err.Error())
+		log.Debugf("aria2接口代理错误: %s\n", err.Error())
 		return
 	}
 	return func(writer http.ResponseWriter, request *http.Request) {

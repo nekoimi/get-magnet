@@ -6,7 +6,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/router"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
@@ -60,9 +60,9 @@ func (s *Server) stop() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 	if err := s.http.Shutdown(shutdownCtx); err != nil {
-		log.Printf("HTTP server Shutdown error: %v", err)
+		log.Errorf("HTTP server Shutdown error: %v", err)
 	} else {
-		log.Println("HTTP server 已优雅退出")
+		log.Debugln("HTTP server 已优雅退出")
 	}
 }
 
@@ -71,6 +71,6 @@ func handleSignal(cancel context.CancelFunc) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	sig := <-sigCh
-	log.Printf("收到退出信号: %v，正在关闭...\n", sig)
+	log.Infof("收到退出信号: %v，正在关闭...\n", sig)
 	cancel()
 }

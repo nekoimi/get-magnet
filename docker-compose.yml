@@ -6,20 +6,14 @@ services:
     hostname: get-magnet
     networks:
       - get_magnet
-    command:
-      - get-magnet
-      #     启动的worker数量
-      - -worker=5
-      #     mysql数据库连接
-      - -dsn=user:password@(127.0.0.1:3306)/get_magnet_db
-#    Aria2 jsonrpc 调用地址
-#     - -jsonrpc=
-#    Aria2 jsonrpc 调用 secret
-#     - -secret=
     privileged: true
     restart: on-failure
     environment:
       TZ: Asia/Shanghai
+      LOG_LEVEL: debug
+      DB_DSN:
+      ARIA2_JSONRPC:
+      ARIA2_SECRET:
       HTTP_PROXY: socks5://127.0.0.1:2080
       HTTPS_PROXY: socks5://127.0.0.1:2080
 

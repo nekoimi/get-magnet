@@ -24,6 +24,8 @@ type Task interface {
 	Handler() Handler
 }
 
+type Option func(t *Entry)
+
 // Entry 任务信息
 type Entry struct {
 	// 任务ID
@@ -41,12 +43,13 @@ type Entry struct {
 
 // MagnetEntry 任务结果信息
 type MagnetEntry struct {
+	Origin      string   `json:"origin,omitempty"`
 	Title       string   `json:"title,omitempty"`
 	Number      string   `json:"number,omitempty"`
 	OptimalLink string   `json:"optimal_link,omitempty"`
 	Links       []string `json:"links,omitempty"`
-	ResHost     string   `json:"res_host,omitempty"`
-	ResPath     string   `json:"res_path,omitempty"`
+	RawURLHost  string   `json:"raw_url_host,omitempty"`
+	RawURLPath  string   `json:"raw_url_path,omitempty"`
 }
 
 // TorrentLink 磁力链接信息
@@ -56,23 +59,28 @@ type TorrentLink struct {
 	Link string
 }
 
-// NewStaticWorkerTask 创建默认任务实体
-func NewStaticWorkerTask(rawURL string, handle Handler) Task {
+// NewTask 创建默认任务实体
+func NewTask(rawURL string, opts ...Option) Task {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil
 	}
 
-	return &Entry{
+	t := &Entry{
 		TaskId:     "",
 		IsDynamic:  false,
 		RawURL:     rawURL,
 		RawURLHost: u.Scheme + "://" + u.Host,
 		RawURLPath: u.Path,
 		ErrorCount: 0,
-		handle:     handle,
-		downloader: download.NewDefaultDownloader(),
+		downloader: download.Default(),
 	}
+
+	for _, opt := range opts {
+		opt(t)
+	}
+
+	return t
 }
 
 func (t *Entry) RawUrl() string {
@@ -93,4 +101,16 @@ func (t *Entry) Handler() Handler {
 
 func (t *Entry) Downloader() download.Downloader {
 	return t.downloader
+}
+
+func WithHandle(handle Handler) Option {
+	return func(t *Entry) {
+		t.handle = handle
+	}
+}
+
+func WithDownloader(downloader download.Downloader) Option {
+	return func(t *Entry) {
+		t.downloader = downloader
+	}
 }

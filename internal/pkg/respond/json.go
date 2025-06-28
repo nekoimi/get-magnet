@@ -3,7 +3,7 @@ package respond
 import (
 	"encoding/json"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -17,13 +17,13 @@ func sendJsonResponse(w http.ResponseWriter, response JsonResponse) {
 	bs, err := json.Marshal(response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("Marshal json error: %s\n", err.Error())
+		log.Errorf("Marshal json error: %s\n", err.Error())
 		return
 	}
 
 	_, err = w.Write(bs)
 	if err != nil {
-		log.Printf("Send json response error: %s\n", err.Error())
+		log.Errorf("Send json response error: %s\n", err.Error())
 	}
 }
 
