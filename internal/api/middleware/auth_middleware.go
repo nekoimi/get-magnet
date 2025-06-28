@@ -13,18 +13,25 @@ import (
 	"strings"
 )
 
-var allowRequestUriMap = make(map[string]struct{})
+var allowedApiSet = make(map[string]struct{})
 
 func init() {
-	allowRequestUriMap["/ui/aria-ng"] = struct{}{}
-	allowRequestUriMap["/api/auth/login"] = struct{}{}
+	allowedApis := []string{
+		"/ui/aria-ng",
+		"/api/auth/login",
+		"/quick-api",
+	}
+
+	for _, allowedApi := range allowedApis {
+		allowedApiSet[allowedApi] = struct{}{}
+	}
 }
 
 func AuthMiddleware() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			uri := r.RequestURI
-			for path := range allowRequestUriMap {
+			for path := range allowedApiSet {
 				if uri == path || strings.HasPrefix(uri, path) {
 					next.ServeHTTP(w, r)
 					return
