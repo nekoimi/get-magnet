@@ -46,6 +46,9 @@ func newRouter() *mux.Router {
 		}
 	}
 
+	// 扩展接口
+	r.HandleFunc("/quick-api/download/submit/javdb", api.SubmitJavDB)
+
 	// 静态资源
 	r.PathPrefix("/ui/aria-ng/").Handler(api.Aria2WebUI(config.UIAriaNgDir))
 	r.PathPrefix("/").Handler(api.AdminUI(config.UIDir))
