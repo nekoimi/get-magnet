@@ -5,6 +5,7 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
+	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"golang.org/x/net/http/httpproxy"
 	"net/http"
 	"net/url"
@@ -14,8 +15,8 @@ import (
 )
 
 func TestTaskSeeder(t *testing.T) {
-	os.Setenv("HTTP_PROXY", "socks5://127.0.0.1:2080")
-	os.Setenv("HTTPS_PROXY", "socks5://127.0.0.1:2080")
+	os.Setenv("HTTP_PROXY", "socks5://127.0.0.1:12080")
+	os.Setenv("HTTPS_PROXY", "socks5://127.0.0.1:12080")
 
 	testUrl := "https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=2&typeid=684&typeid=684&filter=typeid&page=1"
 
@@ -100,4 +101,14 @@ func TestTaskSeeder(t *testing.T) {
 
 	// 保持几秒观察（调试用）
 	time.Sleep(2 * time.Second)
+}
+
+func TestUrlDecode(t *testing.T) {
+	decodeHref, err := url.QueryUnescape("forum.php%3Fmod=forumdisplay&fid=2&typeid=684&typeid=684&filter=typeid&page=2")
+	if err != nil {
+		t.Log(err.Error())
+		return
+	}
+	t.Log(decodeHref)
+	t.Log(util.JoinUrl("https://www.sehuatang.net", decodeHref))
 }

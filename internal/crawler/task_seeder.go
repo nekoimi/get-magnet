@@ -1,7 +1,7 @@
 package crawler
 
 import (
-	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
+	"github.com/nekoimi/get-magnet/internal/crawler/providers/sehuatang"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
@@ -14,8 +14,8 @@ var (
 
 func init() {
 	//register(test.TaskSeeder())
-	register(javdb.TaskSeeder())
-	//register(sehuatang.TaskSeeder())
+	//register(javdb.TaskSeeder())
+	register(sehuatang.TaskSeeder())
 }
 
 func startTaskSeeders() {

@@ -4,9 +4,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/get-magnet/internal/db/repository"
 	"github.com/nekoimi/get-magnet/internal/pkg/singleton"
+	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 )
@@ -65,17 +65,12 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 		// 获取新任务列表
 		var newTasks []task.Task
 		for _, href := range detailsHrefs {
-			m := new(table.Magnets)
-			m.RawURLPath = href
-			if exists, err := db.Instance().Exist(m); err != nil {
-				log.Errorf("查询资源(%s)是否存在异常：%s\n", href, err.Error())
-				continue
-			} else if exists {
+			if repository.ExistsByPath(href) {
 				continue
 			}
 
 			// 添加详情解析任务
-			newTasks = append(newTasks, task.NewTask(taskEntry.RawURLHost+href, task.WithHandle(detailsHandler())))
+			newTasks = append(newTasks, task.NewTask(util.JoinUrl(taskEntry.RawURLHost, href), task.WithHandle(detailsHandler())))
 		}
 
 		// 当前新获取的path列表存在需要处理的新任务
@@ -84,7 +79,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			nextHref, existsNext := root.Find(".pagination>a.pagination-next").First().Attr("href")
 			if existsNext {
 				// 提交下一页的任务，添加列表解析任务
-				newTasks = append(newTasks, task.NewTask(taskEntry.RawURLHost+nextHref, task.WithHandle(TaskSeeder())))
+				newTasks = append(newTasks, task.NewTask(util.JoinUrl(taskEntry.RawURLHost, nextHref), task.WithHandle(TaskSeeder())))
 			}
 		}
 

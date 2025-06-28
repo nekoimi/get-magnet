@@ -19,8 +19,8 @@ type Scheduler struct {
 // NewScheduler 获取一个新的调度器实例
 func NewScheduler() *Scheduler {
 	return &Scheduler{
-		workerQueue: queue.New[*worker.Worker]("worker-queue"),
-		taskQueue:   queue.New[task.Task]("task-queue"),
+		workerQueue: queue.NewQueue[*worker.Worker]("worker-queue", 512),
+		taskQueue:   queue.NewQueue[task.Task]("task-queue", 512),
 		exit:        make(chan struct{}),
 		exitWG:      sync.WaitGroup{},
 	}
@@ -29,12 +29,12 @@ func NewScheduler() *Scheduler {
 // Submit 提交一个任务
 func (s *Scheduler) Submit(task task.Task) {
 	log.Debugf("提交task：%s", task.RawUrl())
-	s.taskQueue.Add(task)
+	s.taskQueue.Push(task)
 }
 
 // Ready 提交一个就绪等待任务执行的worker
 func (s *Scheduler) Ready(w *worker.Worker) {
-	s.workerQueue.Add(w)
+	s.workerQueue.Push(w)
 }
 
 // Start 启动调度器
@@ -55,7 +55,7 @@ func (s *Scheduler) Start() {
 		default:
 			if activeWorker == nil {
 				log.Debugf("可用worker为空，尝试获取worker...")
-				if w, ok := s.workerQueue.PollWaitTimeout(3 * time.Second); ok {
+				if w, ok := s.workerQueue.PopWaitTimeout(3 * time.Second); ok {
 					activeWorker = w
 					log.Debugf("获取到可用worker: %s", w.String())
 				}
@@ -63,7 +63,7 @@ func (s *Scheduler) Start() {
 
 			if activeTask == nil {
 				log.Debugf("待处理task为空，尝试获取task...")
-				if t, ok := s.taskQueue.PollWaitTimeout(3 * time.Second); ok {
+				if t, ok := s.taskQueue.PopWaitTimeout(3 * time.Second); ok {
 					activeTask = t
 					log.Debugf("获取到待处理task: %s", t.RawUrl())
 				}

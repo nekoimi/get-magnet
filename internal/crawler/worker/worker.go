@@ -57,7 +57,7 @@ func (w *Worker) Run() {
 				defer func() {
 					if r := recover(); r != nil {
 						w.resultHandler.Error(w, t, errors.New(fmt.Sprintf("panic: %v\n", r)))
-						log.Errorf("worker(%s)处理任务(%s)panic: %v\n", w, t.RawUrl(), r)
+						log.Errorf("worker (%s) 处理任务 (%s) panic: %v\n", w, t.RawUrl(), r)
 					}
 				}()
 

@@ -48,7 +48,7 @@ func (s *DefaultDownloader) SetCookies(u *url.URL, cookies []*http.Cookie) {
 	s.client.Jar.SetCookies(u, cookies)
 }
 
-func (s *DefaultDownloader) Download(url string) (selection *goquery.Selection, err error) {
+func (s *DefaultDownloader) Download(rawUrl string) (selection *goquery.Selection, err error) {
 	var req *http.Request
 	var resp *http.Response
 	defer func() {
@@ -62,18 +62,18 @@ func (s *DefaultDownloader) Download(url string) (selection *goquery.Selection, 
 		if retryNum > RetryLimit {
 			break
 		}
-		log.Debugf("download url - retryNum(%d): %s \n", retryNum, url)
+		log.Debugf("download url - retryNum(%d): %s \n", retryNum, rawUrl)
 		retryNum++
 
-		req, err = http.NewRequest("GET", url, nil)
+		req, err = http.NewRequest("GET", rawUrl, nil)
 		if err != nil {
 			continue
 		}
-		req.Header.Set("Referer", url)
+		req.Header.Set("Referer", rawUrl)
 		req.Header.Set("User-Agent", randUserAgent())
 		resp, err = s.client.Do(req)
 		if err != nil {
-			log.Errorf("download url error: %s - %s", url, err.Error())
+			log.Errorf("download url error: %s - %s", rawUrl, err.Error())
 			continue
 		}
 
@@ -87,7 +87,7 @@ func (s *DefaultDownloader) Download(url string) (selection *goquery.Selection, 
 			break
 		}
 
-		err = errors.New(fmt.Sprintf("download url error: %s, StatusCode not ok => %d", url, resp.StatusCode))
+		err = errors.New(fmt.Sprintf("download url error: %s, StatusCode not ok => %d", rawUrl, resp.StatusCode))
 	}
 
 	// 检查处理错误

@@ -7,8 +7,6 @@ import (
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/crawler/worker"
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
@@ -139,22 +137,24 @@ func (e *Engine) Success(w *worker.Worker, tasks []task.Task, outputs []task.Mag
 	}
 
 	for _, output := range outputs {
-		_, err := db.Instance().InsertOne(&table.Magnets{
-			Origin:      output.Origin,
-			Title:       output.Title,
-			Number:      output.Number,
-			OptimalLink: output.OptimalLink,
-			Links:       output.Links,
-			RawURLHost:  output.RawURLHost,
-			RawURLPath:  output.RawURLPath,
-			Status:      0,
-		})
-		if err != nil {
-			log.Errorf("保存数据异常: %s \n", err.Error())
-		}
+		//_, err := db.Instance().InsertOne(&table.Magnets{
+		//	Origin:      output.Origin,
+		//	Title:       output.Title,
+		//	Number:      strings.ToUpper(output.Number),
+		//	OptimalLink: output.OptimalLink,
+		//	Links:       output.Links,
+		//	RawURLHost:  output.RawURLHost,
+		//	RawURLPath:  output.RawURLPath,
+		//	Status:      0,
+		//})
+		//if err != nil {
+		//	log.Errorf("保存数据异常: %s \n", err.Error())
+		//}
 
 		// 提交下载
-		e.createDownload(output.Origin, output.OptimalLink)
+		//e.createDownload(output.Origin, output.OptimalLink)
+
+		log.Infof("任务处理结果：%s - %s", output.Number, output.OptimalLink)
 	}
 
 	e.release(w)
@@ -168,7 +168,7 @@ func (e *Engine) Error(w *worker.Worker, t task.Task, err error) {
 
 	log.Errorf("任务处理异常：%s - %s\n", t.RawUrl(), err.Error())
 
-	e.scheduler.Submit(t)
+	//e.scheduler.Submit(t)
 
 	e.release(w)
 }
