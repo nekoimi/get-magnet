@@ -20,7 +20,6 @@ type Seeder struct {
 }
 
 var (
-	pageIndex = 0
 	// seeder实例
 	seederSingleton = singleton.New[*Seeder](func() *Seeder {
 		return &Seeder{
@@ -52,13 +51,6 @@ func (p *Seeder) Name() string {
 }
 
 func (p *Seeder) Exec(cron *cron.Cron) {
-	bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
-		"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=2&typeid=684&typeid=684&filter=typeid&page=1",
-		task.WithHandle(TaskSeeder()),
-		task.WithDownloader(p.downloader),
-	))
-	log.Infof("启动任务：%s", p.Name())
-
 	// 每天1点执行
 	cron.AddFunc("55 1 * * *", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
@@ -109,11 +101,10 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 		}
 
 		// 当前新获取的path列表存在需要处理的新任务
-		if len(newTasks) > 0 && pageIndex <= 5 {
+		if len(newTasks) > 0 {
 			// 不存在已经解析的link，继续下一页
 			nextHref, existsNext := root.Find("#fd_page_bottom").First().Find("#fd_page_bottom > div > a:nth-child(2)").Attr("href")
 			if existsNext {
-				pageIndex++
 				// 提交下一页的任务，添加列表解析任务
 				newTasks = append(newTasks, task.NewTask(
 					util.JoinUrl(taskEntry.RawURLHost, nextHref),

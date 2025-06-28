@@ -126,6 +126,7 @@ func (a *Aria2) Stop() {
 
 // 下载任务状态检测
 func (a *Aria2) checkDownloadStatusLoop() {
+	checkRunning := false
 	a.exitWG.Add(1)
 	ticker := time.NewTicker(LowSpeedInterval)
 	for {
@@ -135,8 +136,16 @@ func (a *Aria2) checkDownloadStatusLoop() {
 			a.exitWG.Done()
 			return
 		case <-ticker.C:
+			if checkRunning {
+				log.Debugln("正在检测中，跳过执行...")
+				continue
+			}
+
 			func() {
+				checkRunning = true
 				defer func() {
+					checkRunning = false
+
 					if r := recover(); r != nil {
 						log.Errorf("检查下载状态 panic: %v\n", r)
 					}
