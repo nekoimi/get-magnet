@@ -30,14 +30,14 @@ func (p *Seeder) Name() string {
 }
 
 func (p *Seeder) Exec(cron *cron.Cron) {
-	// 每天2点执行
-	cron.AddFunc("00 2 * * *", func() {
+	// 每天1点执行
+	cron.AddFunc("00 1 * * *", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/censored?vft=2&vst=1", task.WithHandle(TaskSeeder())))
 		log.Infof("启动任务：%s", p.Name())
 	})
 
 	// 每周执行
-	cron.AddFunc("00 12 * * 0", func() {
+	cron.AddFunc("30 1 * * 0", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/O2Q30?t=c&sort_type=0", task.WithHandle(TaskSeeder())))
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/x7wn?t=c&sort_type=0", task.WithHandle(TaskSeeder())))
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/0rva?t=c&sort_type=0", task.WithHandle(TaskSeeder())))
@@ -48,13 +48,13 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
 		log.Infof("处理任务：%s\n", rawUrl)
-		s, err := taskEntry.Downloader().Download(rawUrl)
+		root, err := taskEntry.Downloader().Download(rawUrl)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		var detailsHrefs []string
-		s.Find(".movie-list>div>a.box").Each(func(i int, s *goquery.Selection) {
+		root.Find(".movie-list>div>a.box").Each(func(i int, s *goquery.Selection) {
 			href, _ := s.Attr("href")
 			detailsHrefs = append(detailsHrefs, href)
 		})
@@ -67,10 +67,10 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 		for _, href := range detailsHrefs {
 			m := new(table.Magnets)
 			m.RawURLPath = href
-			if count, err := db.Instance().Count(m); err != nil {
+			if exists, err := db.Instance().Exist(m); err != nil {
 				log.Errorf("查询资源(%s)是否存在异常：%s\n", href, err.Error())
 				continue
-			} else if count > 0 {
+			} else if exists {
 				continue
 			}
 
@@ -81,7 +81,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 		// 当前新获取的path列表存在需要处理的新任务
 		if len(newTasks) > 0 {
 			// 不存在已经解析的link，继续下一页
-			nextHref, existsNext := s.Find(".pagination>a.pagination-next").First().Attr("href")
+			nextHref, existsNext := root.Find(".pagination>a.pagination-next").First().Attr("href")
 			if existsNext {
 				// 提交下一页的任务，添加列表解析任务
 				newTasks = append(newTasks, task.NewTask(taskEntry.RawURLHost+nextHref, task.WithHandle(TaskSeeder())))
