@@ -70,7 +70,8 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 
 			u, err := url.Parse(joinUrl)
 			if err != nil {
-				return nil, nil, err
+				log.Errorf("url解析错误：%s", joinUrl)
+				continue
 			}
 
 			if repository.ExistsByPath(u.RequestURI()) {
