@@ -211,15 +211,7 @@ func (a *Aria2) checkDownloadStatusLoop() {
 						}
 
 						// 下载文件优选
-						if selectIndex, ok := downloadFileBestSelect(task.Files); ok {
-							if err = a.client().ChangeOptions(gid, arigo.Options{
-								SelectFile: selectIndex,
-							}); err != nil {
-								log.Errorf("下载任务(%s)文件优选异常：%s \n", display(task), err.Error())
-							} else {
-								log.Infof("下载任务(%s)文件优选：%s", display(task), selectIndex)
-							}
-						}
+						a.handleFileBestSelect(task)
 					}
 				}
 			}()
@@ -228,8 +220,19 @@ func (a *Aria2) checkDownloadStatusLoop() {
 }
 
 func (a *Aria2) startEventHandle(event *arigo.DownloadEvent) {
-	log.Debugf("GID#%s startEventHandle\n", event.GID)
-	a.activeRepo.put(event.GID)
+	gid := event.GID
+	log.Debugf("GID#%s startEventHandle\n", gid)
+	a.activeRepo.put(gid)
+
+	// 获取下载任务信息
+	task, err := a.client().TellStatus(gid, "gid", "status", "files", "downloadSpeed")
+	if err != nil {
+		log.Errorf("查询当前(%s)下载任务信息异常: %s \n", gid, err.Error())
+		return
+	}
+
+	// 下载文件优选
+	a.handleFileBestSelect(task)
 }
 
 func (a *Aria2) pauseEventHandle(event *arigo.DownloadEvent) {
