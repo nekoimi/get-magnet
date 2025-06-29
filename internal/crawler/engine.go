@@ -184,6 +184,9 @@ func (e *Engine) release(w *worker.Worker) {
 		e.workerLock.Lock()
 		defer e.workerLock.Unlock()
 
+		// 停止
+		w.Stop()
+		// 清除worker
 		delete(e.workers, w.Id())
 	}
 }
