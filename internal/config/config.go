@@ -4,6 +4,8 @@ import (
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"runtime"
+	"strings"
 )
 
 type Config struct {
@@ -38,6 +40,7 @@ type Aria2Ops struct {
 	Secret string
 }
 
+const PackageName = "github.com/nekoimi/get-magnet"
 const UIDir = "/workspace/ui"
 const UIAriaNgDir = "/workspace/ui/aria-ng"
 
@@ -45,12 +48,17 @@ var cfg *Config
 
 func init() {
 	log.SetFormatter(&log.TextFormatter{
-		ForceColors:     true,
-		FullTimestamp:   true,
-		TimestampFormat: "2006-01-02 15:04:05",
+		ForceColors:            true,
+		FullTimestamp:          true,
+		TimestampFormat:        "2006-01-02 15:04:05",
+		DisableLevelTruncation: true,
+		PadLevelText:           true,
+		CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
+			return strings.ReplaceAll(frame.Function, PackageName+"/", " "), ""
+		},
 	})
 	log.SetOutput(os.Stdout)
-	log.SetReportCaller(false)
+	log.SetReportCaller(true)
 
 	logLevel := apptools.Getenv("LOG_LEVEL", "debug")
 	level, err := log.ParseLevel(logLevel)
