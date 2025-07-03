@@ -60,6 +60,8 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			detailsHrefs = append(detailsHrefs, href)
 		})
 		if len(detailsHrefs) == 0 {
+			html, _ := root.Html()
+			log.Debugf("任务列表页面未获取到有效列表信息，源内容为：\n %s", html)
 			return nil, nil, nil
 		}
 
