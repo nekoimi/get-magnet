@@ -31,12 +31,6 @@ func (p *Seeder) Name() string {
 }
 
 func (p *Seeder) Exec(cron *cron.Cron) {
-	bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/censored?vft=2&vst=1",
-		task.WithHandle(TaskSeeder()),
-		task.WithDownloader(GetBypassDownloader()),
-	))
-	log.Infof("启动任务：%s", p.Name())
-
 	// 每天1点执行
 	cron.AddFunc("00 1 * * *", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/censored?vft=2&vst=1",
@@ -78,8 +72,6 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			detailsHrefs = append(detailsHrefs, href)
 		})
 		if len(detailsHrefs) == 0 {
-			html, _ := root.Html()
-			log.Debugf("任务列表页面未获取到有效列表信息，源内容为：\n %s", html)
 			return nil, nil, nil
 		}
 
