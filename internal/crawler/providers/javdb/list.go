@@ -33,15 +33,27 @@ func (p *Seeder) Name() string {
 func (p *Seeder) Exec(cron *cron.Cron) {
 	// 每天1点执行
 	cron.AddFunc("00 1 * * *", func() {
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/censored?vft=2&vst=1", task.WithHandle(TaskSeeder())))
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/censored?vft=2&vst=1",
+			task.WithHandle(TaskSeeder()),
+			task.WithDownloader(GetBypassDownloader()),
+		))
 		log.Infof("启动任务：%s", p.Name())
 	})
 
 	// 每周执行
 	cron.AddFunc("30 1 * * 0", func() {
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/O2Q30?t=c&sort_type=0", task.WithHandle(TaskSeeder())))
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/x7wn?t=c&sort_type=0", task.WithHandle(TaskSeeder())))
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/0rva?t=c&sort_type=0", task.WithHandle(TaskSeeder())))
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/O2Q30?t=c&sort_type=0",
+			task.WithHandle(TaskSeeder()),
+			task.WithDownloader(GetBypassDownloader()),
+		))
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/x7wn?t=c&sort_type=0",
+			task.WithHandle(TaskSeeder()),
+			task.WithDownloader(GetBypassDownloader()),
+		))
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/0rva?t=c&sort_type=0",
+			task.WithHandle(TaskSeeder()),
+			task.WithDownloader(GetBypassDownloader()),
+		))
 	})
 }
 
@@ -79,7 +91,10 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			}
 
 			// 添加详情解析任务
-			newTasks = append(newTasks, task.NewTask(joinUrl, task.WithHandle(detailsHandler())))
+			newTasks = append(newTasks, task.NewTask(joinUrl,
+				task.WithHandle(detailsHandler()),
+				task.WithDownloader(GetBypassDownloader()),
+			))
 		}
 
 		// 当前新获取的path列表存在需要处理的新任务
@@ -88,7 +103,10 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			nextHref, existsNext := root.Find(".pagination>a.pagination-next").First().Attr("href")
 			if existsNext {
 				// 提交下一页的任务，添加列表解析任务
-				newTasks = append(newTasks, task.NewTask(util.JoinUrl(taskEntry.RawURLHost, nextHref), task.WithHandle(TaskSeeder())))
+				newTasks = append(newTasks, task.NewTask(util.JoinUrl(taskEntry.RawURLHost, nextHref),
+					task.WithHandle(TaskSeeder()),
+					task.WithDownloader(GetBypassDownloader()),
+				))
 			}
 		}
 
