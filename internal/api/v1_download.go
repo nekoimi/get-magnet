@@ -35,7 +35,11 @@ func SubmitJavDB(w http.ResponseWriter, r *http.Request) {
 
 	rawUrl := p.Url
 	log.Infof("接收到JavDB链接任务：%s", rawUrl)
-	bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(rawUrl, task.WithHandle(javdb.TaskSeeder())))
+	bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
+		rawUrl,
+		task.WithHandle(javdb.TaskSeeder()),
+		task.WithDownloader(javdb.GetBypassDownloader()),
+	))
 
 	respond.Ok(w, nil)
 }
