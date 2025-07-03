@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
 	"github.com/siku2/arigo"
+	log "github.com/sirupsen/logrus"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -31,6 +32,18 @@ const MinVideoSize = 100_000_000
 
 // MaxFileNameLength 最大文件名长度 255
 const MaxFileNameLength = 255
+
+func (a *Aria2) handleFileBestSelect(task arigo.Status) {
+	if selectIndex, ok := downloadFileBestSelect(task.Files); ok {
+		if err := a.client().ChangeOptions(task.GID, arigo.Options{
+			SelectFile: selectIndex,
+		}); err != nil {
+			log.Errorf("下载任务(%s)文件优选异常：%s \n", display(task), err.Error())
+		} else {
+			log.Infof("下载任务(%s)文件优选：%s", display(task), selectIndex)
+		}
+	}
+}
 
 func bestSelectFile(files []arigo.File) []arigo.File {
 	var allowFiles []arigo.File
