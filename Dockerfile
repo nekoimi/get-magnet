@@ -7,7 +7,7 @@ COPY . .
 RUN go install cmd
 RUN go build --ldflags "-extldflags -static" -o get-magnet cmd/main.go
 
-FROM alpine:3.22
+FROM alpine:3.20
 
 LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
@@ -15,7 +15,7 @@ LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 # # rod support version: Chromium 128.0.6568.0
 RUN apk upgrade --no-cache --available \
     && apk add --no-cache \
-      chromium-swiftshader-128.0.6568.0-r0 \
+      chromium-swiftshader \
       ttf-freefont \
       font-noto-emoji \
     && apk add --no-cache \
