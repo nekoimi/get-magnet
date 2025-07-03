@@ -19,7 +19,7 @@ func GetBypassDownloader() download.Downloader {
 func buildBypassDownloader() download.Downloader {
 	return download.NewClickBypassDownloader(
 		func(root *goquery.Selection) bool {
-			return root.Find("body > dev.modal.is-active.over18-modal").Size() > 0
+			return root.Find("body > div.modal.is-active.over18-modal").Size() > 0
 		},
 		func(page *rod.Page) error {
 			btn := page.MustElementByJS(`() => document.querySelector("body > div.modal.is-active.over18-modal > div.modal-card > footer > a.button.is-success.is-large")`)
