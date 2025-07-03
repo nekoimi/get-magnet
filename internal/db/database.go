@@ -1,7 +1,7 @@
 package db
 
 import (
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/db/migrate"
 	"github.com/nekoimi/get-magnet/internal/db/table"
@@ -21,7 +21,7 @@ var (
 func Init(cfg *config.Database) {
 	engineOnce.Do(func() {
 		log.Debugf("连接数据库")
-		engine, err = xorm.NewEngine(MySQL.String(), cfg.Dns)
+		engine, err = xorm.NewEngine(Postgres.String(), cfg.Dns)
 		if err != nil {
 			log.Errorf("连接数据库异常: %s\n", err.Error())
 			panic(err)
