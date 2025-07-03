@@ -7,7 +7,8 @@ COPY . .
 RUN go install cmd
 RUN go build --ldflags "-extldflags -static" -o get-magnet cmd/main.go
 
-FROM zenika/alpine-chrome:latest
+# FROM zenika/alpine-chrome:latest fix cookies bug : Chromium 124.0.6367.78 Alpine Linux
+FROM docker.io/zenika/alpine-chrome:115
 
 LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 

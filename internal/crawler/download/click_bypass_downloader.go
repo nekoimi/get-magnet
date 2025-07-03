@@ -120,6 +120,7 @@ func (s *ClickBypassDownloader) handleBypassRefreshCookies(rawUrl string) {
 			Value:    c.Value,
 			Domain:   c.Domain,
 			Path:     c.Path,
+			Expires:  c.Expires.Time(),
 			Secure:   c.Secure,
 			HttpOnly: c.HTTPOnly,
 		})
