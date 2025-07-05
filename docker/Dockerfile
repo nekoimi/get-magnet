@@ -35,7 +35,7 @@ ENV ROD_DATA_DIR=/var/lib/rod-data
 # 安装OCR服务
 RUN apk add --no-cache curl \
     && curl -L -o /tmp/release.zip $OCR_DOWNLOAD_URL \
-    && unzip /tmp/release.zip \
+    && unzip /tmp/release.zip && ls -l /tmp \
     && mv /tmp/ddddocr /usr/bin/ocr \
     && chmod +x /usr/bin/ocr
 
