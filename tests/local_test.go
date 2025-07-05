@@ -26,7 +26,7 @@ func Test_Run(t *testing.T) {
 
 	time.AfterFunc(30*time.Second, func() {
 		t.Log("提交测试任务...")
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/censored?vft=2&vst=1",
+		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/login",
 			task.WithHandle(javdb.TaskSeeder()),
 			task.WithDownloader(javdb.GetBypassDownloader()),
 		))

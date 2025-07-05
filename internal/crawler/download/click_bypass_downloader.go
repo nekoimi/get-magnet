@@ -79,14 +79,14 @@ func (s *ClickBypassDownloader) Download(rawUrl string) (selection *goquery.Sele
 }
 
 func (s *ClickBypassDownloader) StartRodHandleClick(rawUrl string) {
-	browser, closeFunc := rod_browser.NewBrowser()
+	page, closeFunc := rod_browser.NewBrowser()
 	defer closeFunc()
 
-	s.HandleClickRefreshCookies(browser, rawUrl)
+	s.HandleClickRefreshCookies(page, rawUrl)
 }
 
-func (s *ClickBypassDownloader) HandleClickRefreshCookies(browser *rod.Browser, rawUrl string) {
-	page := browser.MustPage(rawUrl)
+func (s *ClickBypassDownloader) HandleClickRefreshCookies(page *rod.Page, rawUrl string) {
+	page.MustNavigate(rawUrl)
 	// 等待页面加载
 	log.Debugf("等待页面 %s 加载...", rawUrl)
 	err := page.WaitLoad()

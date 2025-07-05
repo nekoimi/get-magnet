@@ -22,10 +22,10 @@ func (s *RodBrowserDownloader) SetCookies(u *url.URL, cookies []*http.Cookie) {
 }
 
 func (s *RodBrowserDownloader) Download(rawUrl string) (selection *goquery.Selection, err error) {
-	browser, closeFunc := rod_browser.NewBrowser()
+	page, closeFunc := rod_browser.NewBrowser()
 	defer closeFunc()
 
-	page := browser.MustPage(rawUrl)
+	page.MustNavigate(rawUrl)
 	// 等待页面加载
 	log.Debugf("等待页面 %s 加载...", rawUrl)
 	page.Timeout(10 * time.Second).MustWaitStable()
