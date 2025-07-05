@@ -17,8 +17,10 @@ RUN apt-get update \
         fonts-noto-color-emoji \
         fonts-wqy-zenhei \
         tzdata \
+        ca-certificates \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
         dpkg-reconfigure -f noninteractive tzdata && \
+        update-ca-certificates && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/*
 
