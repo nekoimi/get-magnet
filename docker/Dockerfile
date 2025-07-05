@@ -10,12 +10,13 @@ ENV TZ=Asia/Shanghai
 # rod support version: Chromium 128.0.6568.0
 RUN apt-get update \
     && apt-get install -y \
+        curl \
+        unzip \
         chromium-browser \
         fonts-freefont-ttf \
         fonts-noto-color-emoji \
         fonts-wqy-zenhei \
         tzdata \
-        curl \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
         dpkg-reconfigure -f noninteractive tzdata && \
         apt-get clean && \
