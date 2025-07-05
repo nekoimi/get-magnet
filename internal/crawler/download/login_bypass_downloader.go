@@ -164,6 +164,9 @@ func (s *LoginBypassDownloader) HandleLoginRefreshCookies(page *rod.Page, rawUrl
 			if err != nil {
 				panic(err)
 			}
+		} else {
+			// exit login loop
+			break
 		}
 	}
 
