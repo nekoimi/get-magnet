@@ -34,11 +34,17 @@ ENV ROD_DATA_DIR=/var/lib/rod-data
 
 # 安装OCR服务
 RUN apk add --no-cache curl \
+    && curl -L -o /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub \
+    && curl -L -o /tmp/glibc-2.35-r1.apk https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.35-r1/glibc-2.35-r1.apk \
+    && apk add /tmp/glibc-2.35-r1.apk \
+        \
     && curl -L -o /tmp/release.zip $OCR_DOWNLOAD_URL \
     && unzip /tmp/release.zip -d /tmp/ocr \
     && ls -l /tmp && ls -l /tmp/ocr \
     && mv /tmp/ocr/ddddocr /usr/bin/ocr \
-    && chmod +x /usr/bin/ocr
+    && chmod +x /usr/bin/ocr \
+        \
+    && rm -rf /tmp/*
 
 # 设置OCR服务启动路径
 ENV OCR_BIN_PATH=/usr/bin/ocr
