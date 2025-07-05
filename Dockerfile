@@ -7,7 +7,7 @@ COPY . .
 RUN go install cmd
 RUN go build --ldflags "-extldflags -static" -o get-magnet cmd/main.go
 
-FROM alpine:3.20
+FROM ghcr.io/nekoimi/get-magnet-runtime:alpine
 
 LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
