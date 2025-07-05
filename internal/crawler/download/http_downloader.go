@@ -20,8 +20,9 @@ type Downloader interface {
 	Download(url string) (*goquery.Selection, error)
 }
 
-type DefaultDownloader struct {
-	client *http.Client
+type HttpDownloader struct {
+	cookieMux sync.Mutex
+	client    *http.Client
 }
 
 var (
@@ -30,10 +31,11 @@ var (
 	defaultDownloader Downloader
 )
 
-func Default() Downloader {
+func NewHttpDownloader() Downloader {
 	once.Do(func() {
 		jar, _ := cookiejar.New(nil)
-		defaultDownloader = &DefaultDownloader{
+		defaultDownloader = &HttpDownloader{
+			cookieMux: sync.Mutex{},
 			client: &http.Client{
 				Jar:     jar,
 				Timeout: 10 * time.Second,
@@ -44,11 +46,14 @@ func Default() Downloader {
 	return defaultDownloader
 }
 
-func (s *DefaultDownloader) SetCookies(u *url.URL, cookies []*http.Cookie) {
+func (s *HttpDownloader) SetCookies(u *url.URL, cookies []*http.Cookie) {
+	s.cookieMux.Lock()
+	defer s.cookieMux.Unlock()
+
 	s.client.Jar.SetCookies(u, cookies)
 }
 
-func (s *DefaultDownloader) Download(rawUrl string) (selection *goquery.Selection, err error) {
+func (s *HttpDownloader) Download(rawUrl string) (selection *goquery.Selection, err error) {
 	var req *http.Request
 	var resp *http.Response
 	defer func() {
@@ -71,6 +76,7 @@ func (s *DefaultDownloader) Download(rawUrl string) (selection *goquery.Selectio
 		}
 		req.Header.Set("Referer", rawUrl)
 		req.Header.Set("User-Agent", randUserAgent())
+		req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6")
 		resp, err = s.client.Do(req)
 		if err != nil {
 			log.Errorf("download url error: %s - %s", rawUrl, err.Error())

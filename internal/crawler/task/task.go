@@ -73,7 +73,7 @@ func NewTask(rawURL string, opts ...Option) Task {
 		RawURLHost: u.Scheme + "://" + u.Host,
 		RawURLPath: u.RequestURI(),
 		ErrorCount: 0,
-		downloader: download.Default(),
+		downloader: download.NewHttpDownloader(),
 	}
 
 	for _, opt := range opts {

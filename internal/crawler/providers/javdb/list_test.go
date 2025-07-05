@@ -1,17 +1,28 @@
 package javdb
 
 import (
+	"context"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/ocr"
 	"golang.org/x/net/http/httpproxy"
 	"os"
 	"testing"
 )
 
 func TestSeeder_Handle(t *testing.T) {
+	os.Setenv("ROD_HEADLESS", "false")
+	os.Setenv("ROD_DATA_DIR", "C:\\Users\\nekoimi\\Downloads\\rod-data")
 	os.Setenv("HTTP_PROXY", "socks5://127.0.0.1:12080")
 	os.Setenv("HTTPS_PROXY", "socks5://127.0.0.1:12080")
 
+	config.Default()
+
+	ctx := context.Background()
+	go ocr.NewServer().Start(ctx)
+
 	testUrl := "https://javdb.com/censored?vft=2&vst=1"
+	//testUrl := "https://javdb.com/login"
 
 	proxyEnv := httpproxy.FromEnvironment()
 	t.Log(proxyEnv.HTTPProxy)

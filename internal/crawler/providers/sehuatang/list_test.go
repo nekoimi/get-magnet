@@ -25,7 +25,7 @@ func TestTaskSeeder(t *testing.T) {
 	t.Log(proxyEnv.HTTPSProxy)
 	t.Log(proxyEnv.NoProxy)
 
-	downloader := download.Default()
+	downloader := download.NewHttpDownloader()
 	s1, err := downloader.Download(testUrl)
 	if err != nil {
 		panic(err)

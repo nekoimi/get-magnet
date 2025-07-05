@@ -39,8 +39,7 @@ func (s *Server) Run() {
 	// 初始化数据库
 	db.Init(s.cfg.DB)
 
-	go s.engine.Run()
-
+	go s.engine.Start()
 	go func() {
 		if err := s.http.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalf("ListenAndServe error: %v", err)
