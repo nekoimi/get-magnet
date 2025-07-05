@@ -31,8 +31,7 @@ func (p *Seeder) Name() string {
 }
 
 func (p *Seeder) Exec(cron *cron.Cron) {
-	// 每天1点执行
-	cron.AddFunc("00 1 * * *", func() {
+	cron.AddFunc("05 3 * * *", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/censored?vft=2&vst=1",
 			task.WithHandle(TaskSeeder()),
 			task.WithDownloader(GetBypassDownloader()),
@@ -41,16 +40,12 @@ func (p *Seeder) Exec(cron *cron.Cron) {
 	})
 
 	// 每周执行
-	cron.AddFunc("30 1 * * 0", func() {
+	cron.AddFunc("30 3 * * 0", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/O2Q30?t=c&sort_type=0",
 			task.WithHandle(TaskSeeder()),
 			task.WithDownloader(GetBypassDownloader()),
 		))
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/x7wn?t=c&sort_type=0",
-			task.WithHandle(TaskSeeder()),
-			task.WithDownloader(GetBypassDownloader()),
-		))
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/0rva?t=c&sort_type=0",
 			task.WithHandle(TaskSeeder()),
 			task.WithDownloader(GetBypassDownloader()),
 		))

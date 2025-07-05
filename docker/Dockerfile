@@ -34,7 +34,6 @@ RUN mkdir -p /usr/src/app && \
 # Autorun chrome headless
 ENV CHROMIUM_FLAGS="--disable-software-rasterizer --disable-dev-shm-usage"
 ENV CHROME_BIN=/usr/bin/chromium
-ENV CHROME_PATH=/usr/lib/chromium/
 
 # 设置 Chromium 启动路径给 Rod 用
 ENV ROD_BROWSER_PATH=/usr/bin/chromium
@@ -56,4 +55,4 @@ WORKDIR /usr/src/app
 
 VOLUME /var/lib/rod-data
 
-ENTRYPOINT ["chromium-browser", "--headless"]
+ENTRYPOINT ["chromium", "--headless"]
