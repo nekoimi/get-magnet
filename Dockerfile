@@ -13,8 +13,6 @@ LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
 COPY --from=builder /build/get-magnet   /usr/bin/get-magnet
 
-WORKDIR /workspace
-
 EXPOSE 8093
 
 ENTRYPOINT ["get-magnet"]
