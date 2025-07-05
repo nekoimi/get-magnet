@@ -216,6 +216,5 @@ func (e *Engine) Stop() {
 
 	e.aria2.Stop()
 	e.ocr.Stop()
-
 	log.Debugf("stop engine")
 }

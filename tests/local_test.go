@@ -18,6 +18,8 @@ func Test_Run(t *testing.T) {
 	os.Setenv("HTTPS_PROXY", "socks5://127.0.0.1:12080")
 	os.Setenv("DB_DSN", "postgres://devtest:devtest@10.1.1.100:5432/get_magnet_dev?sslmode=disable")
 	os.Setenv("OCR_BIN_PATH", "C:\\Users\\nekoimi\\Downloads\\x86_64-pc-windows-msvc-inline\\ddddocr.exe")
+	os.Setenv("JAVDB_USERNAME", "111111111111")
+	os.Setenv("JAVDB_PASSWORD", "111111111111")
 	// DB_DSN
 
 	cfg := config.Default()

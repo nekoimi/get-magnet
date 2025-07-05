@@ -22,7 +22,7 @@ func (s *RodBrowserDownloader) SetCookies(u *url.URL, cookies []*http.Cookie) {
 }
 
 func (s *RodBrowserDownloader) Download(rawUrl string) (selection *goquery.Selection, err error) {
-	page, closeFunc := rod_browser.NewBrowser()
+	page, closeFunc := rod_browser.NewTabPage()
 	defer closeFunc()
 
 	page.MustNavigate(rawUrl)

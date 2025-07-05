@@ -82,7 +82,7 @@ func (s *LoginBypassDownloader) Download(rawUrl string) (selection *goquery.Sele
 }
 
 func (s *LoginBypassDownloader) StartRodHandleLogin(rawUrl string) {
-	page, closeFunc := rod_browser.NewBrowser()
+	page, closeFunc := rod_browser.NewTabPage()
 	defer func() {
 		time.AfterFunc(10*time.Second, func() {
 			closeFunc()
