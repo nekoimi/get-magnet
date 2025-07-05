@@ -42,8 +42,7 @@ func (p *Seeder) Downloader() download.Downloader {
 }
 
 func (p *Seeder) Exec(cron *cron.Cron) {
-	// 每天1点执行
-	cron.AddFunc("55 1 * * *", func() {
+	cron.AddFunc("55 3 * * *", func() {
 		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
 			"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=2&typeid=684&typeid=684&filter=typeid&page=1",
 			task.WithHandle(TaskSeeder()),
