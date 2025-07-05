@@ -12,7 +12,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         curl \
         unzip \
-        chromium-browser \
+        chromium \
         fonts-freefont-ttf \
         fonts-noto-color-emoji \
         fonts-wqy-zenhei \
@@ -31,11 +31,11 @@ RUN mkdir -p /usr/src/app && \
 
 # Autorun chrome headless
 ENV CHROMIUM_FLAGS="--disable-software-rasterizer --disable-dev-shm-usage"
-ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROME_PATH=/usr/lib/chromium/
 
 # 设置 Chromium 启动路径给 Rod 用
-ENV ROD_BROWSER_PATH=/usr/bin/chromium-browser
+ENV ROD_BROWSER_PATH=/usr/bin/chromium
 ENV ROD_DATA_DIR=/var/lib/rod-data
 
 # 安装OCR服务
