@@ -1,5 +1,5 @@
 # Base image of runtime
-FROM ubuntu:jammy
+FROM debian:bookworm-slim
 
 LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
@@ -9,7 +9,7 @@ ENV TZ=Asia/Shanghai
 # 安装依赖：Chromium、字体、中文字体、时区
 # rod support version: Chromium 128.0.6568.0
 RUN apt-get update \
-    && apt-get install -y \
+    && apt-get install -y --no-install-recommends \
         curl \
         unzip \
         chromium-browser \
