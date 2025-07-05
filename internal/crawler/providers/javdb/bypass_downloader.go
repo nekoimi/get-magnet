@@ -103,7 +103,12 @@ func buildBypassDownloader() download.Downloader {
 				return err
 			}
 			submitBtn.MustClick()
-			return nil
+
+			err = page.WaitLoad()
+
+			log.Debugf("submit login...")
+
+			return err
 		},
 	)
 }

@@ -1,6 +1,7 @@
 package download
 
 import (
+	"bytes"
 	"errors"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
@@ -9,9 +10,11 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 )
 
 const MaxRetryLoginBypassCount = 5
+const MaxRetryLoginErrorCount = 5
 
 // LoginBypassDownloader 登录绕过验证
 type LoginBypassDownloader struct {
@@ -79,14 +82,18 @@ func (s *LoginBypassDownloader) Download(rawUrl string) (selection *goquery.Sele
 }
 
 func (s *LoginBypassDownloader) StartRodHandleLogin(rawUrl string) {
-	browser, closeFunc := rod_browser.NewBrowser()
-	defer closeFunc()
+	page, closeFunc := rod_browser.NewTabPage()
+	defer func() {
+		time.AfterFunc(10*time.Second, func() {
+			closeFunc()
+		})
+	}()
 
-	s.HandleLoginRefreshCookies(browser, rawUrl)
+	s.HandleLoginRefreshCookies(page, rawUrl)
 }
 
-func (s *LoginBypassDownloader) HandleLoginRefreshCookies(browser *rod.Browser, rawUrl string) {
-	page := browser.MustPage(rawUrl)
+func (s *LoginBypassDownloader) HandleLoginRefreshCookies(page *rod.Page, rawUrl string) {
+	page.MustNavigate(rawUrl)
 	// 等待页面加载
 	log.Debugf("等待页面 %s 加载...", rawUrl)
 	err := page.WaitLoad()
@@ -120,16 +127,49 @@ func (s *LoginBypassDownloader) HandleLoginRefreshCookies(browser *rod.Browser, 
 		log.Debugf("刷新cookies完成: %s - size: %d", rawUrl, len(stdCookies))
 	}(page)
 
-	// 执行绕过验证逻辑
-	if err = s.handleLoginFunc(page); err != nil {
-		log.Debugf("执行绕过验证 %s 异常：%s", rawUrl, err.Error())
-		panic(err)
+	loginErrNum := 0
+	for {
+		if loginErrNum > MaxRetryLoginErrorCount {
+			break
+		}
+
+		log.Debugf("检查登录验证，retryNum(%d)...", loginErrNum)
+		html, err := page.HTML()
+		if err != nil {
+			panic(err)
+		}
+
+		doc, err := goquery.NewDocumentFromReader(bytes.NewBufferString(html))
+		if err != nil {
+			panic(err)
+		}
+
+		if s.shouldLoginFunc(doc.Selection) {
+			// 执行绕过验证逻辑
+			if err = s.handleLoginFunc(page); err != nil {
+				log.Debugf("执行绕过验证 %s 异常：%s", rawUrl, err.Error())
+				panic(err)
+			}
+
+			loginErrNum++
+
+			time.Sleep(10 * time.Second)
+
+			// 刷新页面
+			err = page.Reload()
+			if err != nil {
+				panic(err)
+			}
+			err = page.WaitLoad()
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			// exit login loop
+			break
+		}
 	}
 
-	// 等待加载
-	err = page.WaitLoad()
-	if err != nil {
-		panic(err)
-	}
 	log.Debugf("页面 %s 加载完毕...", rawUrl)
+	time.Sleep(3 * time.Second) // 观察手动登录
 }

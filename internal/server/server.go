@@ -5,6 +5,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/db"
+	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 	"github.com/nekoimi/get-magnet/internal/router"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -39,6 +40,8 @@ func (s *Server) Run() {
 	// 初始化数据库
 	db.Init(s.cfg.DB)
 
+	rod_browser.InitBrowser()
+
 	go s.engine.Start()
 	go func() {
 		if err := s.http.ListenAndServe(); err != http.ErrServerClosed {
@@ -53,6 +56,7 @@ func (s *Server) Run() {
 
 func (s *Server) stop() {
 	s.engine.Stop()
+	rod_browser.Close()
 	_ = db.Instance().Close()
 
 	// 创建 shutdown 上下文：最多等待 10 秒退出

@@ -7,13 +7,11 @@ COPY . .
 RUN go install cmd
 RUN go build --ldflags "-extldflags -static" -o get-magnet cmd/main.go
 
-FROM ghcr.io/nekoimi/get-magnet-runtime:alpine
+FROM ghcr.io/nekoimi/get-magnet-runtime:latest
 
 LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
 COPY --from=builder /build/get-magnet   /usr/bin/get-magnet
-
-WORKDIR /workspace
 
 EXPOSE 8093
 
