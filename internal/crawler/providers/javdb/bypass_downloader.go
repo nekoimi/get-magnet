@@ -3,9 +3,13 @@ package javdb
 import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
+	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
+	"github.com/nekoimi/get-magnet/internal/ocr_client"
+	"github.com/nekoimi/get-magnet/internal/pkg/files"
 	"github.com/nekoimi/get-magnet/internal/pkg/singleton"
 	log "github.com/sirupsen/logrus"
+	"time"
 )
 
 var bypassDownloaderSingleton = singleton.New[download.Downloader](func() download.Downloader {
@@ -17,7 +21,7 @@ func GetBypassDownloader() download.Downloader {
 }
 
 func buildBypassDownloader() download.Downloader {
-	return download.NewClickBypassDownloader(
+	clickBypassDownloader := download.NewClickBypassDownloader(
 		func(root *goquery.Selection) bool {
 			return root.Find("body > div.modal.is-active.over18-modal").Size() > 0
 		},
@@ -29,6 +33,76 @@ func buildBypassDownloader() download.Downloader {
 			}
 			log.Debugf("点击访问按钮: %s", text)
 			btn.MustClick()
+			return nil
+		},
+	)
+
+	return download.NewLoginBypassDownloader(clickBypassDownloader,
+		func(root *goquery.Selection) bool {
+			return root.Find("#password").Size() > 0 &&
+				root.Find("#remember").Size() > 0
+		},
+		func(page *rod.Page) error {
+			log.Debugln("执行自定义Login...")
+			// captcha image
+			captchaImage, err := page.Element("img.rucaptcha-image")
+			if err != nil {
+				return err
+			}
+			log.Debugf("图片验证码：%s", captchaImage.MustHTML())
+			_, tempPath, cleanup, err := files.TempFile("png")
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+
+			imaeBytes := captchaImage.MustScreenshot(tempPath)
+			log.Debugf("图片验证码文件：%s", tempPath)
+			code, err := ocr_client.Call(imaeBytes)
+			if err != nil {
+				return err
+			}
+			log.Debugf("OCR识别结果：%s", code)
+			time.Sleep(3 * time.Second)
+
+			// username
+			usernameInput, err := page.Element("#email")
+			if err != nil {
+				return err
+			}
+			usernameInput.MustInput(config.Get().JavDBAuth.Username)
+			time.Sleep(1 * time.Second)
+
+			// password
+			passwordInput, err := page.Element("#password")
+			if err != nil {
+				return err
+			}
+			passwordInput.MustInput(config.Get().JavDBAuth.Password)
+			time.Sleep(1 * time.Second)
+
+			// captcha code
+			captchaCodeInput, err := page.Element("input.rucaptcha-input")
+			if err != nil {
+				return err
+			}
+			captchaCodeInput.MustInput(code)
+			time.Sleep(1 * time.Second)
+
+			// remember
+			rememberInput, err := page.Element("#remember")
+			if err != nil {
+				return err
+			}
+			rememberInput.MustClick()
+			time.Sleep(1 * time.Second)
+
+			// Login
+			submitBtn, err := page.Element(`input[type="submit"].button.is-link`)
+			if err != nil {
+				return err
+			}
+			submitBtn.MustClick()
 			return nil
 		},
 	)

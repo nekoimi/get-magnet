@@ -8,7 +8,7 @@ require (
 	github.com/cristalhq/jwt/v5 v5.4.0
 	github.com/dop251/goja v0.0.0-20250531102226-cb187b08699c
 	github.com/go-rod/rod v0.116.2
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.10.9
 	github.com/patrickmn/go-cache v2.1.0+incompatible

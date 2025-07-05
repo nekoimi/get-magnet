@@ -9,6 +9,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/crawler/worker"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/get-magnet/internal/ocr"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
@@ -41,6 +42,8 @@ type Engine struct {
 	workers map[uint64]*worker.Worker
 	// aria2rpc 客户端
 	aria2 *aria2.Aria2
+	// ocr 服务
+	ocr *ocr.Server
 	// 任务调度器
 	scheduler *Scheduler
 }
@@ -57,6 +60,7 @@ func New() *Engine {
 		workerVersionNext: new(atomic.Uint64),
 		workers:           make(map[uint64]*worker.Worker, config.Get().WorkerNum),
 		aria2:             aria2.NewClient(),
+		ocr:               ocr.NewServer(),
 		scheduler:         NewScheduler(),
 	}
 
@@ -69,8 +73,8 @@ func New() *Engine {
 	return e
 }
 
-// Run start Engine
-func (e *Engine) Run() {
+// Start Engine
+func (e *Engine) Start() {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("engine运行异常: %v, %s\n", r, string(debug.Stack()))
@@ -100,6 +104,8 @@ func (e *Engine) Run() {
 	e.initWorkerPool(config.Get().WorkerNum)
 	// 启动aria2连接
 	apptools.AutoRestart(e.ctx, "aria2客户端", e.aria2.Start, 10*time.Second)
+	// 启动OCR服务
+	apptools.AutoRestart(e.ctx, "OCR服务", e.ocr.Start, 10*time.Second)
 	// 启动任务生成
 	apptools.DelayStart("任务生成", startTaskSeeders, 10*time.Second)
 	// 启动任务调度器
@@ -209,6 +215,7 @@ func (e *Engine) Stop() {
 	wg.Wait()
 
 	e.aria2.Stop()
+	e.ocr.Stop()
 
 	log.Debugf("stop engine")
 }

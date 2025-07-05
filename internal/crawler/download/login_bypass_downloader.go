@@ -11,38 +11,38 @@ import (
 	"sync"
 )
 
-const MaxRetryClickBypassCount = 5
+const MaxRetryLoginBypassCount = 5
 
-// ClickBypassDownloader 点击页面绕过验证下载
-type ClickBypassDownloader struct {
-	clickMux sync.Mutex
+// LoginBypassDownloader 登录绕过验证
+type LoginBypassDownloader struct {
+	loginMux sync.Mutex
 	// 下载器
 	downloader Downloader
 	// 判断需不需要绕过验证函数，需要返回true，不需要返回false
-	shouldClickFunc func(root *goquery.Selection) bool
+	shouldLoginFunc func(root *goquery.Selection) bool
 	// 绕过验证逻辑
-	handleClickFunc func(page *rod.Page) error
+	handleLoginFunc func(page *rod.Page) error
 }
 
-func NewClickBypassDownloader(shouldClickFunc func(root *goquery.Selection) bool, handleClickFunc func(page *rod.Page) error) Downloader {
-	return &ClickBypassDownloader{
-		clickMux:        sync.Mutex{},
-		downloader:      NewRodBrowserDownloader(),
-		shouldClickFunc: shouldClickFunc,
-		handleClickFunc: handleClickFunc,
+func NewLoginBypassDownloader(downloader Downloader, shouldLoginFunc func(root *goquery.Selection) bool, handleLoginFunc func(page *rod.Page) error) Downloader {
+	return &LoginBypassDownloader{
+		loginMux:        sync.Mutex{},
+		downloader:      downloader,
+		shouldLoginFunc: shouldLoginFunc,
+		handleLoginFunc: handleLoginFunc,
 	}
 }
 
-func (s *ClickBypassDownloader) SetCookies(u *url.URL, cookies []*http.Cookie) {
+func (s *LoginBypassDownloader) SetCookies(u *url.URL, cookies []*http.Cookie) {
 	s.downloader.SetCookies(u, cookies)
 }
 
-func (s *ClickBypassDownloader) Download(rawUrl string) (selection *goquery.Selection, err error) {
+func (s *LoginBypassDownloader) Download(rawUrl string) (selection *goquery.Selection, err error) {
 	var retryBypassNum = 1
 	var root *goquery.Selection
 	for {
-		if retryBypassNum > MaxRetryClickBypassCount {
-			return nil, errors.New("点击过验证重试次数太多: " + rawUrl)
+		if retryBypassNum > MaxRetryLoginBypassCount {
+			return nil, errors.New("登录过验证重试次数太多: " + rawUrl)
 		}
 
 		root, err = s.downloader.Download(rawUrl)
@@ -50,13 +50,13 @@ func (s *ClickBypassDownloader) Download(rawUrl string) (selection *goquery.Sele
 			return nil, err
 		}
 
-		if s.shouldClickFunc(root) {
-			// 需要点击过验证
+		if s.shouldLoginFunc(root) {
+			// 需要登录过验证
 			func() {
-				s.clickMux.Lock()
-				log.Debugf("未获取到页面信息，尝试点击验证刷新cookies，retryNum(%d): %s", retryBypassNum, rawUrl)
+				s.loginMux.Lock()
+				log.Debugf("未获取到页面信息，尝试登录验证刷新cookies，retryNum(%d): %s", retryBypassNum, rawUrl)
 				defer func() {
-					s.clickMux.Unlock()
+					s.loginMux.Unlock()
 					retryBypassNum++
 
 					if r := recover(); r != nil {
@@ -64,7 +64,7 @@ func (s *ClickBypassDownloader) Download(rawUrl string) (selection *goquery.Sele
 					}
 				}()
 
-				s.StartRodHandleClick(rawUrl)
+				s.StartRodHandleLogin(rawUrl)
 			}()
 
 			// 绕过验证后，继续下一次
@@ -78,14 +78,14 @@ func (s *ClickBypassDownloader) Download(rawUrl string) (selection *goquery.Sele
 	return root, nil
 }
 
-func (s *ClickBypassDownloader) StartRodHandleClick(rawUrl string) {
+func (s *LoginBypassDownloader) StartRodHandleLogin(rawUrl string) {
 	browser, closeFunc := rod_browser.NewBrowser()
 	defer closeFunc()
 
-	s.HandleClickRefreshCookies(browser, rawUrl)
+	s.HandleLoginRefreshCookies(browser, rawUrl)
 }
 
-func (s *ClickBypassDownloader) HandleClickRefreshCookies(browser *rod.Browser, rawUrl string) {
+func (s *LoginBypassDownloader) HandleLoginRefreshCookies(browser *rod.Browser, rawUrl string) {
 	page := browser.MustPage(rawUrl)
 	// 等待页面加载
 	log.Debugf("等待页面 %s 加载...", rawUrl)
@@ -121,7 +121,7 @@ func (s *ClickBypassDownloader) HandleClickRefreshCookies(browser *rod.Browser, 
 	}(page)
 
 	// 执行绕过验证逻辑
-	if err = s.handleClickFunc(page); err != nil {
+	if err = s.handleLoginFunc(page); err != nil {
 		log.Debugf("执行绕过验证 %s 异常：%s", rawUrl, err.Error())
 		panic(err)
 	}

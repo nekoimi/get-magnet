@@ -24,3 +24,11 @@ func GetenvInt(key string, defaultValue int) int {
 	}
 	return defaultValue
 }
+
+func GetenvBool(key string, defaultValue bool) bool {
+	value := os.Getenv(key)
+	if value != "" {
+		return value == "true"
+	}
+	return defaultValue
+}
