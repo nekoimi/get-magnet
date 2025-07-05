@@ -45,6 +45,8 @@ func TestSeeder_Handle(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+
+	select {}
 }
 
 func TestSeeder_Handle2(t *testing.T) {
