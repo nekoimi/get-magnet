@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/job"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/patrickmn/go-cache"
 	"github.com/siku2/arigo"
@@ -92,7 +93,15 @@ func (a *Aria2) Start(ctx context.Context) {
 		}
 	}
 
-	a.checkDownloadStatusLoop()
+	// 添加更新tracker服务器job
+	job.Register("10 00 * * *", &job.Job{
+		Name: "更新Aria2下载tracker服务器",
+		Cmd: func() {
+			upgradeTrackers(a)
+		},
+	})
+
+	a.runStatusLoop()
 }
 
 func (a *Aria2) Submit(origin string, downloadUrl string) error {
@@ -124,8 +133,8 @@ func (a *Aria2) Stop() {
 	a.exitWG.Wait()
 }
 
-// 下载任务状态检测
-func (a *Aria2) checkDownloadStatusLoop() {
+// 任务状态检测
+func (a *Aria2) runStatusLoop() {
 	checkRunning := false
 	a.exitWG.Add(1)
 	ticker := time.NewTicker(LowSpeedInterval)

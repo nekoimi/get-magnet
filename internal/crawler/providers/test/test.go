@@ -4,7 +4,6 @@ import (
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/pkg/singleton"
-	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
@@ -27,7 +26,7 @@ func (p *Seeder) Name() string {
 	return "Test"
 }
 
-func (p *Seeder) Exec(cron *cron.Cron) {
+func (p *Seeder) Exec() {
 	timer := time.NewTicker(10 * time.Second)
 	for {
 		select {

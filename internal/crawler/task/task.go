@@ -2,13 +2,12 @@ package task
 
 import (
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
-	"github.com/robfig/cron/v3"
 	"net/url"
 )
 
 type Seeder interface {
 	Name() string
-	Exec(cron *cron.Cron)
+	Exec()
 }
 
 // Handler 任务处理器

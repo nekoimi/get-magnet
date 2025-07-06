@@ -200,8 +200,6 @@ func (e *Engine) release(w *worker.Worker) {
 // Stop shutdown engine
 func (e *Engine) Stop() {
 	e.cancel()
-
-	stopTaskSeeders()
 	e.scheduler.Stop()
 
 	var wg sync.WaitGroup
