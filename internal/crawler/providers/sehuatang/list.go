@@ -6,9 +6,9 @@ import (
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/db/repository"
+	"github.com/nekoimi/get-magnet/internal/job"
 	"github.com/nekoimi/get-magnet/internal/pkg/singleton"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
-	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"net/url"
 )
@@ -41,21 +41,28 @@ func (p *Seeder) Downloader() download.Downloader {
 	return p.downloader
 }
 
-func (p *Seeder) Exec(cron *cron.Cron) {
-	cron.AddFunc("55 3 * * *", func() {
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
-			"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=2&typeid=684&typeid=684&filter=typeid&page=1",
-			task.WithHandle(TaskSeeder()),
-			task.WithDownloader(GetBypassDownloader()),
-		))
+func (p *Seeder) Exec() {
+	job.Register("50 3 * * *", &job.Job{
+		Name: Name,
+		Cmd: func() {
+			bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
+				"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=2&typeid=684&typeid=684&filter=typeid&page=1",
+				task.WithHandle(TaskSeeder()),
+				task.WithDownloader(GetBypassDownloader()),
+			))
+		},
+	})
 
-		// FC2PPV
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
-			"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=36&filter=typeid&typeid=368",
-			task.WithHandle(TaskSeeder()),
-			task.WithDownloader(GetBypassDownloader()),
-		))
-		log.Infof("启动任务：%s", p.Name())
+	job.Register("55 3 * * *", &job.Job{
+		Name: "FC2PPV",
+		Cmd: func() {
+			// FC2PPV
+			bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
+				"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=36&filter=typeid&typeid=368",
+				task.WithHandle(TaskSeeder()),
+				task.WithDownloader(GetBypassDownloader()),
+			))
+		},
 	})
 }
 

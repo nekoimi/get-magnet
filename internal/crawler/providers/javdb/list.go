@@ -5,9 +5,9 @@ import (
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/db/repository"
+	"github.com/nekoimi/get-magnet/internal/job"
 	"github.com/nekoimi/get-magnet/internal/pkg/singleton"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
-	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"net/url"
 )
@@ -30,25 +30,30 @@ func (p *Seeder) Name() string {
 	return "JavDB"
 }
 
-func (p *Seeder) Exec(cron *cron.Cron) {
-	cron.AddFunc("05 3 * * *", func() {
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/censored?vft=2&vst=1",
-			task.WithHandle(TaskSeeder()),
-			task.WithDownloader(GetBypassDownloader()),
-		))
-		log.Infof("启动任务：%s", p.Name())
+func (p *Seeder) Exec() {
+	job.Register("05 3 * * *", &job.Job{
+		Name: "JavDB",
+		Cmd: func() {
+			bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/censored?vft=2&vst=1",
+				task.WithHandle(TaskSeeder()),
+				task.WithDownloader(GetBypassDownloader()),
+			))
+		},
 	})
 
-	// 每周执行
-	cron.AddFunc("30 3 * * 0", func() {
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/O2Q30?t=c&sort_type=0",
-			task.WithHandle(TaskSeeder()),
-			task.WithDownloader(GetBypassDownloader()),
-		))
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/x7wn?t=c&sort_type=0",
-			task.WithHandle(TaskSeeder()),
-			task.WithDownloader(GetBypassDownloader()),
-		))
+	job.Register("30 3 * * 0", &job.Job{
+		Name: "JavDB-Actors",
+		Cmd: func() {
+			bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/O2Q30?t=c&sort_type=0",
+				task.WithHandle(TaskSeeder()),
+				task.WithDownloader(GetBypassDownloader()),
+			))
+
+			bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/actors/x7wn?t=c&sort_type=0",
+				task.WithHandle(TaskSeeder()),
+				task.WithDownloader(GetBypassDownloader()),
+			))
+		},
 	})
 }
 
