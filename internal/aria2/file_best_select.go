@@ -13,10 +13,10 @@ import (
 )
 
 // LowSpeedNum 低速下载区间测速检查数量
-const LowSpeedNum = 30
+const LowSpeedNum = 15
 
 // LowSpeedTimeout 低速下载多长时间超时
-const LowSpeedTimeout = 35 * time.Minute
+const LowSpeedTimeout = 20 * time.Minute
 
 // LowSpeedInterval 低速下载检查周期
 const LowSpeedInterval = 1 * time.Minute

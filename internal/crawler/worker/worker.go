@@ -20,18 +20,18 @@ type Worker struct {
 	id            uint64
 	version       uint64
 	resultHandler ResultHandler
-	tasks         chan task.Task
+	taskCh        chan task.Task
 	exit          chan struct{}
 	running       bool
 }
 
 // NewWorker 创建一个新的任务执行worker
-func NewWorker(id uint64, version uint64, resultHandler ResultHandler) *Worker {
+func NewWorker(id uint64, version uint64, taskCh chan task.Task, resultHandler ResultHandler) *Worker {
 	return &Worker{
 		id:            id,
 		version:       version,
 		resultHandler: resultHandler,
-		tasks:         make(chan task.Task, 1),
+		taskCh:        taskCh,
 		exit:          make(chan struct{}),
 		running:       false,
 	}
@@ -47,12 +47,12 @@ func (w *Worker) Version() uint64 {
 
 // Run 启动任务执行worker，监听任务并执行
 func (w *Worker) Run() {
-	log.Debugf("启动Worker: %s...\n", w)
+	log.Debugf("启动Worker: %s - [%v]...\n", w, w.taskCh)
 	for {
 		select {
 		case <-w.exit:
 			return
-		case t := <-w.tasks:
+		case t := <-w.taskCh:
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
@@ -65,11 +65,6 @@ func (w *Worker) Run() {
 			}()
 		}
 	}
-}
-
-// Work 投递任务
-func (w *Worker) Work(t task.Task) {
-	w.tasks <- t
 }
 
 // Stop 停止任务执行worker
