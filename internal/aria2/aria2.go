@@ -206,6 +206,11 @@ func (a *Aria2) runStatusLoop() {
 							continue
 						}
 
+						if task.Status == arigo.StatusCompleted {
+							// 已经完成的不做处理
+							continue
+						}
+
 						gid := task.GID
 						// 检查任务的下载速度
 						if a.isPauseCheckDownloadSpeed(gid, task.DownloadSpeed) {
