@@ -74,7 +74,15 @@ func (a *Aria2) Start(ctx context.Context) {
 		offset = offset + fetchNum
 
 		for _, stop := range stops {
-			a.onErrorFileNameTooLong(stop)
+			if stop.Status == arigo.StatusError {
+				// 处理异常任务
+				a.onErrorFileNameTooLong(stop)
+			}
+
+			if stop.Status == arigo.StatusCompleted {
+				// 检查完成的任务下载文件是否最优
+				a.handleFileBestSelect(stop)
+			}
 		}
 	}
 

@@ -20,12 +20,14 @@ const MaxFileNameLength = 255
 
 func (a *Aria2) handleFileBestSelect(task arigo.Status) {
 	if selectIndex, ok, delFiles := downloadFileBestSelect(task.Files); ok {
-		if err := a.client().ChangeOptions(task.GID, arigo.Options{
-			SelectFile: selectIndex,
-		}); err != nil {
-			log.Errorf("下载任务(%s)文件优选异常：%s \n", display(task), err.Error())
-		} else {
-			log.Infof("下载任务(%s)文件优选：%s", display(task), selectIndex)
+		if task.Status == arigo.StatusActive || task.Status == arigo.StatusWaiting {
+			if err := a.client().ChangeOptions(task.GID, arigo.Options{
+				SelectFile: selectIndex,
+			}); err != nil {
+				log.Errorf("下载任务(%s)文件优选异常：%s \n", display(task), err.Error())
+			} else {
+				log.Infof("下载任务(%s)文件优选：%s", display(task), selectIndex)
+			}
 		}
 
 		for _, delFile := range delFiles {
