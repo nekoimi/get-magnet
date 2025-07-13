@@ -59,13 +59,15 @@ func bestSelectFile(files []arigo.File) ([]arigo.File, []arigo.File) {
 
 func deleteUnBestFile(filepath string) {
 	if exists, err := files.Exists(filepath); err != nil {
-		log.Errorf(err.Error())
+		log.Errorf("删除下载文件检查：%s", err.Error())
 	} else if exists {
 		if err = os.Remove(filepath); err != nil {
 			log.Errorf("删除下载文件异常：%s - %s", filepath, err.Error())
 		} else {
 			log.Debugf("删除不符合要求的下载文件：%s", filepath)
 		}
+	} else {
+		log.Debugf("删除不符合要求的下载文件，文件不存在：%s", filepath)
 	}
 }
 
