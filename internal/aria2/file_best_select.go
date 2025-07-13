@@ -62,9 +62,10 @@ func deleteUnBestFile(filepath string) {
 		log.Errorf(err.Error())
 	} else if exists {
 		if err = os.Remove(filepath); err != nil {
-			log.Errorf("删除下载文件异常：%s", err.Error())
+			log.Errorf("删除下载文件异常：%s - %s", filepath, err.Error())
+		} else {
+			log.Debugf("删除不符合要求的下载文件：%s", filepath)
 		}
-		log.Debugf("删除不符合要求的下载文件：%s", filepath)
 	}
 }
 
