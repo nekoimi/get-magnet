@@ -71,9 +71,8 @@ func (a *Aria2) Start(ctx context.Context) {
 			break
 		}
 
-		offset = offset + fetchNum
-
 		for _, stop := range stops {
+			log.Debugf("启动初始化任务：%s - %s", display(stop), stop.Status)
 			if stop.Status == arigo.StatusError {
 				// 处理异常任务
 				a.onErrorFileNameTooLong(stop)
@@ -84,6 +83,8 @@ func (a *Aria2) Start(ctx context.Context) {
 				a.handleFileBestSelect(stop)
 			}
 		}
+
+		offset = offset + fetchNum
 	}
 
 	// 添加更新tracker服务器job
@@ -159,20 +160,30 @@ func (a *Aria2) runStatusLoop() {
 				}
 
 				maxDownloadNum := mathutil.Max(int(ops.MaxConcurrentDownloads), 1)
-				tasks, err := a.client().TellActive("gid", "status", "files", "downloadSpeed")
+				actives, err := a.client().TellActive("gid", "status", "files", "downloadSpeed")
 				if err != nil {
 					log.Errorf("查询当前活跃的下载任务信息异常: %s \n", err.Error())
 					return
 				}
 
-				if len(tasks) < maxDownloadNum {
+				if len(actives) < maxDownloadNum {
 					//num := maxDownloadNum - len(tasks)
 					//log.Debugf("检测到当前下载任务数量小于最大下载数量，尝试启动暂停的下载任务: size-%d ...", num)
 					// 如果当前没有活跃的任务，查询已经停止的任务启动起来
 					if err = a.client().UnpauseAll(); err != nil {
 						log.Errorf("恢复下载任务信息异常: %s \n", err.Error())
-						return
 					}
+				}
+
+				log.Debugf("下载文件优选：size-%d\n", len(actives))
+				for _, act := range actives {
+					if act.Status != arigo.StatusActive {
+						// 下载任务不活跃，不做处理
+						log.Debugf("[文件优选] 下载任务(%s)状态不活跃，不做处理：%s\n", display(act), act.Status)
+						continue
+					}
+					// 下载文件优选
+					a.handleFileBestSelect(act)
 				}
 
 				// 检查是否存在等待中的任务
@@ -181,42 +192,35 @@ func (a *Aria2) runStatusLoop() {
 					log.Errorf("查询当前等待的下载任务信息异常: %s \n", err.Error())
 					return
 				}
-				if len(waits) == 0 {
-					// 等待下载的任务为空，不在检查下载速度了
-					return
-				}
-
-				if len(tasks) > 0 {
-					log.Debugf("检查下载任务：size-%d\n", len(tasks))
-					for _, task := range tasks {
-						if task.Status != arigo.StatusActive {
+				if len(waits) > 0 {
+					log.Debugf("检查下载任务：size-%d\n", len(actives))
+					for _, act := range actives {
+						if act.Status != arigo.StatusActive {
 							// 下载任务不活跃，不做处理
-							log.Debugf("下载任务(%s)状态不活跃，不做处理：%s\n", display(task), task.Status)
+							log.Debugf("[下载速度] 下载任务(%s)状态不活跃，不做处理：%s\n", display(act), act.Status)
 							continue
 						}
 
-						if task.Status == arigo.StatusCompleted {
+						if act.Status == arigo.StatusCompleted {
 							// 已经完成的不做处理
+							log.Debugf("[下载速度] 下载任务(%s)状态已经完成，不做处理：%s\n", display(act), act.Status)
 							continue
 						}
 
-						gid := task.GID
+						gid := act.GID
 						// 检查任务的下载速度
-						if a.isPauseCheckDownloadSpeed(gid, task.DownloadSpeed) {
-							log.Debugf("下载任务(%s)低速下载，将暂停...", display(task))
+						if a.isPauseCheckDownloadSpeed(gid, act.DownloadSpeed) {
+							log.Debugf("[下载速度] 下载任务(%s)低速下载，将暂停...", display(act))
 							// 检查不通过，需要降低当前任务的优先级
 							if err = a.client().Pause(gid); err != nil {
-								log.Errorf("暂停下载任务(%s)异常: %s \n", display(task), err.Error())
+								log.Errorf("[下载速度] 暂停下载任务(%s)异常: %s \n", display(act), err.Error())
 							} else {
 								// 清除当前任务的下载速度缓存
 								a.speedCache.Delete(gid)
-								log.Infof("暂停任务：(%s) 下载速度一直小于 %d 字节/s\n", display(task), LowSpeedThreshold)
+								log.Infof("[下载速度] 暂停任务：(%s) 下载速度一直小于 %d 字节/s\n", display(act), LowSpeedThreshold)
 							}
 							time.Sleep(300 * time.Microsecond)
 						}
-
-						// 下载文件优选
-						a.handleFileBestSelect(task)
 					}
 				}
 			}()

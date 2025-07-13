@@ -19,6 +19,7 @@ const MinVideoSize = 100_000_000
 const MaxFileNameLength = 255
 
 func (a *Aria2) handleFileBestSelect(task arigo.Status) {
+	log.Debugf("下载任务(%s)文件优选：%s", task.GID, display(task))
 	if selectIndex, ok, delFiles := downloadFileBestSelect(task.Files); ok {
 		if task.Status == arigo.StatusActive || task.Status == arigo.StatusWaiting {
 			if err := a.client().ChangeOptions(task.GID, arigo.Options{
