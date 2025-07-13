@@ -166,6 +166,18 @@ func (a *Aria2) runStatusLoop() {
 				}
 
 				maxDownloadNum := mathutil.Max(int(ops.MaxConcurrentDownloads), 1)
+
+				// 检查是否存在等待中的任务
+				waits, err := a.client().TellWaiting(0, 1, "gid", "status")
+				if err != nil {
+					log.Errorf("查询当前等待的下载任务信息异常: %s \n", err.Error())
+					return
+				}
+				if len(waits) == 0 {
+					// 等待下载的任务为空，不在检查下载速度了
+					return
+				}
+
 				tasks, err := a.client().TellActive("gid", "status", "files", "downloadSpeed")
 				if err != nil {
 					log.Errorf("查询当前活跃的下载任务信息异常: %s \n", err.Error())
@@ -180,21 +192,6 @@ func (a *Aria2) runStatusLoop() {
 						log.Errorf("恢复下载任务信息异常: %s \n", err.Error())
 						return
 					}
-					//if tasks, err = a.client().TellWaiting(0, uint(num), "gid", "status", "files"); err != nil {
-					//	log.Errorf("查询等待的下载任务信息异常: %s \n", err.Error())
-					//	return
-					//}
-					//for _, task := range tasks {
-					//	if task.Status == arigo.StatusPaused {
-					//		if err = a.client().Unpause(task.GID); err != nil {
-					//			log.Errorf("恢复下载任务(%s)异常: %s \n", display(task), err.Error())
-					//			continue
-					//		}
-					//		log.Infof("恢复下载任务(%s)\n", display(task))
-					//		time.Sleep(300 * time.Microsecond)
-					//	}
-					//}
-					//log.Debugf("启动暂停的下载任务：size-%d\n", len(tasks))
 				}
 
 				if len(tasks) > 0 {

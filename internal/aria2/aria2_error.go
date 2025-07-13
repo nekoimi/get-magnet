@@ -28,7 +28,7 @@ func (a *Aria2) onErrorFileNameTooLong(task arigo.Status) {
 			}
 
 			saveDir := options.Dir + "/error-retry/" + util.NowDate("-")
-			if selectIndex, ok := downloadFileBestSelect(task.Files); ok {
+			if selectIndex, ok, _ := downloadFileBestSelect(task.Files); ok {
 				if _, err = a.client().AddURI(arigo.URIs(downloadUrl), &arigo.Options{
 					Dir:        saveDir,
 					SelectFile: selectIndex,
