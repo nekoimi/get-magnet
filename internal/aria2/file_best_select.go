@@ -121,11 +121,7 @@ func downloadFileBestSelect(files []arigo.File) (selectIndex string, ok bool, de
 		allowFiles, notAllowFiles := bestSelectFile(files)
 		if len(allowFiles) == 0 {
 			// 不做处理
-			return "", false, delFiles
-		}
-
-		for _, notAllowFile := range notAllowFiles {
-			delFiles = append(delFiles, notAllowFile)
+			return "", false, notAllowFiles
 		}
 
 		var builder strings.Builder
@@ -133,7 +129,7 @@ func downloadFileBestSelect(files []arigo.File) (selectIndex string, ok bool, de
 			builder.WriteString(strconv.Itoa(a.Index))
 			builder.WriteString(",")
 		}
-		return builder.String(), true, delFiles
+		return builder.String(), true, notAllowFiles
 	}
 
 	return "", false, delFiles

@@ -26,8 +26,6 @@ type Aria2 struct {
 	_client *arigo.Client
 	// 下载任务下载速度缓存
 	speedCache *cache.Cache
-	// 当前活跃的下载任务GID列表
-	activeRepo *ActiveRepo
 	// 退出
 	exit chan struct{}
 	// wait
@@ -38,7 +36,6 @@ func NewClient() *Aria2 {
 	return &Aria2{
 		amux:       &sync.Mutex{},
 		speedCache: cache.New(LowSpeedTimeout, LowSpeedCleanupInterval),
-		activeRepo: newActiveRepo(),
 		exit:       make(chan struct{}, 1),
 		exitWG:     sync.WaitGroup{},
 	}
@@ -59,18 +56,6 @@ func (a *Aria2) Start(ctx context.Context) {
 	a.client().Subscribe(arigo.CompleteEvent, a.completeEventHandle)
 	a.client().Subscribe(arigo.BTCompleteEvent, a.btCompleteEventHandle)
 	a.client().Subscribe(arigo.ErrorEvent, a.errorEventHandle)
-
-	// 初始化获取的任务
-	tasks, err := a.client().TellActive("gid", "files")
-	if err != nil {
-		log.Errorf("查询当前活跃的下载任务信息异常: %s \n", err.Error())
-		panic(err)
-	}
-
-	for _, task := range tasks {
-		a.activeRepo.put(task.GID)
-		log.Debugf("init active task: %s\n", display(task))
-	}
 
 	// 初始化处理异常任务
 	offset := 0
@@ -166,18 +151,6 @@ func (a *Aria2) runStatusLoop() {
 				}
 
 				maxDownloadNum := mathutil.Max(int(ops.MaxConcurrentDownloads), 1)
-
-				// 检查是否存在等待中的任务
-				waits, err := a.client().TellWaiting(0, 1, "gid", "status")
-				if err != nil {
-					log.Errorf("查询当前等待的下载任务信息异常: %s \n", err.Error())
-					return
-				}
-				if len(waits) == 0 {
-					// 等待下载的任务为空，不在检查下载速度了
-					return
-				}
-
 				tasks, err := a.client().TellActive("gid", "status", "files", "downloadSpeed")
 				if err != nil {
 					log.Errorf("查询当前活跃的下载任务信息异常: %s \n", err.Error())
@@ -192,6 +165,17 @@ func (a *Aria2) runStatusLoop() {
 						log.Errorf("恢复下载任务信息异常: %s \n", err.Error())
 						return
 					}
+				}
+
+				// 检查是否存在等待中的任务
+				waits, err := a.client().TellWaiting(0, 1, "gid", "status")
+				if err != nil {
+					log.Errorf("查询当前等待的下载任务信息异常: %s \n", err.Error())
+					return
+				}
+				if len(waits) == 0 {
+					// 等待下载的任务为空，不在检查下载速度了
+					return
 				}
 
 				if len(tasks) > 0 {
@@ -235,7 +219,6 @@ func (a *Aria2) runStatusLoop() {
 func (a *Aria2) startEventHandle(event *arigo.DownloadEvent) {
 	gid := event.GID
 	log.Debugf("GID#%s startEventHandle\n", gid)
-	a.activeRepo.put(gid)
 
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
@@ -253,7 +236,6 @@ func (a *Aria2) startEventHandle(event *arigo.DownloadEvent) {
 
 func (a *Aria2) pauseEventHandle(event *arigo.DownloadEvent) {
 	log.Debugf("GID#%s pauseEventHandle\n", event.GID)
-	a.activeRepo.del(event.GID)
 
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
@@ -261,7 +243,6 @@ func (a *Aria2) pauseEventHandle(event *arigo.DownloadEvent) {
 
 func (a *Aria2) stopEventHandle(event *arigo.DownloadEvent) {
 	log.Debugf("GID#%s stopEventHandle\n", event.GID)
-	a.activeRepo.del(event.GID)
 
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
@@ -269,7 +250,6 @@ func (a *Aria2) stopEventHandle(event *arigo.DownloadEvent) {
 
 func (a *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
 	log.Debugf("GID#%s completeEventHandle\n", event.GID)
-	a.activeRepo.del(event.GID)
 
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
@@ -277,15 +257,12 @@ func (a *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
 
 func (a *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {
 	log.Debugf("GID#%s btCompleteEventHandle\n", event.GID)
-	a.activeRepo.del(event.GID)
 
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
 }
 
 func (a *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
-	a.activeRepo.del(event.GID)
-
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
 
