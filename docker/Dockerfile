@@ -28,6 +28,7 @@ COPY local.conf /etc/fonts/local.conf
 
 # 创建工作目录并添加用户
 RUN mkdir -p /workspace && mkdir -p /var/lib/rod-data && \
+    groupadd -g 1000 appuser && \
     useradd -u 1000 -g 1000 -ms /bin/bash appuser && \
     chown -R appuser:appuser /workspace && \
     chown -R appuser:appuser /var/lib/rod-data
