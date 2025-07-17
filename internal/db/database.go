@@ -23,7 +23,7 @@ func Init(cfg *config.Database) {
 		log.Debugf("连接数据库")
 		engine, err = xorm.NewEngine(Postgres.String(), cfg.Dns)
 		if err != nil {
-			log.Errorf("连接数据库异常: %s\n", err.Error())
+			log.Errorf("连接数据库异常: %s", err.Error())
 			panic(err)
 		}
 
@@ -36,7 +36,7 @@ func Init(cfg *config.Database) {
 
 		err = engine.Ping()
 		if err != nil {
-			log.Errorf("数据库连接不可用: %s\n", err.Error())
+			log.Errorf("数据库连接不可用: %s", err.Error())
 			panic(err)
 		}
 
@@ -56,12 +56,12 @@ func Instance() *xorm.Engine {
 func initMigrates(e *xorm.Engine) {
 	mg := new(table.Migrates)
 	if exist, err := e.IsTableExist(mg); err != nil {
-		log.Errorf("数据表检查失败: %s\n", err.Error())
+		log.Errorf("数据表检查失败: %s", err.Error())
 		panic(err)
 	} else if !exist {
 		err := e.CreateTables(mg)
 		if err != nil {
-			log.Errorf("数据表初始化失败: %s\n", err.Error())
+			log.Errorf("数据表初始化失败: %s", err.Error())
 			panic(err)
 		}
 	}
@@ -76,23 +76,23 @@ func runMigrates(e *xorm.Engine) {
 	log.Debugln("数据表迁移执行...")
 	for _, m := range migrates {
 		if exists, err := e.Exist(&table.Migrates{Version: m.Version()}); err != nil {
-			log.Errorf("数据表迁移异常: %s, \n details: %s \n", m.Desc(), err.Error())
+			log.Errorf("数据表迁移异常: %s, \n details: %s", m.Desc(), err.Error())
 			break
 		} else if exists {
 			// 已经存在迁移记录，直接跳过所有
 			break
 		}
 
-		log.Debugf("数据表迁移: %d, %s , 执行...\n\n", m.Version(), m.Desc())
+		log.Debugf("数据表迁移: %d, %s , 执行...", m.Version(), m.Desc())
 		err = m.Exec(e)
 		if err != nil {
-			log.Errorf("数据表迁移异常: %s, \n details: %s \n", m.Desc(), err.Error())
+			log.Errorf("数据表迁移异常: %s, \n details: %s", m.Desc(), err.Error())
 			if _, insertErr := e.InsertOne(&table.Migrates{
 				Version: m.Version(),
 				Success: false,
 				Message: err.Error(),
 			}); insertErr != nil {
-				log.Errorf("数据库操作失败: %s\n", insertErr.Error())
+				log.Errorf("数据库操作失败: %s", insertErr.Error())
 			}
 			break
 		}
@@ -101,7 +101,7 @@ func runMigrates(e *xorm.Engine) {
 			Success: true,
 			Message: "ok",
 		}); insertErr != nil {
-			log.Errorf("数据库操作失败: %s\n", insertErr.Error())
+			log.Errorf("数据库操作失败: %s", insertErr.Error())
 		}
 	}
 	log.Debugln("数据表迁移执行完毕")

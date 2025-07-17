@@ -26,7 +26,7 @@ func JoinUrl(base string, urls ...string) string {
 func CleanHost(host string) string {
 	u, err := url.Parse(host)
 	if err != nil {
-		log.Errorf("URL parse (%s) err: %s \n", host, err.Error())
+		log.Errorf("URL parse (%s) err: %s", host, err.Error())
 		return ""
 	}
 

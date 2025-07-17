@@ -61,7 +61,7 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("登录用户: %s\n", u.GetId())
+	log.Debugf("登录用户: %s", u.GetId())
 
 	respond.Ok(w, nil)
 }

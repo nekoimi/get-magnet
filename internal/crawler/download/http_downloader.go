@@ -67,11 +67,12 @@ func (s *HttpDownloader) Download(rawUrl string) (selection *goquery.Selection, 
 		if retryNum > RetryLimit {
 			break
 		}
-		log.Debugf("download url - retryNum(%d): %s \n", retryNum, rawUrl)
+		log.Debugf("download url - retryNum(%d): %s", retryNum, rawUrl)
 		retryNum++
 
 		req, err = http.NewRequest("GET", rawUrl, nil)
 		if err != nil {
+			log.Errorf("download url error -> continue: %s - %s", rawUrl, err.Error())
 			continue
 		}
 		req.Header.Set("Referer", rawUrl)
@@ -79,13 +80,14 @@ func (s *HttpDownloader) Download(rawUrl string) (selection *goquery.Selection, 
 		req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6")
 		resp, err = s.client.Do(req)
 		if err != nil {
-			log.Errorf("download url error: %s - %s", rawUrl, err.Error())
+			log.Errorf("download url error -> continue: %s - %s", rawUrl, err.Error())
 			continue
 		}
 
 		if resp.StatusCode == 429 {
 			// 请求次数过多，等待一段时间
 			time.Sleep(60 * time.Second)
+			log.Errorf("download url StatusCode == 429 -> wait continue: %s - %s", rawUrl, err.Error())
 			continue
 		}
 

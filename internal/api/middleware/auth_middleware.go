@@ -43,7 +43,7 @@ func AuthMiddleware() mux.MiddlewareFunc {
 				if c, err := r.Cookie("token"); err == nil {
 					token = c.Value
 				} else {
-					log.Debugf("获取请求cookie异常: %s\n", err.Error())
+					log.Debugf("获取请求cookie异常: %s", err.Error())
 				}
 			}
 

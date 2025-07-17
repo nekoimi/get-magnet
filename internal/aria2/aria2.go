@@ -48,7 +48,7 @@ func (a *Aria2) Start(ctx context.Context) {
 	if err != nil {
 		panic(err)
 	}
-	log.Infof("aria2版本信息: %s\n", version.Version)
+	log.Infof("aria2版本信息: %s", version.Version)
 
 	a.client().Subscribe(arigo.StartEvent, a.startEventHandle)
 	a.client().Subscribe(arigo.PauseEvent, a.pauseEventHandle)
@@ -63,7 +63,7 @@ func (a *Aria2) Start(ctx context.Context) {
 	for {
 		stops, err := a.client().TellStopped(offset, uint(fetchNum), "gid", "status", "infoHash", "files", "bittorrent", "errorCode", "errorMessage")
 		if err != nil {
-			log.Errorf("查询当前停止的下载任务信息异常: %s \n", err.Error())
+			log.Errorf("查询当前停止的下载任务信息异常: %s", err.Error())
 			panic(err)
 		}
 
@@ -108,7 +108,7 @@ func (a *Aria2) Submit(origin string, downloadUrl string) error {
 	if _, err = a.client().AddURI(arigo.URIs(downloadUrl), &arigo.Options{
 		Dir: saveDir,
 	}); err != nil {
-		log.Errorf("添加aria2下载任务异常: %s \n", err.Error())
+		log.Errorf("添加aria2下载任务异常: %s", err.Error())
 		return err
 	}
 	return nil
@@ -119,7 +119,7 @@ func (a *Aria2) Stop() {
 
 	if a._client != nil {
 		if err := a.client().Close(); err != nil {
-			log.Errorf("aria2客户端关闭异常: %s \n", err.Error())
+			log.Errorf("aria2客户端关闭异常: %s", err.Error())
 		}
 	}
 
@@ -150,7 +150,7 @@ func (a *Aria2) runStatusLoop() {
 					checkRunning = false
 
 					if r := recover(); r != nil {
-						log.Errorf("检查下载状态 panic: %v\n", r)
+						log.Errorf("检查下载状态 panic: %v", r)
 					}
 				}()
 
@@ -162,7 +162,7 @@ func (a *Aria2) runStatusLoop() {
 				maxDownloadNum := mathutil.Max(int(ops.MaxConcurrentDownloads), 1)
 				actives, err := a.client().TellActive("gid", "status", "files", "downloadSpeed")
 				if err != nil {
-					log.Errorf("查询当前活跃的下载任务信息异常: %s \n", err.Error())
+					log.Errorf("查询当前活跃的下载任务信息异常: %s", err.Error())
 					return
 				}
 
@@ -171,15 +171,15 @@ func (a *Aria2) runStatusLoop() {
 					//log.Debugf("检测到当前下载任务数量小于最大下载数量，尝试启动暂停的下载任务: size-%d ...", num)
 					// 如果当前没有活跃的任务，查询已经停止的任务启动起来
 					if err = a.client().UnpauseAll(); err != nil {
-						log.Errorf("恢复下载任务信息异常: %s \n", err.Error())
+						log.Errorf("恢复下载任务信息异常: %s", err.Error())
 					}
 				}
 
-				log.Debugf("下载文件优选：size-%d\n", len(actives))
+				log.Debugf("下载文件优选：size-%d", len(actives))
 				for _, act := range actives {
 					if act.Status != arigo.StatusActive {
 						// 下载任务不活跃，不做处理
-						log.Debugf("[文件优选] 下载任务(%s)状态不活跃，不做处理：%s\n", display(act), act.Status)
+						log.Debugf("[文件优选] 下载任务(%s)状态不活跃，不做处理：%s", display(act), act.Status)
 						continue
 					}
 					// 下载文件优选
@@ -189,21 +189,21 @@ func (a *Aria2) runStatusLoop() {
 				// 检查是否存在等待中的任务
 				waits, err := a.client().TellWaiting(0, 1, "gid", "status")
 				if err != nil {
-					log.Errorf("查询当前等待的下载任务信息异常: %s \n", err.Error())
+					log.Errorf("查询当前等待的下载任务信息异常: %s", err.Error())
 					return
 				}
 				if len(waits) > 0 {
-					log.Debugf("检查下载任务：size-%d\n", len(actives))
+					log.Debugf("检查下载任务：size-%d", len(actives))
 					for _, act := range actives {
 						if act.Status != arigo.StatusActive {
 							// 下载任务不活跃，不做处理
-							log.Debugf("[下载速度] 下载任务(%s)状态不活跃，不做处理：%s\n", display(act), act.Status)
+							log.Debugf("[下载速度] 下载任务(%s)状态不活跃，不做处理：%s", display(act), act.Status)
 							continue
 						}
 
 						if act.Status == arigo.StatusCompleted {
 							// 已经完成的不做处理
-							log.Debugf("[下载速度] 下载任务(%s)状态已经完成，不做处理：%s\n", display(act), act.Status)
+							log.Debugf("[下载速度] 下载任务(%s)状态已经完成，不做处理：%s", display(act), act.Status)
 							continue
 						}
 
@@ -213,11 +213,11 @@ func (a *Aria2) runStatusLoop() {
 							log.Debugf("[下载速度] 下载任务(%s)低速下载，将暂停...", display(act))
 							// 检查不通过，需要降低当前任务的优先级
 							if err = a.client().Pause(gid); err != nil {
-								log.Errorf("[下载速度] 暂停下载任务(%s)异常: %s \n", display(act), err.Error())
+								log.Errorf("[下载速度] 暂停下载任务(%s)异常: %s", display(act), err.Error())
 							} else {
 								// 清除当前任务的下载速度缓存
 								a.speedCache.Delete(gid)
-								log.Infof("[下载速度] 暂停任务：(%s) 下载速度一直小于 %d 字节/s\n", display(act), LowSpeedThreshold)
+								log.Infof("[下载速度] 暂停任务：(%s) 下载速度一直小于 %d 字节/s", display(act), LowSpeedThreshold)
 							}
 							time.Sleep(300 * time.Microsecond)
 						}
@@ -230,7 +230,7 @@ func (a *Aria2) runStatusLoop() {
 
 func (a *Aria2) startEventHandle(event *arigo.DownloadEvent) {
 	gid := event.GID
-	log.Debugf("GID#%s startEventHandle\n", gid)
+	log.Debugf("GID#%s startEventHandle", gid)
 
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
@@ -238,7 +238,7 @@ func (a *Aria2) startEventHandle(event *arigo.DownloadEvent) {
 	// 获取下载任务信息
 	task, err := a.client().TellStatus(gid, "gid", "status", "files", "downloadSpeed")
 	if err != nil {
-		log.Errorf("查询当前(%s)下载任务信息异常: %s \n", gid, err.Error())
+		log.Errorf("查询当前(%s)下载任务信息异常: %s", gid, err.Error())
 		return
 	}
 
@@ -247,28 +247,28 @@ func (a *Aria2) startEventHandle(event *arigo.DownloadEvent) {
 }
 
 func (a *Aria2) pauseEventHandle(event *arigo.DownloadEvent) {
-	log.Debugf("GID#%s pauseEventHandle\n", event.GID)
+	log.Debugf("GID#%s pauseEventHandle", event.GID)
 
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
 }
 
 func (a *Aria2) stopEventHandle(event *arigo.DownloadEvent) {
-	log.Debugf("GID#%s stopEventHandle\n", event.GID)
+	log.Debugf("GID#%s stopEventHandle", event.GID)
 
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
 }
 
 func (a *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
-	log.Debugf("GID#%s completeEventHandle\n", event.GID)
+	log.Debugf("GID#%s completeEventHandle", event.GID)
 
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
 }
 
 func (a *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {
-	log.Debugf("GID#%s btCompleteEventHandle\n", event.GID)
+	log.Debugf("GID#%s btCompleteEventHandle", event.GID)
 
 	// 清除下载速度缓存
 	a.speedCache.Delete(event.GID)
@@ -280,10 +280,10 @@ func (a *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
 
 	status, err := a.client().TellStatus(event.GID, "gid", "status", "infoHash", "files", "bittorrent", "errorCode", "errorMessage")
 	if err != nil {
-		log.Errorf("查询下载任务GID#%s状态信息异常: %s \n", event.GID, err.Error())
+		log.Errorf("查询下载任务GID#%s状态信息异常: %s", event.GID, err.Error())
 		return
 	}
-	log.Errorf("下载任务(%s)出错：[%s] %s - %s\n", display(status), status.Status, status.ErrorCode, status.ErrorMessage)
+	log.Errorf("下载任务(%s)出错：[%s] %s - %s", display(status), status.Status, status.ErrorCode, status.ErrorMessage)
 
 	// 处理文件出错的情况
 	a.onErrorFileNameTooLong(status)
@@ -311,7 +311,7 @@ func (a *Aria2) client() *arigo.Client {
 						exit = true
 						break
 					}
-					log.Warnf("检测到aria2客户端异常, 重新连接 %d ... %s\n", reConnNum, err.Error())
+					log.Warnf("检测到aria2客户端异常, 重新连接 %d ... %s", reConnNum, err.Error())
 					time.Sleep(3 * time.Second)
 					continue
 				}
@@ -350,7 +350,7 @@ func (a *Aria2) connect() error {
 func (a *Aria2) globalOptions() (arigo.Options, error) {
 	ops, err := a.client().GetGlobalOptions()
 	if err != nil {
-		log.Errorf("查询aria2全局配置异常: %s - %s\n", err.Error(), debug.Stack())
+		log.Errorf("查询aria2全局配置异常: %s - %s", err.Error(), debug.Stack())
 		return arigo.Options{}, err
 	}
 	return ops, nil

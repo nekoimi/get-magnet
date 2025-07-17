@@ -84,6 +84,16 @@ func init() {
 		panic(err)
 	}
 	log.SetLevel(level)
+
+	// 文件输出：不带颜色
+	fileFormatter := &log.JSONFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
+			return strings.ReplaceAll(frame.Function, PackageName+"/", " "), ""
+		},
+	}
+
+	log.AddHook(NewLevelHook(apptools.Getenv("LOG_PATH", "logs"), fileFormatter))
 }
 
 func Default() *Config {

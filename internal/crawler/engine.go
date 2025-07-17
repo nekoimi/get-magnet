@@ -54,7 +54,7 @@ func (e *Engine) Start() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("engine运行异常: %v, %s\n", r, string(debug.Stack()))
+			log.Errorf("engine运行异常: %v, %s", r, string(debug.Stack()))
 		}
 	}()
 
@@ -71,9 +71,9 @@ func (e *Engine) Start() {
 // 添加下载任务
 func (e *Engine) submitDownload(origin string, downloadUrl string) {
 	if err := e.aria2.Submit(origin, downloadUrl); err != nil {
-		log.Errorf("提交下载任务异常：%s - %s\n", downloadUrl, err.Error())
+		log.Errorf("提交下载任务异常：%s - %s", downloadUrl, err.Error())
 	} else {
-		log.Infof("提交下载任务：%s\n", downloadUrl)
+		log.Infof("提交下载任务：%s", downloadUrl)
 	}
 }
 
@@ -94,7 +94,7 @@ func (e *Engine) Success(w *worker.Worker, tasks []task.Task, outputs []task.Mag
 			Status:      0,
 		})
 		if err != nil {
-			log.Errorf("保存数据异常: %s \n", err.Error())
+			log.Errorf("保存数据异常: %s", err.Error())
 		}
 
 		// 提交下载
@@ -105,11 +105,11 @@ func (e *Engine) Success(w *worker.Worker, tasks []task.Task, outputs []task.Mag
 
 func (e *Engine) Error(w *worker.Worker, t task.Task, err error) {
 	if t.ErrorNum() >= taskErrorMax {
-		log.Errorf("任务出错次数太多: %s - %s\n", t.RawUrl(), err.Error())
+		log.Errorf("任务出错次数太多: %s - %s", t.RawUrl(), err.Error())
 		return
 	}
 
-	log.Errorf("任务处理异常：%s - %s\n", t.RawUrl(), err.Error())
+	log.Errorf("任务处理异常：%s - %s", t.RawUrl(), err.Error())
 
 	e.scheduler.Submit(t)
 }

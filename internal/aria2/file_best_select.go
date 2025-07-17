@@ -26,7 +26,7 @@ func (a *Aria2) handleFileBestSelect(task arigo.Status) {
 			if err := a.client().ChangeOptions(task.GID, arigo.Options{
 				SelectFile: selectIndex,
 			}); err != nil {
-				log.Errorf("下载任务(%s)文件优选异常：%s \n", display(task), err.Error())
+				log.Errorf("下载任务(%s)文件优选异常：%s", display(task), err.Error())
 			} else {
 				log.Infof("下载任务(%s)文件优选：%s", display(task), selectIndex)
 			}

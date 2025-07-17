@@ -19,7 +19,7 @@ func init() {
 
 func startTaskSeeders() {
 	for _, p := range seeders {
-		log.Debugf("启动%s任务生成...\n", p.Name())
+		log.Debugf("启动%s任务生成...", p.Name())
 		p.Exec()
 	}
 }

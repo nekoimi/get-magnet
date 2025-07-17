@@ -33,7 +33,7 @@ func (a *Aria2) onErrorFileNameTooLong(task arigo.Status) {
 					Dir:        saveDir,
 					SelectFile: selectIndex,
 				}); err != nil {
-					log.Errorf("重新添加aria2下载任务异常: [%s] - %s \n", downloadUrl, err.Error())
+					log.Errorf("重新添加aria2下载任务异常: [%s] - %s", downloadUrl, err.Error())
 				}
 			}
 		}

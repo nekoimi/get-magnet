@@ -80,7 +80,7 @@ func TestAria2_Client(t *testing.T) {
 							Dir:        saveDir,
 							SelectFile: selectIndex,
 						}); err != nil {
-							t.Logf("重新添加aria2下载任务异常: [%s] - %s \n", downloadUrl, err.Error())
+							t.Logf("重新添加aria2下载任务异常: [%s] - %s", downloadUrl, err.Error())
 						}
 					}
 
@@ -101,7 +101,7 @@ func TestAria2_Client(t *testing.T) {
 					//	BTMetadataOnly: true,
 					//	FollowTorrent:  true,
 					//}); err != nil {
-					//	t.Logf("添加aria2下载任务异常: %s \n", err.Error())
+					//	t.Logf("添加aria2下载任务异常: %s", err.Error())
 					//}
 				}
 			}

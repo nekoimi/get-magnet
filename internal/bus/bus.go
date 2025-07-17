@@ -23,6 +23,6 @@ func (b *Bus) Publish(topic string, args ...interface{}) {
 func (b *Bus) Subscribe(topic string, fn interface{}) {
 	err := b.eventBus.SubscribeAsync(topic, fn, true)
 	if err != nil {
-		log.Errorf("Event Subscribe error: %s\n", err.Error())
+		log.Errorf("Event Subscribe error: %s", err.Error())
 	}
 }
