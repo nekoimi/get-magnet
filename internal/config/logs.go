@@ -42,13 +42,13 @@ func (w *dailyWriter) rotate() {
 	w.curDate = today
 
 	_ = os.MkdirAll(w.baseDir, 0755)
-	filename := filepath.Join(w.baseDir, fmt.Sprintf("%s_%s.log", w.level.String(), today))
+	filename := filepath.Join(w.baseDir, fmt.Sprintf("%s-%s.log", w.level.String(), today))
 
 	w.logger = &lumberjack.Logger{
 		Filename:   filename,
 		MaxSize:    100,
 		MaxBackups: 7,
-		MaxAge:     30,
+		MaxAge:     10,
 		Compress:   true,
 	}
 
