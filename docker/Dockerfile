@@ -27,9 +27,11 @@ RUN apt-get update \
 COPY local.conf /etc/fonts/local.conf
 
 # 创建工作目录并添加用户
-RUN mkdir -p /usr/src/app && \
-    useradd -ms /bin/bash chrome && \
-    chown -R chrome:chrome /usr/src/app
+RUN mkdir -p /workspace && mkdir -p /var/lib/rod-data && \
+    groupadd -g 1000 appuser && \
+    useradd -u 1000 -g 1000 -ms /bin/bash appuser && \
+    chown -R appuser:appuser /workspace && \
+    chown -R appuser:appuser /var/lib/rod-data
 
 # Autorun chrome headless
 ENV CHROMIUM_FLAGS="--disable-software-rasterizer --disable-dev-shm-usage"
@@ -51,7 +53,10 @@ RUN curl -L -o /tmp/release.zip https://github.com/86maid/ddddocr/releases/downl
 # 设置OCR服务启动路径
 ENV OCR_BIN_PATH=/usr/bin/ocr
 
-WORKDIR /usr/src/app
+# Run as non-privileged
+USER appuser
+
+WORKDIR /workspace
 
 VOLUME /var/lib/rod-data
 

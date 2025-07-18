@@ -47,7 +47,7 @@ func (w *Worker) Version() uint64 {
 
 // Run 启动任务执行worker，监听任务并执行
 func (w *Worker) Run() {
-	log.Debugf("启动Worker: %s - [%v]...\n", w, w.taskCh)
+	log.Debugf("启动Worker: %s - [%v]...", w, w.taskCh)
 	for {
 		select {
 		case <-w.exit:
@@ -56,8 +56,8 @@ func (w *Worker) Run() {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						w.resultHandler.Error(w, t, errors.New(fmt.Sprintf("panic: %v\n", r)))
-						log.Errorf("worker (%s) 处理任务 (%s) panic: %v\n", w, t.RawUrl(), r)
+						w.resultHandler.Error(w, t, errors.New(fmt.Sprintf("panic: %v", r)))
+						log.Errorf("worker (%s) 处理任务 (%s) panic: %v", w, t.RawUrl(), r)
 					}
 				}()
 
@@ -70,11 +70,11 @@ func (w *Worker) Run() {
 // Stop 停止任务执行worker
 func (w *Worker) Stop() {
 	for w.running {
-		log.Debugf("等待Worker执行完毕: %s\n", w)
+		log.Debugf("等待Worker执行完毕: %s", w)
 		time.Sleep(3 * time.Second)
 	}
 	close(w.exit)
-	log.Debugf("停止Worker: %s\n", w)
+	log.Debugf("停止Worker: %s", w)
 }
 
 // do 执行任务
@@ -89,11 +89,11 @@ func (w *Worker) do(t task.Task) {
 	if err != nil {
 		t.IncrErrorNum()
 		w.resultHandler.Error(w, t, err)
-		log.Errorf("[%s] handle task (%s) err: %s \n", w, t.RawUrl(), err.Error())
+		log.Errorf("[%s] handle task (%s) err: %s", w, t.RawUrl(), err.Error())
 		return
 	}
 	w.resultHandler.Success(w, tasks, outputs)
-	log.Debugf("[%s] handle task done: %s \n", w, t.RawUrl())
+	log.Debugf("[%s] handle task done: %s", w, t.RawUrl())
 }
 
 func (w *Worker) String() string {

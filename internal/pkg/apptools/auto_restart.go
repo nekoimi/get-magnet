@@ -55,7 +55,7 @@ func DelayStart(name string, runFunc func(), delay time.Duration) {
 		timer := time.NewTimer(delay)
 		select {
 		case <-timer.C:
-			log.Debugf("延迟执行[%s]...\n", name)
+			log.Debugf("延迟执行[%s]...", name)
 			runFunc()
 		}
 	}()

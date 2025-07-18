@@ -73,7 +73,7 @@ func TestTaskSeeder(t *testing.T) {
 
 	var stdCookies []*http.Cookie
 	for _, c := range cookies {
-		fmt.Printf("Cookie: %s = %s\n", c.Name, c.Value)
+		fmt.Printf("Cookie: %s = %s", c.Name, c.Value)
 		stdCookies = append(stdCookies, &http.Cookie{
 			Name:     c.Name,
 			Value:    c.Value,

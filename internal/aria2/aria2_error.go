@@ -28,12 +28,12 @@ func (a *Aria2) onErrorFileNameTooLong(task arigo.Status) {
 			}
 
 			saveDir := options.Dir + "/error-retry/" + util.NowDate("-")
-			if selectIndex, ok := downloadFileBestSelect(task.Files); ok {
+			if selectIndex, ok, _ := downloadFileBestSelect(task.Files); ok {
 				if _, err = a.client().AddURI(arigo.URIs(downloadUrl), &arigo.Options{
 					Dir:        saveDir,
 					SelectFile: selectIndex,
 				}); err != nil {
-					log.Errorf("重新添加aria2下载任务异常: [%s] - %s \n", downloadUrl, err.Error())
+					log.Errorf("重新添加aria2下载任务异常: [%s] - %s", downloadUrl, err.Error())
 				}
 			}
 		}

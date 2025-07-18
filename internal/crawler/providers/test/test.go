@@ -40,7 +40,7 @@ func (p *Seeder) Exec() {
 func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Infof("处理任务：%s\n", rawUrl)
+		log.Infof("处理任务：%s", rawUrl)
 		time.Sleep(10 * time.Second)
 		return nil, nil, nil
 	}

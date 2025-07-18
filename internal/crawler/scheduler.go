@@ -75,9 +75,9 @@ func (s *Scheduler) Start() {
 		case <-showWorkerTicker.C:
 			if log.IsLevelEnabled(log.DebugLevel) {
 				s.workerLock.RLock()
-				log.Debugf("[WATCH-DEBUG] workers池数量：%d\n", len(s.workers))
+				log.Debugf("[WATCH-DEBUG] workers池数量：%d", len(s.workers))
 				for _, w := range s.workers {
-					log.Debugf("[WATCH-DEBUG] worker：%s\n", w.String())
+					log.Debugf("[WATCH-DEBUG] worker：%s", w.String())
 				}
 				s.workerLock.RUnlock()
 			}

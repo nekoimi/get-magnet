@@ -17,13 +17,13 @@ func sendJsonResponse(w http.ResponseWriter, response JsonResponse) {
 	bs, err := json.Marshal(response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Errorf("Marshal json error: %s\n", err.Error())
+		log.Errorf("Marshal json error: %s", err.Error())
 		return
 	}
 
 	_, err = w.Write(bs)
 	if err != nil {
-		log.Errorf("Send json response error: %s\n", err.Error())
+		log.Errorf("Send json response error: %s", err.Error())
 	}
 }
 

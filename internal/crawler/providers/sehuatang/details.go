@@ -34,11 +34,12 @@ func detailsHandler() task.Handler {
 func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Infof("处理详情任务：%s\n", rawUrl)
+		log.Infof("处理详情任务：%s", rawUrl)
 
 		var u *url.URL
 		u, err = url.Parse(rawUrl)
 		if err != nil {
+			log.Errorf("处理详情任务error：%s -> %s", rawUrl, err.Error())
 			return
 		}
 
@@ -66,6 +67,7 @@ func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetE
 		var root *goquery.Selection
 		root, err = taskEntry.Downloader().Download(rawUrl)
 		if err != nil {
+			log.Errorf("处理详情任务error：%s -> %s", rawUrl, err.Error())
 			return
 		}
 
@@ -90,7 +92,7 @@ func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetE
 
 		// optimalLink
 		var optimalLink = root.Find("[id^='code_']").Find("ol > li").Text()
-		log.Debugf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
+		log.Debugf("Title: %s, Number: %s, OptimalLink: %s", title, number, optimalLink)
 		var links = []string{optimalLink}
 
 		outputs = append(outputs, task.MagnetEntry{

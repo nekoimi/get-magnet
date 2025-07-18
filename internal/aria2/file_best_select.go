@@ -5,6 +5,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,30 +19,56 @@ const MinVideoSize = 100_000_000
 const MaxFileNameLength = 255
 
 func (a *Aria2) handleFileBestSelect(task arigo.Status) {
-	if selectIndex, ok := downloadFileBestSelect(task.Files); ok {
-		if err := a.client().ChangeOptions(task.GID, arigo.Options{
-			SelectFile: selectIndex,
-		}); err != nil {
-			log.Errorf("下载任务(%s)文件优选异常：%s \n", display(task), err.Error())
-		} else {
-			log.Infof("下载任务(%s)文件优选：%s", display(task), selectIndex)
+	log.Debugf("下载任务(%s)文件优选：%s", task.GID, display(task))
+	selectIndex, ok, delFiles := downloadFileBestSelect(task.Files)
+	if ok {
+		if task.Status == arigo.StatusActive || task.Status == arigo.StatusWaiting {
+			if err := a.client().ChangeOptions(task.GID, arigo.Options{
+				SelectFile: selectIndex,
+			}); err != nil {
+				log.Errorf("下载任务(%s)文件优选异常：%s", display(task), err.Error())
+			} else {
+				log.Infof("下载任务(%s)文件优选：%s", display(task), selectIndex)
+			}
 		}
+	}
+
+	for _, delFile := range delFiles {
+		deleteUnBestFile(delFile.Path)
 	}
 }
 
-func bestSelectFile(files []arigo.File) []arigo.File {
+func bestSelectFile(files []arigo.File) ([]arigo.File, []arigo.File) {
 	var allowFiles []arigo.File
+	var notAllowFiles []arigo.File
 	for _, f := range files {
 		// 检查文件名称，超过限制就跳过该文件
 		if err := isValidFileName(f.Path); err != nil {
+			notAllowFiles = append(notAllowFiles, f)
 			continue
 		}
 
 		if isBestFile(f) {
 			allowFiles = append(allowFiles, f)
+		} else {
+			notAllowFiles = append(notAllowFiles, f)
 		}
 	}
-	return allowFiles
+	return allowFiles, notAllowFiles
+}
+
+func deleteUnBestFile(filepath string) {
+	if exists, err := files.Exists(filepath); err != nil {
+		log.Errorf("删除下载文件检查：%s", err.Error())
+	} else if exists {
+		if err = os.Remove(filepath); err != nil {
+			log.Errorf("删除下载文件异常：%s - %s", filepath, err.Error())
+		} else {
+			log.Debugf("删除不符合要求的下载文件：%s", filepath)
+		}
+	} else {
+		log.Debugf("删除不符合要求的下载文件，文件不存在：%s", filepath)
+	}
 }
 
 // 检查文件名是否合法（长度与非法字符）
@@ -82,10 +109,10 @@ func isTorrentFile(filename string) bool {
 	return strings.HasSuffix(filename, ".torrent")
 }
 
-func downloadFileBestSelect(files []arigo.File) (selectIndex string, ok bool) {
+func downloadFileBestSelect(files []arigo.File) (selectIndex string, ok bool, delFiles []arigo.File) {
 	if len(files) <= 1 {
 		// 只有一个文件，不做处理
-		return "", false
+		return "", false, delFiles
 	}
 
 	needChangeOps := false
@@ -98,10 +125,10 @@ func downloadFileBestSelect(files []arigo.File) (selectIndex string, ok bool) {
 	}
 
 	if needChangeOps {
-		allowFiles := bestSelectFile(files)
+		allowFiles, notAllowFiles := bestSelectFile(files)
 		if len(allowFiles) == 0 {
 			// 不做处理
-			return "", false
+			return "", false, notAllowFiles
 		}
 
 		var builder strings.Builder
@@ -109,10 +136,10 @@ func downloadFileBestSelect(files []arigo.File) (selectIndex string, ok bool) {
 			builder.WriteString(strconv.Itoa(a.Index))
 			builder.WriteString(",")
 		}
-		return builder.String(), true
+		return builder.String(), true, notAllowFiles
 	}
 
-	return "", false
+	return "", false, delFiles
 }
 
 func display(status arigo.Status) string {

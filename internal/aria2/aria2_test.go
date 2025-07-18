@@ -74,13 +74,13 @@ func TestAria2_Client(t *testing.T) {
 					}
 
 					saveDir := options.Dir + "/error-retry/" + util.NowDate("-")
-					if selectIndex, ok := downloadFileBestSelect(task.Files); ok {
+					if selectIndex, ok, _ := downloadFileBestSelect(task.Files); ok {
 						t.Logf("优选文件：%s", selectIndex)
 						if _, err = client.AddURI(arigo.URIs(downloadUrl), &arigo.Options{
 							Dir:        saveDir,
 							SelectFile: selectIndex,
 						}); err != nil {
-							t.Logf("重新添加aria2下载任务异常: [%s] - %s \n", downloadUrl, err.Error())
+							t.Logf("重新添加aria2下载任务异常: [%s] - %s", downloadUrl, err.Error())
 						}
 					}
 
@@ -101,7 +101,7 @@ func TestAria2_Client(t *testing.T) {
 					//	BTMetadataOnly: true,
 					//	FollowTorrent:  true,
 					//}); err != nil {
-					//	t.Logf("添加aria2下载任务异常: %s \n", err.Error())
+					//	t.Logf("添加aria2下载任务异常: %s", err.Error())
 					//}
 				}
 			}

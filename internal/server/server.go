@@ -77,6 +77,6 @@ func handleSignal(cancel context.CancelFunc) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	sig := <-sigCh
-	log.Infof("收到退出信号: %v，正在关闭...\n", sig)
+	log.Infof("收到退出信号: %v，正在关闭...", sig)
 	cancel()
 }

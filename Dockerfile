@@ -13,6 +13,12 @@ LABEL maintainer="nekoimi <nekoimime@gmail.com>"
 
 COPY --from=builder /build/get-magnet   /usr/bin/get-magnet
 
+ENV LOG_PATH=/workspace/logs
+
+WORKDIR /workspace
+
+VOLUME /workspace/logs
+
 EXPOSE 8093
 
 ENTRYPOINT ["get-magnet"]

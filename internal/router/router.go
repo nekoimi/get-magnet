@@ -62,7 +62,7 @@ func newRouter() *mux.Router {
 func routeDebugPrint(r *mux.Router) {
 	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		path, _ := route.GetPathTemplate()
-		log.Debugf("Route: %s\n", path)
+		log.Debugf("Route: %s", path)
 		return nil
 	})
 }

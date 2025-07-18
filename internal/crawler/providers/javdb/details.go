@@ -35,11 +35,12 @@ func detailsHandler() task.Handler {
 func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Infof("处理详情任务：%s\n", rawUrl)
+		log.Infof("处理详情任务：%s", rawUrl)
 
 		var root *goquery.Selection
 		root, err = taskEntry.Downloader().Download(rawUrl)
 		if err != nil {
+			log.Errorf("处理详情任务error：%s -> %s", rawUrl, err.Error())
 			return
 		}
 
@@ -50,6 +51,7 @@ func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetE
 		var number = s.Find(".movie-panel-info>div.first-block>span.value").Text()
 		if repository.ExistsByNumber(number) {
 			// 已经存在了
+			log.Debugf("处理详情任务 number已经存在：%s -> %s", rawUrl, number)
 			return
 		}
 
@@ -69,7 +71,8 @@ func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetE
 				}
 			}
 		})
-		if len(torrentLinks) <= 0 {
+		if len(torrentLinks) == 0 {
+			log.Debugf("处理详情任务 torrentLinks == 0：%s", rawUrl)
 			return
 		}
 
@@ -80,7 +83,7 @@ func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetE
 
 		// optimalLink
 		var optimalLink = torrentLinks[0].Link
-		log.Debugf("Title: %s, Number: %s, OptimalLink: %s \n", title, number, optimalLink)
+		log.Debugf("Title: %s, Number: %s, OptimalLink: %s", title, number, optimalLink)
 
 		var links []string
 		for _, link := range torrentLinks {

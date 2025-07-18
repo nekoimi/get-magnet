@@ -18,7 +18,7 @@ func (job *Job) Run() {
 	func(j *Job) {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Errorf("执行Job[%s] panic: %v\n", j.Name, r)
+				log.Errorf("执行Job[%s] panic: %v", j.Name, r)
 			}
 		}()
 

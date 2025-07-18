@@ -60,7 +60,7 @@ func (p *Seeder) Exec() {
 func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Infof("处理任务：%s\n", rawUrl)
+		log.Infof("处理任务：%s", rawUrl)
 		root, err := taskEntry.Downloader().Download(rawUrl)
 		if err != nil {
 			return nil, nil, err
@@ -89,6 +89,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			}
 
 			if repository.ExistsByPath(u.RequestURI()) {
+				log.Debugf("请求地址已经处理过了：%s", u.RequestURI())
 				continue
 			}
 
@@ -104,6 +105,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			// 不存在已经解析的link，继续下一页
 			nextHref, existsNext := root.Find(".pagination>a.pagination-next").First().Attr("href")
 			if existsNext {
+				log.Debugf("处理下一页：%s", nextHref)
 				// 提交下一页的任务，添加列表解析任务
 				newTasks = append(newTasks, task.NewTask(util.JoinUrl(taskEntry.RawURLHost, nextHref),
 					task.WithHandle(TaskSeeder()),

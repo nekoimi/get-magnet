@@ -69,7 +69,7 @@ func (p *Seeder) Exec() {
 func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEntry, err error) {
 	if taskEntry, ok := t.(*task.Entry); ok {
 		rawUrl := taskEntry.RawUrl()
-		log.Infof("处理任务：%s\n", rawUrl)
+		log.Infof("处理任务：%s", rawUrl)
 
 		var root *goquery.Selection
 		var tableSelect *goquery.Selection
@@ -87,6 +87,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			detailsHrefs = append(detailsHrefs, href)
 		})
 		if len(detailsHrefs) == 0 {
+			log.Warnf("任务列表未获取到有效任务信息，源页面：\n %s", rawUrl)
 			return nil, nil, nil
 		}
 
@@ -102,6 +103,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			}
 
 			if repository.ExistsByPath(u.RequestURI()) {
+				log.Debugf("请求地址已经处理过了：%s", u.RequestURI())
 				continue
 			}
 
@@ -117,6 +119,7 @@ func (p *Seeder) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetEn
 			// 不存在已经解析的link，继续下一页
 			nextHref, existsNext := root.Find("#fd_page_bottom").First().Find("#fd_page_bottom > div > a:nth-child(2)").Attr("href")
 			if existsNext {
+				log.Debugf("处理下一页：%s", nextHref)
 				// 提交下一页的任务，添加列表解析任务
 				newTasks = append(newTasks, task.NewTask(
 					util.JoinUrl(taskEntry.RawURLHost, nextHref),
