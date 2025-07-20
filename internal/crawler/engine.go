@@ -3,7 +3,6 @@ package crawler
 import (
 	"context"
 	"github.com/nekoimi/get-magnet/internal/aria2"
-	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/crawler/worker"
 	"github.com/nekoimi/get-magnet/internal/db"
@@ -39,7 +38,7 @@ func New() *Engine {
 		ocr:   ocr.NewServer(),
 	}
 
-	bus.Event().Subscribe(bus.Download.String(), e.submitDownload)
+	//bus.Event().Subscribe(bus.Download.String(), e.submitDownload)
 
 	return e
 }
@@ -69,11 +68,13 @@ func (e *Engine) Start() {
 }
 
 // 添加下载任务
-func (e *Engine) submitDownload(origin string, downloadUrl string) {
-	if err := e.aria2.Submit(origin, downloadUrl); err != nil {
+func (e *Engine) submitDownload(origin string, downloadUrl string) (string, error) {
+	if gid, err := e.aria2.Submit(origin, downloadUrl); err != nil {
 		log.Errorf("提交下载任务异常：%s - %s", downloadUrl, err.Error())
+		return "", err
 	} else {
 		log.Infof("提交下载任务：%s", downloadUrl)
+		return gid, nil
 	}
 }
 
@@ -83,23 +84,37 @@ func (e *Engine) Success(w *worker.Worker, tasks []task.Task, outputs []task.Mag
 	}
 
 	for _, output := range outputs {
-		_, err := db.Instance().InsertOne(&table.Magnets{
-			Origin:      output.Origin,
-			Title:       output.Title,
-			Number:      strings.ToUpper(output.Number),
-			OptimalLink: output.OptimalLink,
-			Links:       output.Links,
-			RawURLHost:  output.RawURLHost,
-			RawURLPath:  output.RawURLPath,
-			Status:      0,
-		})
-		if err != nil {
-			log.Errorf("保存数据异常: %s", err.Error())
-		}
-
 		// 提交下载
 		log.Debugf("提交下载：%s -> %s", output.Origin, output.OptimalLink)
-		e.submitDownload(output.Origin, output.OptimalLink)
+		gid, err := e.submitDownload(output.Origin, output.OptimalLink)
+		if err != nil {
+			log.Errorf("提交下载任务异常: %s", err.Error())
+			db.Instance().InsertOne(&table.Magnets{
+				Origin:      output.Origin,
+				Title:       output.Title,
+				Number:      strings.ToUpper(output.Number),
+				OptimalLink: output.OptimalLink,
+				Links:       output.Links,
+				RawURLHost:  output.RawURLHost,
+				RawURLPath:  output.RawURLPath,
+				Status:      1,
+				Actress0:    "",
+				FollowedBy:  "unknow",
+			})
+		} else {
+			db.Instance().InsertOne(&table.Magnets{
+				Origin:      output.Origin,
+				Title:       output.Title,
+				Number:      strings.ToUpper(output.Number),
+				OptimalLink: output.OptimalLink,
+				Links:       output.Links,
+				RawURLHost:  output.RawURLHost,
+				RawURLPath:  output.RawURLPath,
+				Status:      0,
+				Actress0:    "",
+				FollowedBy:  gid,
+			})
+		}
 	}
 }
 

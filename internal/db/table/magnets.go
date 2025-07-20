@@ -14,4 +14,7 @@ type Magnets struct {
 	RawURLHost  string    `xorm:"raw_url_host" json:"raw_url_host,omitempty"`
 	RawURLPath  string    `xorm:"raw_url_path" json:"raw_url_path,omitempty"`
 	Status      uint8     `json:"status,omitempty"`
+	// 新增字段 2025-07-20
+	Actress0   string `json:"actress0,omitempty"`
+	FollowedBy string `xorm:"followed_by" json:"followed_by,omitempty"`
 }

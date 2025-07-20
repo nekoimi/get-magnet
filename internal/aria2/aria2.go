@@ -98,20 +98,21 @@ func (a *Aria2) Start(ctx context.Context) {
 	a.runStatusLoop()
 }
 
-func (a *Aria2) Submit(origin string, downloadUrl string) error {
+func (a *Aria2) Submit(origin string, downloadUrl string) (string, error) {
 	ops, err := a.globalOptions()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	saveDir := ops.Dir + "/" + origin + "/" + util.NowDate("-")
-	if _, err = a.client().AddURI(arigo.URIs(downloadUrl), &arigo.Options{
+	if gid, err := a.client().AddURI(arigo.URIs(downloadUrl), &arigo.Options{
 		Dir: saveDir,
 	}); err != nil {
 		log.Errorf("添加aria2下载任务异常: %s", err.Error())
-		return err
+		return "", err
+	} else {
+		return gid.GID, nil
 	}
-	return nil
 }
 
 func (a *Aria2) Stop() {
