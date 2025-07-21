@@ -98,7 +98,7 @@ func (e *Engine) Success(w *worker.Worker, tasks []task.Task, outputs []task.Mag
 				RawURLHost:  output.RawURLHost,
 				RawURLPath:  output.RawURLPath,
 				Status:      1,
-				Actress0:    "",
+				Actress0:    output.Actress0,
 				FollowedBy:  "unknow",
 			})
 		} else {
@@ -111,7 +111,7 @@ func (e *Engine) Success(w *worker.Worker, tasks []task.Task, outputs []task.Mag
 				RawURLHost:  output.RawURLHost,
 				RawURLPath:  output.RawURLPath,
 				Status:      0,
-				Actress0:    "",
+				Actress0:    output.Actress0,
 				FollowedBy:  gid,
 			})
 		}
