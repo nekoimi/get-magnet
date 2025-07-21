@@ -44,9 +44,12 @@ func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetE
 			return
 		}
 
-		// Title
-		var title = root.Find("title").Text()
 		s := root.Find("section.section>div.container").First()
+		// Title
+		var title = s.Find("div.video-detail > h2").Text()
+		title = strings.ReplaceAll(title, "\n", "")
+		title = strings.ReplaceAll(title, "  ", "")
+		title = strings.TrimSpace(title)
 		// Number
 		var number = s.Find(".movie-panel-info>div.first-block>span.value").Text()
 		if repository.ExistsByNumber(number) {
@@ -54,6 +57,37 @@ func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetE
 			log.Debugf("处理详情任务 number已经存在：%s -> %s", rawUrl, number)
 			return
 		}
+		// Actress0
+		var actress []string
+		s.Find("nav.panel.movie-panel-info > div.panel-block").Each(func(i int, sub *goquery.Selection) {
+			titleVal := sub.Find("strong").Text()
+			if strings.Contains(titleVal, "演員") {
+				var (
+					currALink         *goquery.Selection
+					currALinkNext     *goquery.Selection
+					aLinkText         string
+					aLinkTextNextText string
+					ok                bool
+				)
+				currALink = sub.Find("span.value").Find("a").First()
+				for {
+					aLinkText = strings.TrimSpace(currALink.Text())
+					if aLinkText == "" {
+						break
+					}
+					currALinkNext = currALink.Next()
+					if aLinkTextNextText, ok = currALinkNext.Attr("class"); ok {
+						if strings.Contains(aLinkTextNextText, "female") {
+							actress = append(actress, aLinkText)
+						}
+						currALink = currALinkNext.Next()
+					} else {
+						break
+					}
+				}
+			}
+		})
+		actress0 := strings.Join(actress, ",")
 
 		// TorrentLinks
 		var torrentLinks = make([]task.TorrentLink, 0)
@@ -93,6 +127,7 @@ func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetE
 			Origin:      TaskSeeder().Name(),
 			Title:       title,
 			Number:      number,
+			Actress0:    actress0,
 			OptimalLink: optimalLink,
 			Links:       links,
 			RawURLHost:  taskEntry.RawURLHost,

@@ -95,23 +95,24 @@ func (a *Aria2) Start(ctx context.Context) {
 		},
 	})
 
-	a.runStatusLoop()
+	a.loop()
 }
 
-func (a *Aria2) Submit(origin string, downloadUrl string) error {
+func (a *Aria2) Submit(origin string, downloadUrl string) (string, error) {
 	ops, err := a.globalOptions()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	saveDir := ops.Dir + "/" + origin + "/" + util.NowDate("-")
-	if _, err = a.client().AddURI(arigo.URIs(downloadUrl), &arigo.Options{
+	if gid, err := a.client().AddURI(arigo.URIs(downloadUrl), &arigo.Options{
 		Dir: saveDir,
 	}); err != nil {
 		log.Errorf("添加aria2下载任务异常: %s", err.Error())
-		return err
+		return "", err
+	} else {
+		return gid.GID, nil
 	}
-	return nil
 }
 
 func (a *Aria2) Stop() {
@@ -128,7 +129,7 @@ func (a *Aria2) Stop() {
 }
 
 // 任务状态检测
-func (a *Aria2) runStatusLoop() {
+func (a *Aria2) loop() {
 	checkRunning := false
 	a.exitWG.Add(1)
 	ticker := time.NewTicker(LowSpeedInterval)
@@ -226,67 +227,6 @@ func (a *Aria2) runStatusLoop() {
 			}()
 		}
 	}
-}
-
-func (a *Aria2) startEventHandle(event *arigo.DownloadEvent) {
-	gid := event.GID
-	log.Debugf("GID#%s startEventHandle", gid)
-
-	// 清除下载速度缓存
-	a.speedCache.Delete(event.GID)
-
-	// 获取下载任务信息
-	task, err := a.client().TellStatus(gid, "gid", "status", "files", "downloadSpeed")
-	if err != nil {
-		log.Errorf("查询当前(%s)下载任务信息异常: %s", gid, err.Error())
-		return
-	}
-
-	// 下载文件优选
-	a.handleFileBestSelect(task)
-}
-
-func (a *Aria2) pauseEventHandle(event *arigo.DownloadEvent) {
-	log.Debugf("GID#%s pauseEventHandle", event.GID)
-
-	// 清除下载速度缓存
-	a.speedCache.Delete(event.GID)
-}
-
-func (a *Aria2) stopEventHandle(event *arigo.DownloadEvent) {
-	log.Debugf("GID#%s stopEventHandle", event.GID)
-
-	// 清除下载速度缓存
-	a.speedCache.Delete(event.GID)
-}
-
-func (a *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
-	log.Debugf("GID#%s completeEventHandle", event.GID)
-
-	// 清除下载速度缓存
-	a.speedCache.Delete(event.GID)
-}
-
-func (a *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {
-	log.Debugf("GID#%s btCompleteEventHandle", event.GID)
-
-	// 清除下载速度缓存
-	a.speedCache.Delete(event.GID)
-}
-
-func (a *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
-	// 清除下载速度缓存
-	a.speedCache.Delete(event.GID)
-
-	status, err := a.client().TellStatus(event.GID, "gid", "status", "infoHash", "files", "bittorrent", "errorCode", "errorMessage")
-	if err != nil {
-		log.Errorf("查询下载任务GID#%s状态信息异常: %s", event.GID, err.Error())
-		return
-	}
-	log.Errorf("下载任务(%s)出错：[%s] %s - %s", display(status), status.Status, status.ErrorCode, status.ErrorMessage)
-
-	// 处理文件出错的情况
-	a.onErrorFileNameTooLong(status)
 }
 
 func (a *Aria2) client() *arigo.Client {

@@ -45,6 +45,7 @@ type MagnetEntry struct {
 	Origin      string   `json:"origin,omitempty"`
 	Title       string   `json:"title,omitempty"`
 	Number      string   `json:"number,omitempty"`
+	Actress0    string   `json:"actress0,omitempty"`
 	OptimalLink string   `json:"optimal_link,omitempty"`
 	Links       []string `json:"links,omitempty"`
 	RawURLHost  string   `json:"raw_url_host,omitempty"`
