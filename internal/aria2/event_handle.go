@@ -72,6 +72,8 @@ func (a *Aria2) completeEventHandle(event *arigo.DownloadEvent) {
 	}
 
 	log.Debugf("completeEventHandle - FollowedBy: %s - %s - %s", status.GID, status.FollowedBy, display(status))
+
+	downloadCompleteEventHandle(status, status.FollowedBy)
 }
 
 func (a *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {
@@ -84,6 +86,8 @@ func (a *Aria2) btCompleteEventHandle(event *arigo.DownloadEvent) {
 	}
 
 	log.Debugf("btCompleteEventHandle - FollowedBy: %s - %s - %s", status.GID, status.FollowedBy, display(status))
+
+	downloadCompleteEventHandle(status, status.FollowedBy)
 }
 
 func (a *Aria2) errorEventHandle(event *arigo.DownloadEvent) {
