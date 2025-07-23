@@ -1,12 +1,15 @@
 package aria2
 
 import (
+	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/db/repository"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
+	"os"
+	"path/filepath"
 )
 
-func downloadCompleteEventHandle(status arigo.Status, followedBys []string) {
+func downloadCompleteEventHandle(rootDir string, status arigo.Status, followedBys []string) {
 	if len(followedBys) >= 1 {
 		// 不是最终的下载任务，尝试更新数据表中关联的id
 		followedBy := followedBys[0]
@@ -18,6 +21,36 @@ func downloadCompleteEventHandle(status arigo.Status, followedBys []string) {
 	} else {
 		log.Debugf("bt任务下载完成 - FollowedBy: %s - %s - %s", status.GID, status.FollowedBy, display(status))
 
+		javDBDir := config.Get().BtMove.JavDBDir
+		if javDBDir == "" {
+			// 没有配置文件夹路径 ignore
+			return
+		}
 		// 最终完成，需要移动位置
+		if m, exists := repository.GetByFollowed(status.GID); exists {
+			if m.Origin == "JavDB" {
+				allowFiles, _ := bestSelectFile(status.Files)
+				for _, file := range allowFiles {
+					// root: {rootDir}
+					// source: {rootDir}/JavDB/2025-07-22/SONE-566-C/SONE-566-C.mp4
+					// target: {javDBDir}/{女演员}/2025-07-22/{标题}/SONE-566-C.mp4
+					sourcePath := file.Path
+					sourceFile := filepath.Base(sourcePath)
+					targetPath := filepath.Join(javDBDir, m.Actress0, m.CreatedAt.Format("2006-01-02"), m.Title, sourceFile)
+					targetDir := filepath.Dir(targetPath)
+					err := os.MkdirAll(targetDir, os.ModePerm)
+					if err != nil {
+						log.Errorf("[JavDB] bt任务下载完成 - 创建目标文件夹: %s，异常：%s", targetDir, err.Error())
+						return
+					}
+					err = os.Rename(sourcePath, targetPath)
+					if err != nil {
+						log.Errorf("[JavDB] bt任务下载完成 - 移动文件: %s -> %s，异常：%s", sourcePath, targetPath, err.Error())
+						return
+					}
+					log.Debugf("[JavDB] bt任务下载完成 - 移动文件：%s -> %s", sourcePath, targetPath)
+				}
+			}
+		}
 	}
 }
