@@ -61,7 +61,7 @@ func (p *details) Handle(t task.Task) (tasks []task.Task, outputs []task.MagnetE
 		var actress []string
 		s.Find("nav.panel.movie-panel-info > div.panel-block").Each(func(i int, sub *goquery.Selection) {
 			titleVal := sub.Find("strong").Text()
-			if strings.Contains(titleVal, "演員") {
+			if strings.Contains(titleVal, "演員") || strings.Contains(titleVal, "Actor") {
 				var (
 					currALink         *goquery.Selection
 					currALinkNext     *goquery.Selection

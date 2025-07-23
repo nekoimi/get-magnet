@@ -29,6 +29,8 @@ type Config struct {
 	Aria2Ops *Aria2Ops
 	// javdb 账号
 	JavDBAuth *Auth
+	// bt move target
+	BtMove *BtMoveTarget
 }
 
 // Database 数据库相关配置
@@ -55,6 +57,11 @@ type Auth struct {
 	Username string
 	// 密码
 	Password string
+}
+
+type BtMoveTarget struct {
+	// JavDB move target
+	JavDBDir string
 }
 
 const PackageName = "github.com/nekoimi/get-magnet"
@@ -108,6 +115,7 @@ func Default() *Config {
 	}
 	cfg.Aria2Ops = new(Aria2Ops)
 	cfg.JavDBAuth = new(Auth)
+	cfg.BtMove = new(BtMoveTarget)
 
 	// 加载环境变量配置
 	cfg.loadEnv()
@@ -128,6 +136,7 @@ func (c *Config) loadEnv() {
 	cfg.Aria2Ops.Secret = apptools.Getenv("ARIA2_SECRET", "")
 	cfg.JavDBAuth.Username = apptools.Getenv("JAVDB_USERNAME", "")
 	cfg.JavDBAuth.Password = apptools.Getenv("JAVDB_PASSWORD", "")
+	cfg.BtMove.JavDBDir = apptools.Getenv("BT_MOVE_JAVDB_DIR", "")
 
 	log.Debugln("加载配置完成")
 }
