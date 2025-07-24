@@ -18,6 +18,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/crypto v0.25.0
 	golang.org/x/net v0.24.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	modernc.org/mathutil v1.5.0
 	xorm.io/xorm v1.3.9
 )
@@ -47,8 +48,7 @@ require (
 	github.com/ysmood/leakless v0.9.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
-	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	xorm.io/builder v0.3.11-0.20220531020008-1bd24a7dc978 // indirect
 )
 
-replace github.com/siku2/arigo v0.2.1-0.20250426130944-80d0332f34e9 => github.com/nekoimi/arigo v0.0.0-20250625105849-0f4ffe407e2a
+replace github.com/siku2/arigo => github.com/nekoimi/arigo v0.0.0-20250724125331-95ddda1cf3f5
