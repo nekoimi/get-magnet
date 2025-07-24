@@ -2,13 +2,39 @@ package files
 
 import (
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 )
 
-var videoSuffixArr = []string{".avi", ".flv", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".wmv"}
+var (
+	moveMu         sync.Mutex
+	lockMap        = make(map[string]*sync.Mutex)
+	movedMap       = make(map[string]bool)
+	videoSuffixArr = []string{".avi", ".flv", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".wmv"}
+)
+
+func getMoveLock(path string) *sync.Mutex {
+	moveMu.Lock()
+	defer moveMu.Unlock()
+	if _, ok := lockMap[path]; !ok {
+		lockMap[path] = &sync.Mutex{}
+	}
+	return lockMap[path]
+}
+
+func releaseMoveLock(path string) {
+	moveMu.Lock()
+	defer moveMu.Unlock()
+	if _, ok := lockMap[path]; ok {
+		delete(lockMap, path)
+	}
+}
 
 // Exists 判断文件是否存在
 func Exists(f string) (bool, error) {
@@ -88,4 +114,86 @@ func TempFile(ext string) (file *os.File, path string, cleanup func(), err error
 	}
 
 	return f, tmpPathWithExt, cleanup, nil
+}
+
+func MoveOnce(srcPath, dstPath string) error {
+	if srcPath == "" || dstPath == "" {
+		return fmt.Errorf("path is empty")
+	}
+
+	lock := getMoveLock(srcPath)
+	lock.Lock()
+	defer func() {
+		releaseMoveLock(srcPath)
+		lock.Unlock()
+	}()
+
+	if exists, err := Exists(srcPath); err != nil {
+		return err
+	} else if !exists {
+		// 文件不存在，ignore
+		log.Debugf("[移动文件] 文件 %s 不存在，ignore", srcPath)
+		return nil
+	}
+
+	targetDir := filepath.Dir(dstPath)
+	err := os.MkdirAll(targetDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("[移动文件] 创建目标文件夹: %s，异常：%s", targetDir, err.Error())
+	}
+
+	// 尝试直接 rename（同设备最快）
+	if err = os.Rename(srcPath, dstPath); err != nil {
+		// 移动失败，记录日志，尝试复制文件
+		log.Warnf("[移动文件] 移动文件异常，将尝试复制模式: %s -> %s，异常：%s", srcPath, dstPath, err.Error())
+	}
+
+	// 跨设备处理：手动 copy + remove
+	return copyThenDelete(srcPath, dstPath)
+}
+
+func copyThenDelete(srcPath, dstPath string) error {
+	// 打开源文件
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return fmt.Errorf("[移动文件] 打开源文件失败: %w", err)
+	}
+	defer src.Close()
+
+	// 创建目标文件（临时）
+	dst, err := os.Create(dstPath + ".tmp")
+	if err != nil {
+		return fmt.Errorf("[移动文件] 创建目标文件失败: %w", err)
+	}
+	defer dst.Close()
+
+	// 使用 32MB 缓冲区（你可以根据系统内存调整）
+	buf := make([]byte, 32*1024*1024)
+	if _, err = io.CopyBuffer(dst, src, buf); err != nil {
+		return fmt.Errorf("[移动文件] 复制失败: %w", err)
+	}
+
+	// 确保写入磁盘
+	if err = dst.Sync(); err != nil {
+		return fmt.Errorf("[移动文件] 写入磁盘失败: %w", err)
+	}
+
+	// 关闭目标文件
+	if err = dst.Close(); err != nil {
+		return fmt.Errorf("[移动文件] 关闭目标文件失败: %w", err)
+	}
+
+	// 原子重命名临时文件
+	if err = os.Rename(dstPath+".tmp", dstPath); err != nil {
+		return fmt.Errorf("[移动文件] 重命名目标文件失败: %w", err)
+	}
+
+	// 删除源文件
+	_ = src.Close()
+	if err = os.Remove(srcPath); err != nil {
+		return fmt.Errorf("[移动文件] 删除源文件失败: %w", err)
+	}
+
+	log.Infof("[移动文件] 移动文件成功: %s -> %s", srcPath, dstPath)
+	return nil
 }

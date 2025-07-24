@@ -61,7 +61,7 @@ func (a *Aria2) Start(ctx context.Context) {
 	offset := 0
 	fetchNum := 20
 	for {
-		stops, err := a.client().TellStopped(offset, uint(fetchNum), "gid", "status", "infoHash", "files", "bittorrent", "errorCode", "errorMessage")
+		stops, err := a.client().TellStopped(offset, uint(fetchNum), "gid", "status", "infoHash", "files", "bittorrent", "downloadSpeed", "followedBy", "errorCode", "errorMessage")
 		if err != nil {
 			log.Errorf("查询当前停止的下载任务信息异常: %s", err.Error())
 			panic(err)
@@ -81,6 +81,9 @@ func (a *Aria2) Start(ctx context.Context) {
 			if stop.Status == arigo.StatusCompleted {
 				// 检查完成的任务下载文件是否最优
 				a.handleFileBestSelect(stop)
+
+				// 检查是否需要移动文件
+				go downloadCompleteEventHandle(stop, stop.FollowedBy)
 			}
 		}
 

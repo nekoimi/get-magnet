@@ -3,13 +3,13 @@ package aria2
 import (
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/db/repository"
+	"github.com/nekoimi/get-magnet/internal/pkg/files"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
-	"os"
 	"path/filepath"
 )
 
-func downloadCompleteEventHandle(rootDir string, status arigo.Status, followedBys []string) {
+func downloadCompleteEventHandle(status arigo.Status, followedBys []string) {
 	if len(followedBys) >= 1 {
 		// 不是最终的下载任务，尝试更新数据表中关联的id
 		followedBy := followedBys[0]
@@ -37,13 +37,8 @@ func downloadCompleteEventHandle(rootDir string, status arigo.Status, followedBy
 					sourcePath := file.Path
 					sourceFile := filepath.Base(sourcePath)
 					targetPath := filepath.Join(javDBDir, m.Actress0, m.CreatedAt.Format("2006-01-02"), m.Title, sourceFile)
-					targetDir := filepath.Dir(targetPath)
-					err := os.MkdirAll(targetDir, os.ModePerm)
-					if err != nil {
-						log.Errorf("[JavDB] bt任务下载完成 - 创建目标文件夹: %s，异常：%s", targetDir, err.Error())
-						return
-					}
-					err = os.Rename(sourcePath, targetPath)
+
+					err := files.MoveOnce(sourcePath, targetPath)
 					if err != nil {
 						log.Errorf("[JavDB] bt任务下载完成 - 移动文件: %s -> %s，异常：%s", sourcePath, targetPath, err.Error())
 						return
