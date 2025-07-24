@@ -38,8 +38,11 @@ func downloadCompleteEventHandle(status arigo.Status, followedBys []string) {
 					sourcePath := file.Path
 					sourceFile := filepath.Base(sourcePath)
 
-					actress := strings.Split(m.Actress0, ",")
-					targetPrefix := filepath.Join(javDBDir, actress[0], m.CreatedAt.Format("2006-01-02"))
+					actress := "0未知"
+					if len(m.Actress0) > 0 {
+						actress = strings.Split(m.Actress0, ",")[0]
+					}
+					targetPrefix := filepath.Join(javDBDir, actress, m.CreatedAt.Format("2006-01-02"))
 					targetPath := filepath.Join(targetPrefix, m.Title, sourceFile)
 					if len(targetPath) >= MaxFileNameLength {
 						// fix 需要缩短文件名称

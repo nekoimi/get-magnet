@@ -84,9 +84,6 @@ func (e *Engine) Success(w *worker.Worker, tasks []task.Task, outputs []task.Mag
 	}
 
 	for _, output := range outputs {
-		if output.Actress0 == "" {
-			output.Actress0 = "unknow"
-		}
 		// 提交下载
 		log.Debugf("提交下载：%s -> %s", output.Origin, output.OptimalLink)
 		gid, err := e.submitDownload(output.Origin, output.OptimalLink)
