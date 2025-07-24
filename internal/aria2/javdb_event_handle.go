@@ -7,6 +7,7 @@ import (
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
 	"path/filepath"
+	"strings"
 )
 
 func downloadCompleteEventHandle(status arigo.Status, followedBys []string) {
@@ -36,7 +37,18 @@ func downloadCompleteEventHandle(status arigo.Status, followedBys []string) {
 					// target: {javDBDir}/{女演员}/2025-07-22/{标题}/SONE-566-C.mp4
 					sourcePath := file.Path
 					sourceFile := filepath.Base(sourcePath)
-					targetPath := filepath.Join(javDBDir, m.Actress0, m.CreatedAt.Format("2006-01-02"), m.Title, sourceFile)
+
+					actress := strings.Split(m.Actress0, ",")
+					targetPrefix := filepath.Join(javDBDir, actress[0], m.CreatedAt.Format("2006-01-02"))
+					targetPath := filepath.Join(targetPrefix, m.Title, sourceFile)
+					if len(targetPath) >= MaxFileNameLength {
+						// fix 需要缩短文件名称
+						nameLen := len(sourceFile)
+						prefixLen := len(targetPrefix)
+						// 缩短标题
+						maxLen := MaxFileNameLength - (nameLen + prefixLen + 10)
+						targetPath = filepath.Join(targetPrefix, m.Title[:maxLen], sourceFile)
+					}
 
 					err := files.MoveOnce(sourcePath, targetPath)
 					if err != nil {
