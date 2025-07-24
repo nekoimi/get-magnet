@@ -10,6 +10,14 @@ import (
 	"strings"
 )
 
+func trimUnicodeString(s string, maxChars int) string {
+	runes := []rune(s)
+	if len(runes) > maxChars {
+		return string(runes[:maxChars])
+	}
+	return s
+}
+
 func downloadCompleteEventHandle(status arigo.Status, followedBys []string) {
 	if len(followedBys) >= 1 {
 		// 不是最终的下载任务，尝试更新数据表中关联的id
@@ -50,7 +58,7 @@ func downloadCompleteEventHandle(status arigo.Status, followedBys []string) {
 						prefixLen := len(targetPrefix)
 						// 缩短标题
 						maxLen := MaxFileNameLength - (nameLen + prefixLen + 10)
-						targetPath = filepath.Join(targetPrefix, m.Title[:maxLen], sourceFile)
+						targetPath = filepath.Join(targetPrefix, trimUnicodeString(m.Title, maxLen), sourceFile)
 					}
 
 					err := files.MoveOnce(sourcePath, targetPath)
