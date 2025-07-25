@@ -1,10 +1,6 @@
 package api
 
 import (
-	"github.com/nekoimi/get-magnet/internal/bus"
-	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
-	"github.com/nekoimi/get-magnet/internal/crawler/providers/sehuatang"
-	"github.com/nekoimi/get-magnet/internal/crawler/task"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
@@ -35,11 +31,11 @@ func SubmitJavDB(w http.ResponseWriter, r *http.Request) {
 
 	rawUrl := p.Url
 	log.Infof("接收到JavDB链接任务：%s", rawUrl)
-	bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
-		rawUrl,
-		task.WithHandle(javdb.TaskSeeder()),
-		task.WithDownloader(javdb.GetBypassDownloader()),
-	))
+	//bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
+	//	rawUrl,
+	//	crawler.WithHandle(javdb2.TaskSeeder()),
+	//	crawler.WithDownloader(javdb2.GetBypassDownloader()),
+	//))
 
 	respond.Ok(w, nil)
 }
@@ -59,11 +55,11 @@ func SubmitFC2(w http.ResponseWriter, r *http.Request) {
 
 	rawUrl := p.Url
 	log.Infof("接收到FC2链接任务：%s", rawUrl)
-	bus.Event().Publish(bus.SubmitTask.String(), task.NewTask(
-		rawUrl,
-		task.WithHandle(sehuatang.TaskSeeder()),
-		task.WithDownloader(sehuatang.GetBypassDownloader()),
-	))
+	//bus.Event().Publish(bus.SubmitTask.String(), crawler.NewCrawlerTask(
+	//	rawUrl,
+	//	crawler.WithHandle(sehuatang2.TaskSeeder()),
+	//	crawler.WithDownloader(sehuatang2.GetBypassDownloader()),
+	//))
 
 	respond.Ok(w, nil)
 }

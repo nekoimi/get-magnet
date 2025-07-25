@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/nekoimi/get-magnet/internal/logger"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -67,7 +68,6 @@ type BtMoveTarget struct {
 const PackageName = "github.com/nekoimi/get-magnet"
 const UIDir = "/workspace/ui"
 const UIAriaNgDir = "/workspace/ui/aria-ng"
-const OcrPort = 9898
 
 var cfg *Config
 
@@ -100,7 +100,7 @@ func init() {
 		},
 	}
 
-	log.AddHook(NewLevelHook(apptools.Getenv("LOG_PATH", "logs"), fileFormatter))
+	log.AddHook(logger.NewLevelHook(apptools.Getenv("LOG_PATH", "logs"), fileFormatter))
 }
 
 func Default() *Config {

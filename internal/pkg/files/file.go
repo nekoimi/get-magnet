@@ -10,12 +10,15 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
+// MaxFileNameLength 最大文件名长度 255
+const MaxFileNameLength = 255
+
 var (
-	moveMu         sync.Mutex
+	moveMu         = new(sync.Mutex)
 	lockMap        = make(map[string]*sync.Mutex)
-	movedMap       = make(map[string]bool)
 	videoSuffixArr = []string{".avi", ".flv", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".wmv"}
 )
 
@@ -75,6 +78,40 @@ func IsVideo(filename string) bool {
 	return false
 }
 
+func IsTorrentFile(filename string) bool {
+	return strings.HasSuffix(filename, ".torrent")
+}
+
+// IsValidFileName 检查文件名是否合法（长度与非法字符）
+func IsValidFileName(path string) error {
+	base := filepath.Base(path)
+
+	// 检查是否为空
+	if strings.TrimSpace(base) == "" {
+		return errors.New("文件名为空")
+	}
+
+	// 检查是否包含非法字符（可扩展）
+	illegalChars := []string{"/", "\\", "\x00"} // 你可以根据需求增加
+	for _, ch := range illegalChars {
+		if strings.Contains(base, ch) {
+			return errors.New("文件名包含非法字符: " + ch)
+		}
+	}
+
+	// 检查文件名长度（字节数，非字符数）
+	if len(base) > MaxFileNameLength {
+		return errors.New("文件名过长（字节数超过 255）")
+	}
+
+	// 可选：检查字符数量（非必要）
+	if utf8.RuneCountInString(base) == 0 {
+		return errors.New("文件名无效")
+	}
+
+	return nil
+}
+
 // TempFile 封装创建一个带扩展名的临时文件，自动在系统临时目录下创建
 func TempFile(ext string) (file *os.File, path string, cleanup func(), err error) {
 	prefix := uuid.NewString()
@@ -114,6 +151,16 @@ func TempFile(ext string) (file *os.File, path string, cleanup func(), err error
 	}
 
 	return f, tmpPathWithExt, cleanup, nil
+}
+
+func Delete(filepath string) {
+	if exists, err := Exists(filepath); err == nil && exists {
+		if err = os.Remove(filepath); err != nil {
+			log.Errorf("删除文件异常：%s - %s", filepath, err.Error())
+		} else {
+			log.Debugf("删除文件OK：%s", filepath)
+		}
+	}
 }
 
 func MoveOnce(srcPath, dstPath string) error {

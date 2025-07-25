@@ -36,6 +36,6 @@ func Event() *Bus {
 	return eventBus
 }
 
-func (t Type) String() string {
+func (t Type) Topic() string {
 	return eventMap[t]
 }

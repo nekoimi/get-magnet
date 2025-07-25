@@ -3,8 +3,8 @@ package tests
 import (
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
-	"github.com/nekoimi/get-magnet/internal/crawler/task"
+	"github.com/nekoimi/get-magnet/internal/crawler"
+	javdb2 "github.com/nekoimi/get-magnet/internal/crawler_provider/javdb"
 	"github.com/nekoimi/get-magnet/internal/server"
 	"os"
 	"testing"
@@ -28,9 +28,9 @@ func Test_Run(t *testing.T) {
 
 	time.AfterFunc(30*time.Second, func() {
 		t.Log("提交测试任务...")
-		bus.Event().Publish(bus.SubmitTask.String(), task.NewTask("https://javdb.com/login",
-			task.WithHandle(javdb.TaskSeeder()),
-			task.WithDownloader(javdb.GetBypassDownloader()),
+		bus.Event().Publish(bus.SubmitTask.String(), crawler.NewCrawlerTask("https://javdb.com/login",
+			crawler.WithHandle(javdb2.TaskSeeder()),
+			crawler.WithDownloader(javdb2.GetBypassDownloader()),
 		))
 	})
 

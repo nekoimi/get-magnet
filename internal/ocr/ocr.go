@@ -1,12 +1,12 @@
 package ocr
 
 import (
-	"context"
 	"fmt"
-	"github.com/nekoimi/get-magnet/internal/config"
 	log "github.com/sirupsen/logrus"
 	"os/exec"
 )
+
+const Port = 9898
 
 type Server struct {
 	bin     string
@@ -14,14 +14,14 @@ type Server struct {
 	cmd     *exec.Cmd
 }
 
-func NewServer() *Server {
+func NewOcrServer(bin string) *Server {
 	return &Server{
-		bin:     config.Get().OcrBin,
-		cmdArgs: []string{"--address", "127.0.0.1", "--port", fmt.Sprintf("%d", config.OcrPort), "--full"},
+		bin:     bin,
+		cmdArgs: []string{"--address", "127.0.0.1", "--port", fmt.Sprintf("%d", Port), "--full"},
 	}
 }
 
-func (s *Server) Start(ctx context.Context) {
+func (s *Server) Run() {
 	// 启动 ocr 服务作为子进程
 	s.cmd = exec.Command(s.bin, s.cmdArgs...)
 
@@ -42,11 +42,13 @@ func (s *Server) Start(ctx context.Context) {
 	}
 }
 
-func (s *Server) Stop() {
+func (s *Server) Close() error {
 	err := s.cmd.Process.Kill()
 	if err != nil {
-		log.Warnf("停止OCR服务异常：%s", err.Error())
+		log.Errorf("停止OCR服务异常：%s", err.Error())
+		return err
 	}
 
-	log.Debugln("OCR服务停止")
+	log.Infoln("OCR服务停止...")
+	return nil
 }

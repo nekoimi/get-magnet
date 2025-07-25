@@ -4,8 +4,11 @@ import (
 	"context"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/get-magnet/internal/crawler_provider/javdb"
+	"github.com/nekoimi/get-magnet/internal/crawler_provider/sehuatang"
 	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/job"
+	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader"
+	"github.com/nekoimi/get-magnet/internal/job_schedule"
 	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 	"github.com/nekoimi/get-magnet/internal/router"
 	log "github.com/sirupsen/logrus"
@@ -20,15 +23,37 @@ type Server struct {
 	shutdown chan struct{}
 	cfg      *config.Config
 	http     *http.Server
-	engine   *crawler.Engine
 }
 
 func Default(cfg *config.Config) *Server {
+	ctx := context.TODO()
+
+	cronScheduler := job_schedule.NewCronScheduler(ctx)
+
+	downloadService := aria2_downloader.NewAria2DownloadService(ctx, &aria2_downloader.Aria2Config{
+		JsonRpc: cfg.Aria2Ops.JsonRpc,
+		Secret:  cfg.Aria2Ops.Secret,
+	}, cronScheduler)
+
+	cm := crawler.NewCrawlerManager(ctx, cronScheduler)
+
+	cm.Register(javdb.NewJavDBCrawler())
+	cm.Register(javdb.NewJavDBActorCrawler())
+	cm.Register(sehuatang.NewSeHuaTangCrawler())
+
+	e := crawler.NewCrawlerEngine(ctx, &crawler.EngineConfig{
+		ExecOnStartup: false,
+		WorkerNum:     0,
+		OcrBin:        "",
+	}, downloadService, cm)
+
+	cronScheduler.Start()
+	e.Run()
+
 	s := &Server{
 		shutdown: make(chan struct{}),
 		cfg:      cfg,
 		http:     router.HttpServer(cfg.Port),
-		engine:   crawler.New(),
 	}
 
 	return s
@@ -42,9 +67,7 @@ func (s *Server) Run() {
 	db.Init(s.cfg.DB)
 
 	rod_browser.InitBrowser()
-	job.Start()
 
-	go s.engine.Start()
 	go func() {
 		if err := s.http.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalf("ListenAndServe error: %v", err)
@@ -57,9 +80,7 @@ func (s *Server) Run() {
 }
 
 func (s *Server) stop() {
-	s.engine.Stop()
 	rod_browser.Close()
-	job.Stop()
 	_ = db.Instance().Close()
 
 	// 创建 shutdown 上下文：最多等待 10 秒退出
