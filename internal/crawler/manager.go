@@ -2,7 +2,6 @@ package crawler
 
 import (
 	"context"
-	"github.com/nekoimi/get-magnet/internal/job_schedule"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -12,10 +11,10 @@ type Manager struct {
 	// crawler集合
 	crawlers map[string]Crawler
 	// 定时任务调度
-	cronScheduler job_schedule.CronScheduler
+	cronScheduler job.CronScheduler
 }
 
-func NewCrawlerManager(ctx context.Context, cronScheduler job_schedule.CronScheduler) *Manager {
+func NewCrawlerManager(ctx context.Context, cronScheduler job.CronScheduler) *Manager {
 	return &Manager{
 		ctx:           ctx,
 		crawlers:      make(map[string]Crawler, 0),
@@ -43,7 +42,7 @@ func (m *Manager) RunAll() {
 
 func (m *Manager) ScheduleAll() {
 	for _, crawler := range m.crawlers {
-		m.cronScheduler.Register(crawler.CronSpec(), &job_schedule.CronJob{
+		m.cronScheduler.Register(crawler.CronSpec(), &job.CronJob{
 			Name: crawler.Name(),
 			Exec: func() {
 				crawler.Run(m.ctx)

@@ -4,11 +4,10 @@ import (
 	"context"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/crawler_provider/javdb"
-	"github.com/nekoimi/get-magnet/internal/crawler_provider/sehuatang"
+	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
+	"github.com/nekoimi/get-magnet/internal/crawler/providers/sehuatang"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader"
-	"github.com/nekoimi/get-magnet/internal/job_schedule"
 	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 	"github.com/nekoimi/get-magnet/internal/router"
 	log "github.com/sirupsen/logrus"
@@ -28,7 +27,7 @@ type Server struct {
 func Default(cfg *config.Config) *Server {
 	ctx := context.TODO()
 
-	cronScheduler := job_schedule.NewCronScheduler(ctx)
+	cronScheduler := job.NewCronScheduler(ctx)
 
 	downloadService := aria2_downloader.NewAria2DownloadService(ctx, &aria2_downloader.Aria2Config{
 		JsonRpc: cfg.Aria2Ops.JsonRpc,

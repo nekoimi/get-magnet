@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/nekoimi/get-magnet/internal/downloader"
 	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader/tracker"
-	"github.com/nekoimi/get-magnet/internal/job_schedule"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
@@ -23,10 +22,10 @@ type Aria2Downloader struct {
 	// 下载失败回调
 	onError []downloader.DownloadCallback
 	// 定时任务调度
-	cronScheduler job_schedule.CronScheduler
+	cronScheduler job.CronScheduler
 }
 
-func NewAria2DownloadService(ctx context.Context, cfg *Aria2Config, cronScheduler job_schedule.CronScheduler) downloader.DownloadService {
+func NewAria2DownloadService(ctx context.Context, cfg *Aria2Config, cronScheduler job.CronScheduler) downloader.DownloadService {
 	d := &Aria2Downloader{
 		ctx:           ctx,
 		cfg:           cfg,
@@ -45,7 +44,7 @@ func (d *Aria2Downloader) initializeAria2Client() {
 	d.client = newAria2Client(ctx, d.cfg.JsonRpc, d.cfg.Secret)
 
 	// 注册定时更新tracker服务器任务
-	d.cronScheduler.Register("10 00 * * *", &job_schedule.CronJob{
+	d.cronScheduler.Register("10 00 * * *", &job.CronJob{
 		Name: "更新Aria2下载tracker服务器",
 		Exec: func() {
 			btTrackers := tracker.FetchTrackers()

@@ -1,4 +1,4 @@
-package job_schedule
+package job
 
 import (
 	log "github.com/sirupsen/logrus"
