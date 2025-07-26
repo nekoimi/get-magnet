@@ -21,7 +21,7 @@ var (
 func Initialize(ctx context.Context, cfg *Config) {
 	engineOnce.Do(func() {
 		log.Debugf("连接数据库")
-		engine, err = xorm.NewEngine(Postgres.String(), cfg.Dns)
+		engine, err = xorm.NewEngine(Postgres.String(), cfg.Dsn)
 		if err != nil {
 			log.Errorf("连接数据库异常: %s", err.Error())
 			panic(err)

@@ -182,6 +182,11 @@ func (c *Client) Loop() {
 				maxDownloadNum := mathutil.Max(int(ops.MaxConcurrentDownloads), 1)
 				actives := c.FetchActive()
 
+				if len(actives) == 0 {
+					// ignore
+					return
+				}
+
 				if len(actives) < maxDownloadNum {
 					// 如果当前没有活跃的任务，查询已经停止的任务启动起来
 					if err = c.client().UnpauseAll(); err != nil {

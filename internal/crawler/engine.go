@@ -61,7 +61,7 @@ func (e *Engine) Start(ctx context.Context) {
 	e.workerLock.Lock()
 	defer e.workerLock.Unlock()
 
-	for i := 0; i < mathutil.Min(1, e.cfg.WorkerNum); i++ {
+	for i := 0; i < mathutil.Max(1, e.cfg.WorkerNum); i++ {
 		w := NewWorker(ctx, i, e.taskCh, e)
 
 		e.workers = append(e.workers, w)

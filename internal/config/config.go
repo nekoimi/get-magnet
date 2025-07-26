@@ -57,7 +57,7 @@ func Load() *Config {
 	v.BindEnv("crawler.ocr_bin")
 	v.BindEnv("javdb.username")
 	v.BindEnv("javdb.password")
-	v.BindEnv("db.dns")
+	v.BindEnv("db.dsn")
 
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

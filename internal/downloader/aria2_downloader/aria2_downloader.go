@@ -64,6 +64,7 @@ func (d *Aria2Downloader) initializeAria2Client() {
 				d.client.Close()
 				return
 			case e := <-d.client.eventCh:
+				log.Debugf("接收到aria2事件: %s", e.Type)
 				t := downloader.DownloadTask{
 					Id:    e.Id(),
 					Name:  e.Name(),
@@ -72,7 +73,6 @@ func (d *Aria2Downloader) initializeAria2Client() {
 				switch e.Type {
 				case arigo.CompleteEvent:
 				case arigo.BTCompleteEvent:
-					log.Debugf("接收到aria2事件: %s", e.Type)
 					for _, callback := range d.onComplete {
 						go func(call downloader.DownloadCallback) {
 							defer func() {
@@ -85,7 +85,6 @@ func (d *Aria2Downloader) initializeAria2Client() {
 						}(callback)
 					}
 				case arigo.ErrorEvent:
-					log.Debugf("接收到aria2事件: %s", e.Type)
 					for _, callback := range d.onError {
 						go func(call downloader.DownloadCallback) {
 							defer func() {

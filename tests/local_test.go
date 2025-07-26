@@ -31,7 +31,7 @@ func Test_Run(t *testing.T) {
 	os.Setenv("CRAWLER_OCR_BIN", "C:\\Users\\nekoimi\\Downloads\\x86_64-pc-windows-msvc-inline\\ddddocr.exe")
 	os.Setenv("JAVDB_USERNAME", "111111111111")
 	os.Setenv("JAVDB_PASSWORD", "222222222222")
-	os.Setenv("DB_DNS", "postgres://devtest:devtest@10.1.1.100:5432/get_magnet_dev?sslmode=disable")
+	os.Setenv("DB_DSN", "postgres://devtest:devtest@10.1.1.100:5432/get_magnet_dev?sslmode=disable")
 
 	cfg := config.Load()
 	logger.Initialize(cfg.LogLevel, cfg.LogDir)
