@@ -27,13 +27,25 @@ var (
 	}
 )
 
+type Config struct {
+	// jsonRpc
+	JsonRpc string `json:"jsonrpc,omitempty" mapstructure:"jsonrpc"`
+	// 验证token
+	Secret string `json:"secret,omitempty" mapstructure:"secret"`
+	// 移动文件夹
+	MoveTo moveToConfig `json:"move_to" mapstructure:"move_to"`
+}
+
+type moveToConfig struct {
+	// javdb 移动目录
+	JavDBDir string `json:"javdb_dir,omitempty" mapstructure:"javdb_dir"`
+}
+
 type Client struct {
 	// context
 	ctx context.Context
-	// jsonRpc
-	jsonRpc string
-	// 验证token
-	secret string
+	// 配置信息
+	cfg *Config
 	// aria2 json rpc 客户端
 	arigoClient *arigo.Client
 	// aria2 客户端操作锁
@@ -48,13 +60,12 @@ type Client struct {
 	downloadSpeedManager *speed.Manager
 }
 
-func newAria2Client(ctx context.Context, jsonRpc string, secret string) *Client {
+func newAria2Client(ctx context.Context, cfg *Config) *Client {
 	sm := speed.NewSpeedManager()
 
 	return &Client{
 		ctx:                  ctx,
-		jsonRpc:              jsonRpc,
-		secret:               secret,
+		cfg:                  cfg,
 		clientMux:            &sync.Mutex{},
 		eventCh:              make(chan Event, 128),
 		fileSelectCh:         make(chan arigo.Status, 32),
@@ -323,7 +334,7 @@ func (c *Client) ping() error {
 }
 
 func (c *Client) connect() error {
-	client, err := arigo.Dial(c.jsonRpc, c.secret)
+	client, err := arigo.Dial(c.cfg.JsonRpc, c.cfg.Secret)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"context"
+	"github.com/nekoimi/get-magnet/internal/job"
 	log "github.com/sirupsen/logrus"
 )
 

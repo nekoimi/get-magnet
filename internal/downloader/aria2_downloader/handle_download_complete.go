@@ -1,7 +1,6 @@
 package aria2_downloader
 
 import (
-	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
 	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	"github.com/siku2/arigo"
@@ -18,7 +17,7 @@ func trimUnicodeString(s string, maxChars int) string {
 	return s
 }
 
-func handleDownloadCompleteEvent(status arigo.Status) {
+func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDir string) {
 	followedBys := status.FollowedBy
 
 	if len(followedBys) >= 1 {
@@ -31,20 +30,18 @@ func handleDownloadCompleteEvent(status arigo.Status) {
 		}
 	} else {
 		log.Debugf("bt任务下载完成 - FollowedBy: %s - %s - %s", status.GID, status.FollowedBy, friendly(status))
-
-		javDBDir := config.Get().BtMove.JavDBDir
-		if javDBDir == "" {
-			// 没有配置文件夹路径 ignore
+		if origin == "" || moveToDir == "" {
+			// 没有配置 ignore
 			return
 		}
+
 		// 最终完成，需要移动位置
 		if m, exists := magnet_repo.GetByFollowed(status.GID); exists {
-			if m.Origin == "JavDB" {
+			if strings.ToUpper(m.Origin) == strings.ToUpper(origin) {
 				allowFiles, _ := extrBestFile(status.Files)
 				for _, file := range allowFiles {
-					// root: {rootDir}
-					// source: {rootDir}/JavDB/2025-07-22/SONE-566-C/SONE-566-C.mp4
-					// target: {javDBDir}/{女演员}/2025-07-22/{标题}/SONE-566-C.mp4
+					// source: {downloadDir}/JavDB/2025-07-22/SONE-566-C/SONE-566-C.mp4
+					// target: {moveToDir}/{女演员}/2025-07-22/{标题}/SONE-566-C.mp4
 					sourcePath := file.Path
 					sourceFile := filepath.Base(sourcePath)
 
@@ -52,7 +49,7 @@ func handleDownloadCompleteEvent(status arigo.Status) {
 					if len(m.Actress0) > 0 {
 						actress = strings.Split(m.Actress0, ",")[0]
 					}
-					targetPrefix := filepath.Join(javDBDir, actress, m.CreatedAt.Format("2006-01-02"))
+					targetPrefix := filepath.Join(moveToDir, actress, m.CreatedAt.Format("2006-01-02"))
 					targetPath := filepath.Join(targetPrefix, m.Title, sourceFile)
 					if len(targetPath) >= files.MaxFileNameLength {
 						// fix 需要缩短文件名称

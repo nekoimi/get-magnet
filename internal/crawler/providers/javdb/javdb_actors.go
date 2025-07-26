@@ -4,15 +4,16 @@ import (
 	"context"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 )
 
 type ActorCrawler struct {
 	Parser
 }
 
-func NewJavDBActorCrawler() crawler.Crawler {
+func NewJavDBActorCrawler(cfg *Config, browser *rod_browser.Browser) crawler.Crawler {
 	return &ActorCrawler{Parser{
-		downloader: GetBypassDownloader(),
+		downloader: newBypassDownloader(cfg, browser),
 	}}
 }
 

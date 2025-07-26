@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"context"
+	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/downloader"
 	"github.com/nekoimi/get-magnet/internal/ocr"
@@ -19,20 +20,11 @@ const (
 	MaxTaskErrorNum = 5
 )
 
-type EngineConfig struct {
-	// 启动立即执行
-	ExecOnStartup bool
-	// worker数量
-	WorkerNum int
-	// ocr服务可执行文件路径
-	OcrBin string
-}
-
 type Engine struct {
 	// context
 	ctx context.Context
 	// 配置文件
-	cfg *EngineConfig
+	cfg *Config
 	// worker操作锁
 	workerLock *sync.RWMutex
 	// worker池
@@ -47,7 +39,7 @@ type Engine struct {
 	crawlerManager *Manager
 }
 
-func NewCrawlerEngine(ctx context.Context, cfg *EngineConfig, downloadService downloader.DownloadService, crawlerManager *Manager) *Engine {
+func NewCrawlerEngine(ctx context.Context, cfg *Config, downloadService downloader.DownloadService, crawlerManager *Manager) *Engine {
 	ocrServer := ocr.NewOcrServer(cfg.OcrBin)
 
 	return &Engine{
@@ -62,15 +54,15 @@ func NewCrawlerEngine(ctx context.Context, cfg *EngineConfig, downloadService do
 	}
 }
 
-func (e *Engine) Run() {
+func (e *Engine) Start(ctx context.Context) {
 	// 启动OCR服务
-	apptools.AutoRestart(e.ctx, "OCR服务", e.ocrServer.Run, 10*time.Second)
+	apptools.AutoRestart(ctx, "OCR服务", e.ocrServer.Run, 10*time.Second)
 
 	e.workerLock.Lock()
 	defer e.workerLock.Unlock()
 
 	for i := 0; i < mathutil.Min(1, e.cfg.WorkerNum); i++ {
-		w := NewWorker(i, e.taskCh, e)
+		w := NewWorker(ctx, i, e.taskCh, e)
 
 		e.workers = append(e.workers, w)
 
@@ -80,6 +72,8 @@ func (e *Engine) Run() {
 	if e.cfg.ExecOnStartup {
 		e.crawlerManager.RunAll()
 	}
+
+	bus.Event().Subscribe(bus.SubmitTask.Topic(), e.Submit)
 
 	e.crawlerManager.ScheduleAll()
 }

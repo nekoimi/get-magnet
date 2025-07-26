@@ -12,17 +12,19 @@ import (
 
 // RodBrowserDownloader 浏览器下载
 type RodBrowserDownloader struct {
+	// 浏览器
+	browser *rod_browser.Browser
 }
 
-func NewRodBrowserDownloader() Downloader {
-	return &RodBrowserDownloader{}
+func NewRodBrowserDownloader(browser *rod_browser.Browser) Downloader {
+	return &RodBrowserDownloader{browser: browser}
 }
 
 func (s *RodBrowserDownloader) SetCookies(u *url.URL, cookies []*http.Cookie) {
 }
 
 func (s *RodBrowserDownloader) Download(rawUrl string) (selection *goquery.Selection, err error) {
-	page, closeFunc := rod_browser.NewTabPage()
+	page, closeFunc := s.browser.NewTabPage()
 	defer closeFunc()
 
 	page.MustNavigate(rawUrl)

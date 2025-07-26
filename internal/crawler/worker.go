@@ -30,8 +30,9 @@ type Worker struct {
 }
 
 // NewWorker 创建一个新的任务执行worker
-func NewWorker(id int, taskCh chan CrawlerTask, resultHandler ResultHandler) *Worker {
+func NewWorker(ctx context.Context, id int, taskCh chan CrawlerTask, resultHandler ResultHandler) *Worker {
 	return &Worker{
+		ctx:           ctx,
 		id:            id,
 		resultHandler: resultHandler,
 		taskCh:        taskCh,

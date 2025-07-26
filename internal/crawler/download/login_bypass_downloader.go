@@ -19,6 +19,8 @@ const MaxRetryLoginErrorCount = 5
 // LoginBypassDownloader 登录绕过验证
 type LoginBypassDownloader struct {
 	loginMux sync.Mutex
+	// 浏览器
+	browser *rod_browser.Browser
 	// 下载器
 	downloader Downloader
 	// 判断需不需要绕过验证函数，需要返回true，不需要返回false
@@ -27,9 +29,10 @@ type LoginBypassDownloader struct {
 	handleLoginFunc func(page *rod.Page) error
 }
 
-func NewLoginBypassDownloader(downloader Downloader, shouldLoginFunc func(root *goquery.Selection) bool, handleLoginFunc func(page *rod.Page) error) Downloader {
+func NewLoginBypassDownloader(browser *rod_browser.Browser, downloader Downloader, shouldLoginFunc func(root *goquery.Selection) bool, handleLoginFunc func(page *rod.Page) error) Downloader {
 	return &LoginBypassDownloader{
 		loginMux:        sync.Mutex{},
+		browser:         browser,
 		downloader:      downloader,
 		shouldLoginFunc: shouldLoginFunc,
 		handleLoginFunc: handleLoginFunc,
@@ -82,7 +85,7 @@ func (s *LoginBypassDownloader) Download(rawUrl string) (selection *goquery.Sele
 }
 
 func (s *LoginBypassDownloader) StartRodHandleLogin(rawUrl string) {
-	page, closeFunc := rod_browser.NewTabPage()
+	page, closeFunc := s.browser.NewTabPage()
 	defer func() {
 		time.AfterFunc(10*time.Second, func() {
 			closeFunc()

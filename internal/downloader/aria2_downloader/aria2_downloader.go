@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/nekoimi/get-magnet/internal/downloader"
 	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader/tracker"
+	"github.com/nekoimi/get-magnet/internal/job"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
@@ -14,7 +15,7 @@ type Aria2Downloader struct {
 	// context
 	ctx context.Context
 	// 配置信息
-	cfg *Aria2Config
+	cfg *Config
 	// aria2 客户端
 	client *Client
 	// 下载完成回调
@@ -25,7 +26,7 @@ type Aria2Downloader struct {
 	cronScheduler job.CronScheduler
 }
 
-func NewAria2DownloadService(ctx context.Context, cfg *Aria2Config, cronScheduler job.CronScheduler) downloader.DownloadService {
+func NewAria2DownloadService(ctx context.Context, cfg *Config, cronScheduler job.CronScheduler) downloader.DownloadService {
 	d := &Aria2Downloader{
 		ctx:           ctx,
 		cfg:           cfg,
@@ -41,7 +42,7 @@ func NewAria2DownloadService(ctx context.Context, cfg *Aria2Config, cronSchedule
 
 func (d *Aria2Downloader) initializeAria2Client() {
 	ctx, cancel := context.WithCancel(d.ctx)
-	d.client = newAria2Client(ctx, d.cfg.JsonRpc, d.cfg.Secret)
+	d.client = newAria2Client(ctx, d.cfg)
 
 	// 注册定时更新tracker服务器任务
 	d.cronScheduler.Register("10 00 * * *", &job.CronJob{

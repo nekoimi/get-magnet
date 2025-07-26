@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 )
 
 const Name = "SeHuaTang"
@@ -13,9 +14,9 @@ type Crawler struct {
 	Parser
 }
 
-func NewSeHuaTangCrawler() crawler.Crawler {
+func NewSeHuaTangCrawler(browser *rod_browser.Browser) crawler.Crawler {
 	return &Crawler{Parser{
-		downloader: GetBypassDownloader(),
+		downloader: newBypassDownloader(browser),
 	}}
 }
 

@@ -20,7 +20,7 @@ func (c *Client) handleEvent(evtType arigo.EventType, event *arigo.DownloadEvent
 				taskStatus: s,
 			}
 			// 文件下载完成移动文件
-			handleDownloadCompleteEvent(s)
+			handleDownloadCompleteMoveFile(s, "JavDB", c.cfg.MoveTo.JavDBDir)
 		case arigo.ErrorEvent:
 			c.eventCh <- Event{
 				Type:       evtType,

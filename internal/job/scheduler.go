@@ -2,38 +2,35 @@ package job
 
 import (
 	"context"
+	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 )
 
 type CronScheduler interface {
-	// Start 启动定时任务调度
-	Start()
+	core.Starter
 
 	// Register 注册定时任务
 	Register(spec string, job *CronJob)
 }
 
 type CronJobScheduler struct {
-	// context
-	ctx context.Context
 	// 定时任务
 	cron *cron.Cron
 }
 
-func NewCronScheduler(ctx context.Context) CronScheduler {
+func NewCronScheduler() CronScheduler {
 	return &CronJobScheduler{
-		ctx:  ctx,
 		cron: cron.New(),
 	}
 }
 
-func (c *CronJobScheduler) Start() {
+func (c *CronJobScheduler) Start(ctx context.Context) {
 	c.cron.Start()
 
 	go func() {
 		select {
-		case <-c.ctx.Done():
+		case <-ctx.Done():
 			c.Close()
 			log.Infoln("Stop CronScheduler...")
 			return

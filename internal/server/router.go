@@ -1,18 +1,22 @@
-package router
+package server
 
 import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/internal/api"
 	"github.com/nekoimi/get-magnet/internal/api/middleware"
-	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
+const uiDir = "/workspace/ui"
+const uiAriaNgDir = "/workspace/ui/aria-ng"
 const aria2JsonApi = "/api/aria2/jsonrpc"
 
-func HttpServer(port int) *http.Server {
+func HttpServer(port int, secret string) *http.Server {
+	jwt.SetSecret(secret)
+
 	return &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: newRouter(),
@@ -48,18 +52,18 @@ func newRouter() *mux.Router {
 
 	// 扩展接口
 	r.HandleFunc("/quick-api/download/submit/javdb", api.SubmitJavDB)
-	r.HandleFunc("/quick-api/download/submit/fc2", api.SubmitFC2)
+	//r.HandleFunc("/quick-api/download/submit/fc2", api.SubmitFC2)
 
 	// 静态资源
-	r.PathPrefix("/ui/aria-ng/").Handler(api.Aria2WebUI(config.UIAriaNgDir))
-	r.PathPrefix("/").Handler(api.AdminUI(config.UIDir))
+	r.PathPrefix("/ui/aria-ng/").Handler(api.Aria2WebUI(uiAriaNgDir))
+	r.PathPrefix("/").Handler(api.AdminUI(uiDir))
 
-	routeDebugPrint(r)
+	debugRoute(r)
 
 	return r
 }
 
-func routeDebugPrint(r *mux.Router) {
+func debugRoute(r *mux.Router) {
 	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		path, _ := route.GetPathTemplate()
 		log.Debugf("Route: %s", path)

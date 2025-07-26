@@ -1,8 +1,8 @@
 package db
 
 import (
+	"context"
 	_ "github.com/lib/pq"
-	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/db/migrate"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
@@ -17,8 +17,8 @@ var (
 	engineOnce sync.Once
 )
 
-// Init 初始化数据库操作
-func Init(cfg *config.Database) {
+// Initialize 初始化数据库操作
+func Initialize(ctx context.Context, cfg *Config) {
 	engineOnce.Do(func() {
 		log.Debugf("连接数据库")
 		engine, err = xorm.NewEngine(Postgres.String(), cfg.Dns)
@@ -31,8 +31,8 @@ func Init(cfg *config.Database) {
 		engine.ShowSQL(true)
 		engine.SetLogger(newXormLogger())
 		// 连接池设置
-		engine.SetMaxIdleConns(cfg.MaxIdleConnNum)
-		engine.SetMaxOpenConns(cfg.MaxOpenConnNum)
+		engine.SetMaxIdleConns(8)
+		engine.SetMaxOpenConns(8)
 
 		err = engine.Ping()
 		if err != nil {
@@ -44,6 +44,15 @@ func Init(cfg *config.Database) {
 		initMigrates(engine)
 		// 数据表迁移
 		runMigrates(engine)
+
+		go func() {
+			select {
+			case <-ctx.Done():
+				engine.Close()
+				log.Infoln("关闭db...")
+				return
+			}
+		}()
 	})
 }
 
@@ -83,7 +92,7 @@ func runMigrates(e *xorm.Engine) {
 			break
 		}
 
-		log.Debugf("数据表迁移: %d, %s , 执行...", m.Version(), m.Desc())
+		log.Infof("数据表迁移: %d, %s , 执行...", m.Version(), m.Desc())
 		err = m.Exec(e)
 		if err != nil {
 			log.Errorf("数据表迁移异常: %s, \n details: %s", m.Desc(), err.Error())
@@ -104,5 +113,5 @@ func runMigrates(e *xorm.Engine) {
 			log.Errorf("数据库操作失败: %s", insertErr.Error())
 		}
 	}
-	log.Debugln("数据表迁移执行完毕")
+	log.Infoln("数据表迁移执行完毕")
 }

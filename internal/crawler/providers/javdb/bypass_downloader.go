@@ -3,25 +3,17 @@ package javdb
 import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
-	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
 	"github.com/nekoimi/get-magnet/internal/ocr"
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
-	"github.com/nekoimi/get-magnet/internal/pkg/singleton"
+	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
 
-var bypassDownloaderSingleton = singleton.New[download.Downloader](func() download.Downloader {
-	return buildBypassDownloader()
-})
-
-func GetBypassDownloader() download.Downloader {
-	return bypassDownloaderSingleton.Get()
-}
-
-func buildBypassDownloader() download.Downloader {
+func newBypassDownloader(cfg *Config, browser *rod_browser.Browser) download.Downloader {
 	clickBypassDownloader := download.NewClickBypassDownloader(
+		browser,
 		func(root *goquery.Selection) bool {
 			return root.Find("body > div.modal.is-active.over18-modal").Size() > 0
 		},
@@ -37,7 +29,9 @@ func buildBypassDownloader() download.Downloader {
 		},
 	)
 
-	return download.NewLoginBypassDownloader(clickBypassDownloader,
+	return download.NewLoginBypassDownloader(
+		browser,
+		clickBypassDownloader,
 		func(root *goquery.Selection) bool {
 			return root.Find("#password").Size() > 0 &&
 				root.Find("#remember").Size() > 0
@@ -70,7 +64,7 @@ func buildBypassDownloader() download.Downloader {
 			if err != nil {
 				return err
 			}
-			usernameInput.MustInput(config.Get().JavDBAuth.Username)
+			usernameInput.MustInput(cfg.Username)
 			time.Sleep(1 * time.Second)
 
 			// password
@@ -78,7 +72,7 @@ func buildBypassDownloader() download.Downloader {
 			if err != nil {
 				return err
 			}
-			passwordInput.MustInput(config.Get().JavDBAuth.Password)
+			passwordInput.MustInput(cfg.Password)
 			time.Sleep(1 * time.Second)
 
 			// captcha code

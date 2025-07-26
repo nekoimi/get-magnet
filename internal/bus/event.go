@@ -5,6 +5,7 @@ type Type int
 const (
 	Download Type = iota
 	SubmitTask
+	SubmitJavDB
 	Aria2Test
 	Aria2LinkUp
 	Aria2LinkDown
@@ -22,6 +23,7 @@ func init() {
 	eventMap[Download] = "event.download"
 	// 提交任务
 	eventMap[SubmitTask] = "event.submit.task"
+	eventMap[SubmitJavDB] = "event.submit.javdb"
 	// arta2测试
 	eventMap[Aria2Test] = "event.aria2.test"
 	// aria2上线

@@ -1,6 +1,7 @@
 package rod_browser
 
 import (
+	"context"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"os"
 	"testing"
@@ -12,12 +13,12 @@ func TestNewTabPage(t *testing.T) {
 
 	config.Default()
 
-	rodBrowserSingleton.Get()
+	b := NewRodBrowser(context.TODO(), nil)
 
 	<-time.After(5 * time.Second)
 
 	go func() {
-		page1, f := NewTabPage()
+		page1, f := b.NewTabPage()
 		defer func() {
 			time.AfterFunc(1*time.Second, func() {
 				f()
@@ -29,7 +30,7 @@ func TestNewTabPage(t *testing.T) {
 	}()
 
 	go func() {
-		page2, f := NewTabPage()
+		page2, f := b.NewTabPage()
 		defer func() {
 			time.AfterFunc(5*time.Second, func() {
 				f()
@@ -41,7 +42,7 @@ func TestNewTabPage(t *testing.T) {
 	}()
 
 	go func() {
-		page3, f := NewTabPage()
+		page3, f := b.NewTabPage()
 		defer func() {
 			time.AfterFunc(10*time.Second, func() {
 				f()
@@ -53,7 +54,7 @@ func TestNewTabPage(t *testing.T) {
 	}()
 
 	time.AfterFunc(30*time.Second, func() {
-		Close()
+		b.Close()
 	})
 
 	<-time.After(60 * time.Second)

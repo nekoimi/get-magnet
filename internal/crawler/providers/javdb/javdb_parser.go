@@ -48,7 +48,6 @@ func (p *Parser) parseList(t crawler.CrawlerTask) (tasks []crawler.CrawlerTask, 
 		}
 
 		// 获取新任务列表
-		var newTasks []crawler.CrawlerTask
 		for _, href := range detailsHrefs {
 			joinUrl := util.JoinUrl(taskEntry.RawURLHost, href)
 
@@ -64,28 +63,32 @@ func (p *Parser) parseList(t crawler.CrawlerTask) (tasks []crawler.CrawlerTask, 
 			}
 
 			// 添加详情解析任务
-			newTasks = append(newTasks, crawler.NewCrawlerTask(joinUrl, taskEntry.Origin,
+			tasks = append(tasks, crawler.NewCrawlerTask(
+				joinUrl,
+				taskEntry.Origin,
 				crawler.WithHandle(p.parsePage),
 				crawler.WithDownloader(p.downloader),
 			))
 		}
 
 		// 当前新获取的path列表存在需要处理的新任务
-		if len(newTasks) > 0 {
+		if len(tasks) > 0 {
 			// 不存在已经解析的link，继续下一页
 			nextHref, existsNext := root.Find(".pagination>a.pagination-next").First().Attr("href")
 			if existsNext {
-				log.Debugf("处理下一页：%s", nextHref)
+				nextUrl := util.JoinUrl(taskEntry.RawURLHost, nextHref)
+				log.Debugf("处理下一页：%s", nextUrl)
 				// 提交下一页的任务，添加列表解析任务
-				newTasks = append(newTasks, crawler.NewCrawlerTask(
-					util.JoinUrl(taskEntry.RawURLHost, nextHref), taskEntry.Origin,
+				tasks = append(tasks, crawler.NewCrawlerTask(
+					nextUrl,
+					taskEntry.Origin,
 					crawler.WithHandle(p.parseList),
 					crawler.WithDownloader(p.downloader),
 				))
 			}
 		}
 
-		return newTasks, nil, nil
+		return tasks, nil, nil
 	}
 	return nil, nil, nil
 }
