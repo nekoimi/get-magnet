@@ -2,17 +2,11 @@ package rod_browser
 
 import (
 	"context"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"os"
 	"testing"
 	"time"
 )
 
 func TestNewTabPage(t *testing.T) {
-	os.Setenv("ROD_HEADLESS", "false")
-
-	config.Default()
-
 	b := NewRodBrowser(context.TODO(), nil)
 
 	<-time.After(5 * time.Second)
