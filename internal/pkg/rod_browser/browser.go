@@ -6,7 +6,6 @@ import (
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/stealth"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/http/httpproxy"
 )
 
 type Config struct {
@@ -39,12 +38,10 @@ func (b *Browser) Start(ctx context.Context) {
 }
 
 func (b *Browser) RunInBackground() {
-	proxyEnv := httpproxy.FromEnvironment()
 	launch := launcher.New().
 		Headless(b.cfg.Headless).
 		Bin(b.cfg.Bin).
 		UserDataDir(b.cfg.DataDir).
-		Proxy(proxyEnv.HTTPProxy).
 		Set("lang", "zh-CN").
 		MustLaunch()
 	b.browser = rod.New().ControlURL(launch).MustConnect()
