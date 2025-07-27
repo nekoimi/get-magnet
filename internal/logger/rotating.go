@@ -60,7 +60,7 @@ func (w *rotateWriter) rotate() {
 	}
 }
 
-func (w *rotateWriter) Support(level logrus.Level) bool {
+func (w *rotateWriter) support(level logrus.Level) bool {
 	return w.level >= level
 }
 
@@ -99,17 +99,16 @@ func (h *RotateHook) Levels() []logrus.Level {
 }
 
 func (h *RotateHook) Fire(entry *logrus.Entry) error {
-	for _, writer := range h.writers {
-		if writer.Support(entry.Level) {
-			msg, err := h.formatter.Format(entry)
-			if err != nil {
-				return err
-			}
+	msg, err := h.formatter.Format(entry)
+	if err != nil {
+		return err
+	}
 
+	for _, writer := range h.writers {
+		if writer.support(entry.Level) {
 			_, err = writer.Write(msg)
-			return err
 		}
 	}
 
-	return nil
+	return err
 }
