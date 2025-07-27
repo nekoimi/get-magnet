@@ -77,5 +77,5 @@ func Test_Run(t *testing.T) {
 	})
 
 	// StartAll and Waiting
-	lc.StartAndWaiting()
+	lc.StartAndWait()
 }
