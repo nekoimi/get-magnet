@@ -13,8 +13,7 @@ func (c *Client) handleEvent(evtType arigo.EventType, event *arigo.DownloadEvent
 			c.fileSelectCh <- s
 		//case arigo.PauseEvent:
 		//case arigo.StopEvent:
-		case arigo.CompleteEvent:
-		case arigo.BTCompleteEvent:
+		case arigo.CompleteEvent, arigo.BTCompleteEvent:
 			c.eventCh <- Event{
 				Type:       evtType,
 				taskStatus: s,

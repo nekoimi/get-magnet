@@ -71,8 +71,7 @@ func (d *Aria2Downloader) initializeAria2Client() {
 					Files: e.Files(),
 				}
 				switch e.Type {
-				case arigo.CompleteEvent:
-				case arigo.BTCompleteEvent:
+				case arigo.CompleteEvent, arigo.BTCompleteEvent:
 					for _, callback := range d.onComplete {
 						go func(call downloader.DownloadCallback) {
 							defer func() {

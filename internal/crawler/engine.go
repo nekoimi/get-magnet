@@ -70,7 +70,9 @@ func (e *Engine) Start(ctx context.Context) {
 	}
 
 	if e.cfg.ExecOnStartup {
-		e.crawlerManager.RunAll()
+		time.AfterFunc(30*time.Second, func() {
+			e.crawlerManager.RunAll()
+		})
 	}
 
 	bus.Event().Subscribe(bus.SubmitTask.Topic(), e.Submit)
