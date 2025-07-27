@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func AutoRestart(ctx context.Context, name string, runFunc func(ctx context.Context), delay time.Duration) {
+func AutoRestart(ctx context.Context, name string, runFunc func(), delay time.Duration) {
 	go func() {
 		exit := false
 		for {
@@ -33,7 +33,7 @@ func AutoRestart(ctx context.Context, name string, runFunc func(ctx context.Cont
 					}()
 
 					log.Debugf("[%s] 启动服务...", name)
-					runFunc(ctx)
+					runFunc()
 				}()
 			}
 

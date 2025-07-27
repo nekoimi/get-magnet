@@ -2,81 +2,54 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/job"
-	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
-	"github.com/nekoimi/get-magnet/internal/router"
+	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	log "github.com/sirupsen/logrus"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 )
 
 type Server struct {
-	shutdown chan struct{}
-	cfg      *config.Config
-	http     *http.Server
-	engine   *crawler.Engine
+	// 配置信息
+	cfg  *config.Config
+	http *http.Server
 }
 
-func Default(cfg *config.Config) *Server {
-	s := &Server{
-		shutdown: make(chan struct{}),
-		cfg:      cfg,
-		http:     router.HttpServer(cfg.Port),
-		engine:   crawler.New(),
+func NewHttpServer(cfg *config.Config) *Server {
+	return &Server{cfg: cfg}
+}
+
+func (s *Server) Name() string {
+	return "HttpServer"
+}
+
+func (s *Server) Start(ctx context.Context) error {
+	jwt.SetSecret(s.cfg.JwtSecret)
+
+	router := newRouter()
+
+	s.http = &http.Server{
+		Addr:    fmt.Sprintf(":%d", s.cfg.Port),
+		Handler: router,
 	}
 
-	return s
+	if err := s.http.ListenAndServe(); err != http.ErrServerClosed {
+		log.Fatalf("ListenAndServe error: %v", err)
+	}
+
+	return nil
 }
 
-func (s *Server) Run() {
-	ctx, cancel := context.WithCancel(context.Background())
-	go handleSignal(cancel)
-
-	// 初始化数据库
-	db.Init(s.cfg.DB)
-
-	rod_browser.InitBrowser()
-	job.Start()
-
-	go s.engine.Start()
-	go func() {
-		if err := s.http.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatalf("ListenAndServe error: %v", err)
-		}
-	}()
-
-	<-ctx.Done()
-
-	s.stop()
-}
-
-func (s *Server) stop() {
-	s.engine.Stop()
-	rod_browser.Close()
-	job.Stop()
-	_ = db.Instance().Close()
-
+func (s *Server) Stop(ctx context.Context) error {
 	// 创建 shutdown 上下文：最多等待 10 秒退出
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer shutdownCancel()
 	if err := s.http.Shutdown(shutdownCtx); err != nil {
 		log.Errorf("HTTP server Shutdown error: %v", err)
+		return err
 	} else {
-		log.Debugln("HTTP server 已优雅退出")
+		log.Infoln("HTTP server 已优雅退出")
 	}
-}
-
-// 捕获信号并取消上下文
-func handleSignal(cancel context.CancelFunc) {
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	sig := <-sigCh
-	log.Infof("收到退出信号: %v，正在关闭...", sig)
-	cancel()
+	return nil
 }

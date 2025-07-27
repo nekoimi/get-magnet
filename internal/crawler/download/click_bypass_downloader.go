@@ -16,6 +16,8 @@ const MaxRetryClickBypassCount = 5
 // ClickBypassDownloader 点击页面绕过验证下载
 type ClickBypassDownloader struct {
 	clickMux sync.Mutex
+	// 浏览器
+	browser *rod_browser.Browser
 	// 下载器
 	downloader Downloader
 	// 判断需不需要绕过验证函数，需要返回true，不需要返回false
@@ -24,10 +26,11 @@ type ClickBypassDownloader struct {
 	handleClickFunc func(page *rod.Page) error
 }
 
-func NewClickBypassDownloader(shouldClickFunc func(root *goquery.Selection) bool, handleClickFunc func(page *rod.Page) error) Downloader {
+func NewClickBypassDownloader(browser *rod_browser.Browser, shouldClickFunc func(root *goquery.Selection) bool, handleClickFunc func(page *rod.Page) error) Downloader {
 	return &ClickBypassDownloader{
 		clickMux:        sync.Mutex{},
-		downloader:      NewRodBrowserDownloader(),
+		browser:         browser,
+		downloader:      NewRodBrowserDownloader(browser),
 		shouldClickFunc: shouldClickFunc,
 		handleClickFunc: handleClickFunc,
 	}
@@ -79,7 +82,7 @@ func (s *ClickBypassDownloader) Download(rawUrl string) (selection *goquery.Sele
 }
 
 func (s *ClickBypassDownloader) StartRodHandleClick(rawUrl string) {
-	page, closeFunc := rod_browser.NewTabPage()
+	page, closeFunc := s.browser.NewTabPage()
 	defer closeFunc()
 
 	s.HandleClickRefreshCookies(page, rawUrl)

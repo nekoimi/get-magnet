@@ -1,146 +1,81 @@
 package config
 
 import (
+	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
+	"github.com/nekoimi/get-magnet/internal/db"
+	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader"
+	"github.com/nekoimi/get-magnet/internal/logger"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
+	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
+	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	log "github.com/sirupsen/logrus"
-	"os"
-	"runtime"
+	"github.com/spf13/viper"
 	"strings"
 )
 
 type Config struct {
 	// http服务端口
-	Port int
+	Port int `json:"port,omitempty" mapstructure:"port"`
+	// 日志等级
+	LogLevel string `json:"log_level,omitempty" mapstructure:"log_level"`
+	// 日志文件夹
+	LogDir string `json:"log_dir,omitempty" mapstructure:"log_dir"`
 	// Jwt secret
-	JwtSecret string
-	// worker数量
-	WorkerNum int
-	// OCR启动路径
-	OcrBin string
-	// Rod启动路径
-	RodBin string
-	// Rod调试模式
-	RodHeadless bool
-	// Rod浏览器数据存储目录
-	RodDataDir string
+	JwtSecret string `json:"jwt_secret,omitempty" mapstructure:"jwt_secret"`
+	// 无头浏览器配置
+	Browser *rod_browser.Config `json:"browser,omitempty" mapstructure:"browser"`
+	// arai2下载配置
+	Aria2 *aria2_downloader.Config `json:"aria2,omitempty" mapstructure:"aria2"`
+	// 采集配置
+	Crawler *crawler.Config `json:"crawler,omitempty" mapstructure:"crawler"`
+	// JavDB 配置
+	JavDB *javdb.Config `json:"javdb,omitempty" mapstructure:"javdb"`
 	// 数据库配置
-	DB *Database
-	// aria2参数
-	Aria2Ops *Aria2Ops
-	// javdb 账号
-	JavDBAuth *Auth
-	// bt move target
-	BtMove *BtMoveTarget
+	DB *db.Config `json:"db,omitempty" mapstructure:"db"`
 }
 
-// Database 数据库相关配置
-type Database struct {
-	// 数据库连接配置
-	Dns string
+func Load() *Config {
+	v := viper.New()
+	v.SetDefault("port", 8093)
+	v.SetDefault("log_level", "debug")
+	v.SetDefault("log_dir", "logs")
+	v.SetDefault("jwt_secret", "abc123456")
+	v.SetDefault("browser.bin", apptools.Getenv("ROD_BROWSER_PATH", ""))
+	v.SetDefault("browser.headless", true)
+	v.SetDefault("browser.data_dir", apptools.Getenv("ROD_DATA_DIR", ""))
+	v.SetDefault("crawler.exec_on_startup", false)
+	v.SetDefault("crawler.worker_num", 4)
+	v.SetDefault("crawler.ocr_bin", apptools.Getenv("OCR_BIN_PATH", ""))
 
-	// 连接池最大连接数
-	MaxOpenConnNum int
+	v.BindEnv("browser.bin")
+	v.BindEnv("browser.headless")
+	v.BindEnv("browser.data_dir")
+	v.BindEnv("aria2.jsonrpc")
+	v.BindEnv("aria2.secret")
+	v.BindEnv("aria2.move_to.javdb_dir")
+	v.BindEnv("crawler.exec_on_startup")
+	v.BindEnv("crawler.worker_num")
+	v.BindEnv("crawler.ocr_bin")
+	v.BindEnv("javdb.username")
+	v.BindEnv("javdb.password")
+	v.BindEnv("db.dsn")
 
-	// 连接池最大空闲数
-	MaxIdleConnNum int
-}
+	// 从环境变量自动映射配置
+	v.AutomaticEnv()
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-type Aria2Ops struct {
-	// jsonRpc
-	JsonRpc string
-	// 验证token
-	Secret string
-}
-
-type Auth struct {
-	// 账号
-	Username string
-	// 密码
-	Password string
-}
-
-type BtMoveTarget struct {
-	// JavDB move target
-	JavDBDir string
-}
-
-const PackageName = "github.com/nekoimi/get-magnet"
-const UIDir = "/workspace/ui"
-const UIAriaNgDir = "/workspace/ui/aria-ng"
-const OcrPort = 9898
-
-var cfg *Config
-
-func init() {
-	log.SetFormatter(&log.TextFormatter{
-		ForceColors:            true,
-		FullTimestamp:          true,
-		TimestampFormat:        "2006-01-02 15:04:05",
-		DisableLevelTruncation: true,
-		PadLevelText:           true,
-		CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
-			return strings.ReplaceAll(frame.Function, PackageName+"/", " "), ""
-		},
-	})
-	log.SetOutput(os.Stdout)
-	log.SetReportCaller(true)
-
-	logLevel := apptools.Getenv("LOG_LEVEL", "debug")
-	level, err := log.ParseLevel(logLevel)
-	if err != nil {
+	cfg := new(Config)
+	if err := v.Unmarshal(cfg); err != nil {
 		panic(err)
 	}
-	log.SetLevel(level)
 
-	// 文件输出：不带颜色
-	fileFormatter := &log.JSONFormatter{
-		TimestampFormat: "2006-01-02 15:04:05",
-		CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
-			return strings.ReplaceAll(frame.Function, PackageName+"/", " "), ""
-		},
-	}
-
-	log.AddHook(NewLevelHook(apptools.Getenv("LOG_PATH", "logs"), fileFormatter))
-}
-
-func Default() *Config {
-	cfg = new(Config)
-	cfg.Port = 8080
-	cfg.RodHeadless = true
-	cfg.RodDataDir = "/var/lib/rod-data"
-	cfg.DB = &Database{
-		Dns:            "",
-		MaxOpenConnNum: 16,
-		MaxIdleConnNum: 8,
-	}
-	cfg.Aria2Ops = new(Aria2Ops)
-	cfg.JavDBAuth = new(Auth)
-	cfg.BtMove = new(BtMoveTarget)
-
-	// 加载环境变量配置
-	cfg.loadEnv()
+	logger.Initialize(cfg.LogLevel, cfg.LogDir)
+	log.Infof("配置信息：\n%s", cfg)
 
 	return cfg
 }
 
-func (c *Config) loadEnv() {
-	cfg.Port = apptools.GetenvInt("PORT", 8093)
-	cfg.JwtSecret = apptools.Getenv("JWT_SECRET", "get-magnet")
-	cfg.WorkerNum = apptools.GetenvInt("WORKER_NUM", 4)
-	cfg.OcrBin = apptools.Getenv("OCR_BIN_PATH", "")
-	cfg.RodBin = apptools.Getenv("ROD_BROWSER_PATH", "")
-	cfg.RodHeadless = apptools.GetenvBool("ROD_HEADLESS", true)
-	cfg.RodDataDir = apptools.Getenv("ROD_DATA_DIR", "/var/lib/rod-data")
-	cfg.DB.Dns = apptools.Getenv("DB_DSN", "")
-	cfg.Aria2Ops.JsonRpc = apptools.Getenv("ARIA2_JSONRPC", "")
-	cfg.Aria2Ops.Secret = apptools.Getenv("ARIA2_SECRET", "")
-	cfg.JavDBAuth.Username = apptools.Getenv("JAVDB_USERNAME", "")
-	cfg.JavDBAuth.Password = apptools.Getenv("JAVDB_PASSWORD", "")
-	cfg.BtMove.JavDBDir = apptools.Getenv("BT_MOVE_JAVDB_DIR", "")
-
-	log.Debugln("加载配置完成")
-}
-
-func Get() *Config {
-	return cfg
+func (c *Config) String() string {
+	return util.ToJson(c)
 }

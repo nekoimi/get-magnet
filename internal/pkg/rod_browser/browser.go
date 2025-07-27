@@ -1,33 +1,54 @@
 package rod_browser
 
 import (
+	"context"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/stealth"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/pkg/singleton"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/http/httpproxy"
 )
 
-// 浏览器实例
-var rodBrowserSingleton = singleton.New[*rod.Browser](func() *rod.Browser {
-	proxyEnv := httpproxy.FromEnvironment()
+type Config struct {
+	// Rod启动路径
+	Bin string `json:"bin,omitempty" mapstructure:"bin"`
+	// Rod调试模式
+	Headless bool `json:"headless,omitempty" mapstructure:"headless"`
+	// Rod浏览器数据存储目录
+	DataDir string `json:"data_dir,omitempty" mapstructure:"data_dir"`
+}
+
+type Browser struct {
+	// 配置信息
+	cfg *Config
+	// 浏览器实例
+	browser *rod.Browser
+}
+
+func NewRodBrowser(cfg *Config) *Browser {
+	return &Browser{
+		cfg: cfg,
+	}
+}
+
+func (b *Browser) Name() string {
+	return "RodBrowser"
+}
+
+func (b *Browser) Start(ctx context.Context) error {
 	launch := launcher.New().
-		Headless(config.Get().RodHeadless).
-		Bin(config.Get().RodBin).
-		UserDataDir(config.Get().RodDataDir).
-		Proxy(proxyEnv.HTTPProxy).
+		Headless(b.cfg.Headless).
+		Bin(b.cfg.Bin).
+		UserDataDir(b.cfg.DataDir).
 		Set("lang", "zh-CN").
 		MustLaunch()
-	browser := rod.New().ControlURL(launch).MustConnect()
+	b.browser = rod.New().ControlURL(launch).MustConnect()
+	// 打开一个持久页面（about:blank），保持浏览器存活
+	b.browser.MustPage("about:blank")
+	return nil
+}
 
-	return browser
-})
-
-func NewTabPage() (*rod.Page, func()) {
-	browser := rodBrowserSingleton.Get()
-	page := stealth.MustPage(browser)
+func (b *Browser) NewTabPage() (*rod.Page, func()) {
+	page := stealth.MustPage(b.browser)
 
 	closeFunc := func() {
 		if err := page.Close(); err != nil {
@@ -40,17 +61,11 @@ func NewTabPage() (*rod.Page, func()) {
 	return page, closeFunc
 }
 
-func InitBrowser() {
-	browser := rodBrowserSingleton.Get()
-	// 打开一个持久页面（about:blank），保持浏览器存活
-	browser.MustPage("about:blank")
-}
-
-func Close() {
-	browser := rodBrowserSingleton.Get()
-	if err := browser.Close(); err != nil {
+func (b *Browser) Stop(ctx context.Context) error {
+	if err := b.browser.Close(); err != nil {
 		log.Errorf("关闭browser异常：%s", err.Error())
-		return
+		return err
 	}
 	log.Debugln("关闭browser...")
+	return nil
 }

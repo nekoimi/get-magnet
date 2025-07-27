@@ -5,11 +5,17 @@ import (
 	"errors"
 	jwtlib "github.com/cristalhq/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/nekoimi/get-magnet/internal/config"
 	"time"
 )
 
-var TokenExpireError = errors.New("认证信息已过期")
+var (
+	jwtSecret        string
+	TokenExpireError = errors.New("认证信息已过期")
+)
+
+func SetSecret(secret string) {
+	jwtSecret = secret
+}
 
 type Subject interface {
 	GetId() string
@@ -21,7 +27,7 @@ type TokenResult struct {
 
 func NewToken(sub Subject) (TokenResult, error) {
 	var result TokenResult
-	signer, err := jwtlib.NewSignerHS(jwtlib.HS256, []byte(config.Get().JwtSecret))
+	signer, err := jwtlib.NewSignerHS(jwtlib.HS256, []byte(jwtSecret))
 	if err != nil {
 		return result, err
 	}
@@ -44,7 +50,7 @@ func NewToken(sub Subject) (TokenResult, error) {
 }
 
 func ParseToken(token string) (string, error) {
-	verifier, err := jwtlib.NewVerifierHS(jwtlib.HS256, []byte(config.Get().JwtSecret))
+	verifier, err := jwtlib.NewVerifierHS(jwtlib.HS256, []byte(jwtSecret))
 	if err != nil {
 		return "", err
 	}
