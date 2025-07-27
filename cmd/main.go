@@ -42,6 +42,6 @@ func main() {
 	httpServer := server.NewHttpServer(cfg)
 	lc.Register(httpServer)
 
-	// StartAll and Waiting
-	lc.StartAndWaiting()
+	// StartAll and Wait
+	lc.StartAndWait()
 }

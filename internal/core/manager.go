@@ -38,7 +38,7 @@ func (m *LifecycleManager) Register(lifecycle Lifecycle) {
 	m.lifecycles = append(m.lifecycles, lifecycle)
 }
 
-func (m *LifecycleManager) StartAndWaiting() {
+func (m *LifecycleManager) StartAndWait() {
 	for _, lifecycle := range m.lifecycles {
 		go func(life Lifecycle) {
 			log.Infof("[Lifecycle] Starting: %s ...", life.Name())
