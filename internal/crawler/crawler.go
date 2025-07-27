@@ -1,7 +1,5 @@
 package crawler
 
-import "context"
-
 type Crawler interface {
 	// Name 唯一名称
 	Name() string
@@ -10,5 +8,5 @@ type Crawler interface {
 	CronSpec() string
 
 	// Run 执行任务
-	Run(ctx context.Context)
+	Run()
 }

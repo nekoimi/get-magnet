@@ -1,27 +1,15 @@
 package server
 
 import (
-	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/internal/api"
 	"github.com/nekoimi/get-magnet/internal/api/middleware"
-	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 const uiDir = "/workspace/ui"
 const uiAriaNgDir = "/workspace/ui/aria-ng"
 const aria2JsonApi = "/api/aria2/jsonrpc"
-
-func HttpServer(port int, secret string) *http.Server {
-	jwt.SetSecret(secret)
-
-	return &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: newRouter(),
-	}
-}
 
 func newRouter() *mux.Router {
 	r := mux.NewRouter()

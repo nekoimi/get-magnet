@@ -1,7 +1,6 @@
 package javdb
 
 import (
-	"context"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
@@ -46,7 +45,7 @@ func (c *Crawler) CronSpec() string {
 	return "05 3 * * *"
 }
 
-func (c *Crawler) Run(ctx context.Context) {
+func (c *Crawler) Run() {
 	bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
 		"https://javdb.com/censored?vft=2&vst=1",
 		c.Name(),

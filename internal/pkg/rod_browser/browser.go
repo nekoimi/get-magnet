@@ -18,26 +18,23 @@ type Config struct {
 }
 
 type Browser struct {
-	// context
-	ctx context.Context
 	// 配置信息
 	cfg *Config
 	// 浏览器实例
 	browser *rod.Browser
 }
 
-func NewRodBrowser(ctx context.Context, cfg *Config) *Browser {
+func NewRodBrowser(cfg *Config) *Browser {
 	return &Browser{
-		ctx: ctx,
 		cfg: cfg,
 	}
 }
 
-func (b *Browser) Start(ctx context.Context) {
-	b.RunInBackground()
+func (b *Browser) Name() string {
+	return "RodBrowser"
 }
 
-func (b *Browser) RunInBackground() {
+func (b *Browser) Start(ctx context.Context) error {
 	launch := launcher.New().
 		Headless(b.cfg.Headless).
 		Bin(b.cfg.Bin).
@@ -47,13 +44,7 @@ func (b *Browser) RunInBackground() {
 	b.browser = rod.New().ControlURL(launch).MustConnect()
 	// 打开一个持久页面（about:blank），保持浏览器存活
 	b.browser.MustPage("about:blank")
-
-	go func() {
-		select {
-		case <-b.ctx.Done():
-			b.Close()
-		}
-	}()
+	return nil
 }
 
 func (b *Browser) NewTabPage() (*rod.Page, func()) {
@@ -70,7 +61,7 @@ func (b *Browser) NewTabPage() (*rod.Page, func()) {
 	return page, closeFunc
 }
 
-func (b *Browser) Close() error {
+func (b *Browser) Stop(ctx context.Context) error {
 	if err := b.browser.Close(); err != nil {
 		log.Errorf("关闭browser异常：%s", err.Error())
 		return err

@@ -1,5 +1,7 @@
 package downloader
 
+import "github.com/nekoimi/get-magnet/internal/core"
+
 type DownloadCallback func(task DownloadTask)
 
 type DownloadTask struct {
@@ -12,6 +14,8 @@ type DownloadTask struct {
 }
 
 type DownloadService interface {
+	core.Lifecycle
+
 	// Download 发起下载
 	Download(category string, url string) (string, error)
 

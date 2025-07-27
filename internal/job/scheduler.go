@@ -8,8 +8,7 @@ import (
 )
 
 type CronScheduler interface {
-	core.Starter
-
+	core.Lifecycle
 	// Register 注册定时任务
 	Register(spec string, job *CronJob)
 }
@@ -25,18 +24,14 @@ func NewCronScheduler() CronScheduler {
 	}
 }
 
-func (c *CronJobScheduler) Start(ctx context.Context) {
-	c.cron.Start()
+func (c *CronJobScheduler) Name() string {
+	return "CronScheduler"
+}
 
-	go func() {
-		select {
-		case <-ctx.Done():
-			c.Close()
-			log.Infoln("Stop CronScheduler...")
-			return
-		}
-	}()
+func (c *CronJobScheduler) Start(ctx context.Context) error {
 	log.Infoln("Start CronScheduler...")
+	c.cron.Start()
+	return nil
 }
 
 func (c *CronJobScheduler) Register(spec string, job *CronJob) {
@@ -48,7 +43,7 @@ func (c *CronJobScheduler) Register(spec string, job *CronJob) {
 	log.Infof("注册Job[%s]完成", job.Name)
 }
 
-func (c *CronJobScheduler) Close() error {
+func (c *CronJobScheduler) Stop(ctx context.Context) error {
 	<-c.cron.Stop().Done()
 	return nil
 }

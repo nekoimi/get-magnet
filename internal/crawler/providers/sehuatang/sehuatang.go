@@ -1,7 +1,6 @@
 package sehuatang
 
 import (
-	"context"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
@@ -28,7 +27,7 @@ func (c *Crawler) CronSpec() string {
 	return "50 3 * * *"
 }
 
-func (c *Crawler) Run(ctx context.Context) {
+func (c *Crawler) Run() {
 	bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
 		"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=2&typeid=684&typeid=684&filter=typeid&page=1",
 		Name,

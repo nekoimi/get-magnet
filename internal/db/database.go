@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	_ "github.com/lib/pq"
+	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/db/migrate"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
@@ -17,8 +18,18 @@ var (
 	engineOnce sync.Once
 )
 
-// Initialize 初始化数据库操作
-func Initialize(ctx context.Context, cfg *Config) {
+func NewDBLifecycle(cfg *Config) core.Lifecycle {
+	return core.NewLifecycle("DB", func(ctx context.Context) error {
+		// 初始化数据库
+		initialize(cfg)
+		return nil
+	}, func(ctx context.Context) error {
+		return engine.Close()
+	})
+}
+
+// 初始化数据库操作
+func initialize(cfg *Config) {
 	engineOnce.Do(func() {
 		log.Debugf("连接数据库")
 		engine, err = xorm.NewEngine(Postgres.String(), cfg.Dsn)
@@ -44,15 +55,6 @@ func Initialize(ctx context.Context, cfg *Config) {
 		initMigrates(engine)
 		// 数据表迁移
 		runMigrates(engine)
-
-		go func() {
-			select {
-			case <-ctx.Done():
-				engine.Close()
-				log.Infoln("关闭db...")
-				return
-			}
-		}()
 	})
 }
 

@@ -5,9 +5,11 @@ import (
 	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader"
+	"github.com/nekoimi/get-magnet/internal/logger"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"strings"
 )
@@ -59,6 +61,7 @@ func Load() *Config {
 	v.BindEnv("javdb.password")
 	v.BindEnv("db.dsn")
 
+	// 从环境变量自动映射配置
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
@@ -66,6 +69,10 @@ func Load() *Config {
 	if err := v.Unmarshal(cfg); err != nil {
 		panic(err)
 	}
+
+	logger.Initialize(cfg.LogLevel, cfg.LogDir)
+	log.Infof("配置信息：\n%s", cfg)
+
 	return cfg
 }
 

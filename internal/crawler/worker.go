@@ -50,7 +50,6 @@ func (w *Worker) Run() {
 	for {
 		select {
 		case <-w.ctx.Done():
-			w.Close()
 			return
 		case t := <-w.taskCh:
 			func() {
@@ -77,7 +76,6 @@ func (w *Worker) do(t CrawlerTask) {
 	handler := t.Handler()
 	tasks, outputs, err := handler(t)
 	if err != nil {
-		t.IncrErrorNum()
 		w.resultHandler.Error(w, t, err)
 		log.Errorf("[%s] handle task (%s) err: %s", w, t.RawUrl(), err.Error())
 		return

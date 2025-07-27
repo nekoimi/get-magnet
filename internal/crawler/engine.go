@@ -21,8 +21,6 @@ const (
 )
 
 type Engine struct {
-	// context
-	ctx context.Context
 	// 配置文件
 	cfg *Config
 	// worker操作锁
@@ -39,11 +37,10 @@ type Engine struct {
 	crawlerManager *Manager
 }
 
-func NewCrawlerEngine(ctx context.Context, cfg *Config, downloadService downloader.DownloadService, crawlerManager *Manager) *Engine {
+func NewCrawlerEngine(cfg *Config, downloadService downloader.DownloadService, crawlerManager *Manager) *Engine {
 	ocrServer := ocr.NewOcrServer(cfg.OcrBin)
 
 	return &Engine{
-		ctx:             ctx,
 		cfg:             cfg,
 		workerLock:      &sync.RWMutex{},
 		workers:         make([]*Worker, 0),
@@ -53,8 +50,11 @@ func NewCrawlerEngine(ctx context.Context, cfg *Config, downloadService download
 		crawlerManager:  crawlerManager,
 	}
 }
+func (e *Engine) Name() string {
+	return "CrawlerEngine"
+}
 
-func (e *Engine) Start(ctx context.Context) {
+func (e *Engine) Start(ctx context.Context) error {
 	// 启动OCR服务
 	apptools.AutoRestart(ctx, "OCR服务", e.ocrServer.Run, 10*time.Second)
 
@@ -78,6 +78,8 @@ func (e *Engine) Start(ctx context.Context) {
 	bus.Event().Subscribe(bus.SubmitTask.Topic(), e.Submit)
 
 	e.crawlerManager.ScheduleAll()
+
+	return nil
 }
 
 func (e *Engine) Submit(t CrawlerTask) {
@@ -124,12 +126,13 @@ func (e *Engine) Error(w *Worker, t CrawlerTask, err error) {
 		return
 	}
 
+	t.IncrErrorNum()
 	log.Errorf("任务处理异常：%s - %s", t.RawUrl(), err.Error())
 
 	e.Submit(t)
 }
 
-func (e *Engine) Close() error {
+func (e *Engine) Stop(ctx context.Context) error {
 	var wait sync.WaitGroup
 	wait.Add(len(e.workers))
 	for _, w := range e.workers {

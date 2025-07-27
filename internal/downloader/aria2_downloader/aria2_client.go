@@ -48,6 +48,8 @@ type Client struct {
 	cfg *Config
 	// aria2 json rpc 客户端
 	arigoClient *arigo.Client
+	// client once
+	closeOnce sync.Once
 	// aria2 客户端操作锁
 	clientMux *sync.Mutex
 	// 事件处理chan
@@ -66,6 +68,7 @@ func newAria2Client(ctx context.Context, cfg *Config) *Client {
 	return &Client{
 		ctx:                  ctx,
 		cfg:                  cfg,
+		closeOnce:            sync.Once{},
 		clientMux:            &sync.Mutex{},
 		eventCh:              make(chan Event, 128),
 		fileSelectCh:         make(chan arigo.Status, 32),
@@ -358,11 +361,11 @@ func (c *Client) globalOptions() (arigo.Options, error) {
 
 func (c *Client) Close() error {
 	if c.arigoClient != nil {
-		if err := c.client().Close(); err != nil {
-			log.Errorf("aria2客户端关闭异常: %s", err.Error())
-			return err
-		}
+		c.closeOnce.Do(func() {
+			if err := c.client().Close(); err != nil {
+				log.Errorf("aria2客户端关闭异常: %s", err.Error())
+			}
+		})
 	}
-	log.Debugln("停止aria2客户端")
 	return nil
 }
