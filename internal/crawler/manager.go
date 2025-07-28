@@ -7,20 +7,20 @@ import (
 
 type Manager struct {
 	// crawler集合
-	crawlers map[string]Crawler
+	crawlers []Crawler
 	// 定时任务调度
 	cronScheduler job.CronScheduler
 }
 
 func NewCrawlerManager(cronScheduler job.CronScheduler) *Manager {
 	return &Manager{
-		crawlers:      make(map[string]Crawler, 0),
+		crawlers:      make([]Crawler, 0),
 		cronScheduler: cronScheduler,
 	}
 }
 
 func (m *Manager) Register(crawler Crawler) {
-	m.crawlers[crawler.Name()] = crawler
+	m.crawlers = append(m.crawlers, crawler)
 }
 
 func (m *Manager) RunAll() {
