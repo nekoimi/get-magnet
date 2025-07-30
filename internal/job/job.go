@@ -12,15 +12,13 @@ type CronJob struct {
 }
 
 func (job *CronJob) Run() {
-	log.Infof("执行Job[%s]...", job.Name)
-	func(c *CronJob) {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Errorf("执行Job[%s] panic: %v", c.Name, r)
-			}
-		}()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("执行Job[%s] panic: %v", job.Name, r)
+		}
+	}()
 
-		c.Exec()
-	}(job)
+	log.Infof("执行Job[%s]...", job.Name)
+	job.Exec()
 	log.Infof("执行Job[%s]完成", job.Name)
 }
