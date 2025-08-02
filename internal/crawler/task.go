@@ -7,6 +7,11 @@ import (
 
 type TaskHandler func(t CrawlerTask) ([]CrawlerTask, []MagnetEntry, error)
 
+type TaskDispatcher interface {
+	Submit(t CrawlerTask)
+	Chan() <-chan CrawlerTask
+}
+
 type CrawlerTask interface {
 	RawOrigin() string
 	RawUrl() string

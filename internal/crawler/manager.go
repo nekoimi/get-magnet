@@ -41,9 +41,7 @@ func (m *Manager) ScheduleAll() {
 	for _, crawler := range m.crawlers {
 		m.cronScheduler.Register(crawler.CronSpec(), &job.CronJob{
 			Name: crawler.Name(),
-			Exec: func() {
-				crawler.Run()
-			},
+			Exec: crawler.Run,
 		})
 	}
 }
