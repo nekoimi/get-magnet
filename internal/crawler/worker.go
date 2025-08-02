@@ -23,20 +23,20 @@ type Worker struct {
 	id int
 	// 结果处理器
 	resultHandler ResultHandler
-	// 任务chan
-	taskCh chan CrawlerTask
+	// 任务队列
+	taskDispatcher TaskDispatcher
 	// 是否正在运行
 	running bool
 }
 
 // NewWorker 创建一个新的任务执行worker
-func NewWorker(ctx context.Context, id int, taskCh chan CrawlerTask, resultHandler ResultHandler) *Worker {
+func NewWorker(ctx context.Context, id int, taskDispatcher TaskDispatcher, resultHandler ResultHandler) *Worker {
 	return &Worker{
-		ctx:           ctx,
-		id:            id,
-		resultHandler: resultHandler,
-		taskCh:        taskCh,
-		running:       false,
+		ctx:            ctx,
+		id:             id,
+		resultHandler:  resultHandler,
+		taskDispatcher: taskDispatcher,
+		running:        false,
 	}
 }
 
@@ -46,12 +46,12 @@ func (w *Worker) Id() int {
 
 // Run 启动任务执行worker，监听任务并执行
 func (w *Worker) Run() {
-	log.Debugf("启动Worker: %s - [%v]...", w, w.taskCh)
+	log.Debugf("启动Worker: %s ...", w)
 	for {
 		select {
 		case <-w.ctx.Done():
 			return
-		case t := <-w.taskCh:
+		case t := <-w.taskDispatcher.Chan():
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
