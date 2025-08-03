@@ -55,17 +55,18 @@ func (b *Browser) Start(ctx context.Context) error {
 	return nil
 }
 
-func (b *Browser) NewTabPage() (*rod.Page, func()) {
+func (b *Browser) NewTabPage() (*rod.Page, func(url string)) {
 	// 页面持续操作时间：5分钟
 	timeoutCtx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
 	page := stealth.MustPage(b.browser).Context(timeoutCtx)
-	closeFunc := func() {
-		cancelFunc()
+	closeFunc := func(url string) {
+		// try close page
 		if err := page.Close(); err != nil {
 			log.Errorf("关闭标签页异常：%s", err.Error())
-			return
 		}
-		log.Debugln("退出页面浏览...")
+
+		cancelFunc()
+		log.Debugf("退出页面 %s 浏览...", url)
 	}
 
 	return page, closeFunc

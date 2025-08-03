@@ -25,7 +25,7 @@ func (s *RodBrowserDownloader) SetCookies(u *url.URL, cookies []*http.Cookie) {
 
 func (s *RodBrowserDownloader) Download(rawUrl string) (selection *goquery.Selection, err error) {
 	page, closeFunc := s.browser.NewTabPage()
-	defer closeFunc()
+	defer closeFunc(rawUrl)
 
 	page.MustNavigate(rawUrl)
 	// 等待页面加载
