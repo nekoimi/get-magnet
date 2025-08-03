@@ -7,6 +7,7 @@ import (
 	"github.com/go-rod/stealth"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/http/httpproxy"
+	"time"
 )
 
 type Config struct {
@@ -55,9 +56,11 @@ func (b *Browser) Start(ctx context.Context) error {
 }
 
 func (b *Browser) NewTabPage() (*rod.Page, func()) {
-	page := stealth.MustPage(b.browser)
-
+	// 页面持续操作时间：5分钟
+	timeoutCtx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
+	page := stealth.MustPage(b.browser).Context(timeoutCtx)
 	closeFunc := func() {
+		cancelFunc()
 		if err := page.Close(); err != nil {
 			log.Errorf("关闭标签页异常：%s", err.Error())
 			return
