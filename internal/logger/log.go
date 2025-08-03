@@ -26,8 +26,9 @@ func Initialize(logLevel string, logDir string) {
 
 	// json输出：不带颜色
 	jsonFormatter := &log.JSONFormatter{
-		TimestampFormat:  "2006-01-02 15:04:05",
-		CallerPrettyfier: friendlyCaller,
+		TimestampFormat:   "2006-01-02 15:04:05",
+		CallerPrettyfier:  friendlyCaller,
+		DisableHTMLEscape: true,
 	}
 	log.AddHook(newRotateHook(logDir, jsonFormatter))
 }
