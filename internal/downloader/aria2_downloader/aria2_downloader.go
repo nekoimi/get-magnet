@@ -67,6 +67,8 @@ func (d *Aria2Downloader) Start(parent context.Context) error {
 			}
 			switch e.Type {
 			case arigo.CompleteEvent, arigo.BTCompleteEvent:
+				// 文件下载完成删除不需要的文件
+				handleDownloadCompleteDelFile(e.taskStatus)
 				// 文件下载完成移动文件
 				handleDownloadCompleteMoveFile(e.taskStatus, "JavDB", d.cfg.MoveTo.JavDBDir)
 

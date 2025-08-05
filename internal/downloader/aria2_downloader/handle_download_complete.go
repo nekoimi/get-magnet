@@ -17,6 +17,14 @@ func trimUnicodeString(s string, maxChars int) string {
 	return s
 }
 
+func handleDownloadCompleteDelFile(status arigo.Status) {
+	_, delFiles := extrBestFile(status.Files)
+	// 删除文件
+	for _, delFile := range delFiles {
+		files.Delete(delFile.Path)
+	}
+}
+
 func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDir string) {
 	followedBys := status.FollowedBy
 	if len(followedBys) >= 1 {
@@ -47,8 +55,7 @@ func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDi
 			return
 		}
 
-		allowFiles, delFiles := extrBestFile(status.Files)
-		// 移动文件
+		allowFiles, _ := extrBestFile(status.Files)
 		for _, file := range allowFiles {
 			// source: {downloadDir}/JavDB/2025-07-22/SONE-566-C/SONE-566-C.mp4
 			// target: {moveToDir}/{女演员}/2025-07-22/{标题}/SONE-566-C.mp4
@@ -76,10 +83,6 @@ func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDi
 				return
 			}
 			log.Debugf("[JavDB] bt任务下载完成 - 移动文件：%s -> %s", sourcePath, targetPath)
-		}
-		// 删除文件
-		for _, delFile := range delFiles {
-			files.Delete(delFile.Path)
 		}
 	}
 }
