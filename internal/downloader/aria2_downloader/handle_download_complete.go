@@ -47,7 +47,8 @@ func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDi
 			return
 		}
 
-		allowFiles, _ := extrBestFile(status.Files)
+		allowFiles, delFiles := extrBestFile(status.Files)
+		// 移动文件
 		for _, file := range allowFiles {
 			// source: {downloadDir}/JavDB/2025-07-22/SONE-566-C/SONE-566-C.mp4
 			// target: {moveToDir}/{女演员}/2025-07-22/{标题}/SONE-566-C.mp4
@@ -75,6 +76,10 @@ func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDi
 				return
 			}
 			log.Debugf("[JavDB] bt任务下载完成 - 移动文件：%s -> %s", sourcePath, targetPath)
+		}
+		// 删除文件
+		for _, delFile := range delFiles {
+			files.Delete(delFile.Path)
 		}
 	}
 }

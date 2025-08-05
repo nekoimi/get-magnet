@@ -28,7 +28,7 @@ func (c *Client) handleFileNameTooLongError(status arigo.Status) {
 			}
 
 			saveDir := options.Dir + "/error-retry/" + util.NowDate("-")
-			if selectIndex, ok, _ := selectDownloadFileBestIndex(status.Files); ok {
+			if selectIndex, ok := selectDownloadFileBestIndex(status.Files); ok {
 				if _, err = c.client().AddURI(arigo.URIs(downloadUrl), &arigo.Options{
 					Dir:        saveDir,
 					SelectFile: selectIndex,

@@ -13,7 +13,7 @@ const MinVideoSize = 100_000_000
 
 func (c *Client) handleFileBestSelect(status arigo.Status) {
 	log.Debugf("下载任务文件优选：%s", friendly(status))
-	selectIndex, ok, delFiles := selectDownloadFileBestIndex(status.Files)
+	selectIndex, ok := selectDownloadFileBestIndex(status.Files)
 	if ok {
 		if status.Status == arigo.StatusActive || status.Status == arigo.StatusWaiting {
 			if err := c.client().ChangeOptions(status.GID, arigo.Options{
@@ -25,16 +25,12 @@ func (c *Client) handleFileBestSelect(status arigo.Status) {
 			}
 		}
 	}
-
-	for _, delFile := range delFiles {
-		files.Delete(delFile.Path)
-	}
 }
 
-func selectDownloadFileBestIndex(files []arigo.File) (selectIndex string, ok bool, delFiles []arigo.File) {
+func selectDownloadFileBestIndex(files []arigo.File) (selectIndex string, ok bool) {
 	if len(files) <= 1 {
 		// 只有一个文件，不做处理
-		return "", false, delFiles
+		return "", false
 	}
 
 	needChangeOps := false
@@ -47,10 +43,10 @@ func selectDownloadFileBestIndex(files []arigo.File) (selectIndex string, ok boo
 	}
 
 	if needChangeOps {
-		allowFiles, notAllowFiles := extrBestFile(files)
+		allowFiles, _ := extrBestFile(files)
 		if len(allowFiles) == 0 {
 			// 不做处理
-			return "", false, notAllowFiles
+			return "", false
 		}
 
 		var builder strings.Builder
@@ -58,10 +54,10 @@ func selectDownloadFileBestIndex(files []arigo.File) (selectIndex string, ok boo
 			builder.WriteString(strconv.Itoa(a.Index))
 			builder.WriteString(",")
 		}
-		return builder.String(), true, notAllowFiles
+		return builder.String(), true
 	}
 
-	return "", false, delFiles
+	return "", false
 }
 
 func extrBestFile(fs []arigo.File) ([]arigo.File, []arigo.File) {
