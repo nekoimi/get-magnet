@@ -17,6 +17,14 @@ func trimUnicodeString(s string, maxChars int) string {
 	return s
 }
 
+func handleDownloadCompleteDelFile(status arigo.Status) {
+	_, delFiles := extrBestFile(status.Files)
+	// 删除文件
+	for _, delFile := range delFiles {
+		files.Delete(delFile.Path)
+	}
+}
+
 func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDir string) {
 	followedBys := status.FollowedBy
 	if len(followedBys) >= 1 {

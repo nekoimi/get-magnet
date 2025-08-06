@@ -160,6 +160,10 @@ func Delete(filepath string) {
 		} else {
 			log.Debugf("删除文件OK：%s", filepath)
 		}
+	} else if !exists {
+		log.Debugf("删除文件 - 文件不存在：%s", filepath)
+	} else if err != nil {
+		log.Errorf("删除文件 - 检查异常：%s - %s", filepath, err.Error())
 	}
 }
 

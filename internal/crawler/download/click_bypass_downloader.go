@@ -83,7 +83,7 @@ func (s *ClickBypassDownloader) Download(rawUrl string) (selection *goquery.Sele
 
 func (s *ClickBypassDownloader) StartRodHandleClick(rawUrl string) {
 	page, closeFunc := s.browser.NewTabPage()
-	defer closeFunc()
+	defer closeFunc(rawUrl)
 
 	s.HandleClickRefreshCookies(page, rawUrl)
 }

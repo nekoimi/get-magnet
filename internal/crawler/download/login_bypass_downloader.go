@@ -88,7 +88,7 @@ func (s *LoginBypassDownloader) StartRodHandleLogin(rawUrl string) {
 	page, closeFunc := s.browser.NewTabPage()
 	defer func() {
 		time.AfterFunc(10*time.Second, func() {
-			closeFunc()
+			closeFunc(rawUrl)
 		})
 	}()
 
