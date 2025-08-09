@@ -13,7 +13,7 @@ import (
 	"unicode/utf8"
 )
 
-// MaxFileNameLength 最大文件名长度 255
+// MaxFileNameLength 最大文件名长度 255 字节
 const MaxFileNameLength = 255
 
 var (
@@ -247,4 +247,34 @@ func copyThenDelete(srcPath, dstPath string) error {
 
 	log.Infof("[移动文件] 移动文件成功: %s -> %s", srcPath, dstPath)
 	return nil
+}
+
+func TrimUnicodeString(s string, maxChars int) string {
+	runes := []rune(s)
+	if len(runes) > maxChars {
+		return string(runes[:maxChars])
+	}
+	return s
+}
+
+func TruncateFilename(name string, maxBytes int) string {
+	if len(name) <= maxBytes {
+		return name
+	}
+
+	// 转成 rune 切片保证不截半个字符
+	runes := []rune(name)
+	byteCount := 0
+	end := 0
+
+	for i, r := range runes {
+		runeBytes := len(string(r))
+		if byteCount+runeBytes > maxBytes {
+			break
+		}
+		byteCount += runeBytes
+		end = i + 1
+	}
+
+	return string(runes[:end])
 }

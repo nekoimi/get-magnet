@@ -9,14 +9,6 @@ import (
 	"strings"
 )
 
-func trimUnicodeString(s string, maxChars int) string {
-	runes := []rune(s)
-	if len(runes) > maxChars {
-		return string(runes[:maxChars])
-	}
-	return s
-}
-
 func handleDownloadCompleteDelFile(status arigo.Status) {
 	_, delFiles := extrBestFile(status.Files)
 	// 删除文件
@@ -66,16 +58,10 @@ func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDi
 			if len(m.Actress0) > 0 {
 				actress = strings.Split(m.Actress0, ",")[0]
 			}
+
+			title := files.TruncateFilename(m.Title, files.MaxFileNameLength)
 			targetPrefix := filepath.Join(moveToDir, actress, m.CreatedAt.Format("2006-01-02"))
-			targetPath := filepath.Join(targetPrefix, m.Title, sourceFile)
-			if len(targetPath) >= files.MaxFileNameLength {
-				// fix 需要缩短文件名称
-				nameLen := len(sourceFile)
-				prefixLen := len(targetPrefix)
-				// 缩短标题
-				maxLen := files.MaxFileNameLength - (nameLen + prefixLen + 10)
-				targetPath = filepath.Join(targetPrefix, trimUnicodeString(m.Title, maxLen), sourceFile)
-			}
+			targetPath := filepath.Join(targetPrefix, title, sourceFile)
 
 			err := files.MoveOnce(sourcePath, targetPath)
 			if err != nil {
