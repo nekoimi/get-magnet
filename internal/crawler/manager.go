@@ -1,19 +1,25 @@
 package crawler
 
 import (
+	"context"
+	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/job"
 	log "github.com/sirupsen/logrus"
 )
 
 type Manager struct {
+	// ctx
+	ctx context.Context
 	// crawler集合
 	crawlers []Crawler
 	// 定时任务调度
 	cronScheduler job.CronScheduler
 }
 
-func NewCrawlerManager(cronScheduler job.CronScheduler) *Manager {
+func NewCrawlerManager(ctx context.Context) *Manager {
+	cronScheduler := core.FromContext[job.CronScheduler](ctx)
 	return &Manager{
+		ctx:           ctx,
 		crawlers:      make([]Crawler, 0),
 		cronScheduler: cronScheduler,
 	}

@@ -3,6 +3,8 @@ package crawler
 import (
 	"context"
 	"github.com/nekoimi/get-magnet/internal/bus"
+	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/downloader"
 	"github.com/nekoimi/get-magnet/internal/ocr"
@@ -37,17 +39,11 @@ type Engine struct {
 	crawlerManager *Manager
 }
 
-func NewCrawlerEngine(cfg *Config, downloadService downloader.DownloadService, crawlerManager *Manager) *Engine {
-	ocrServer := ocr.NewOcrServer(cfg.OcrBin)
-
+func NewCrawlerEngine() *Engine {
 	return &Engine{
-		cfg:             cfg,
-		workerLock:      &sync.RWMutex{},
-		workers:         make([]*Worker, 0),
-		taskDispatcher:  NewCrawlerTaskQueue(512),
-		ocrServer:       ocrServer,
-		downloadService: downloadService,
-		crawlerManager:  crawlerManager,
+		workerLock:     &sync.RWMutex{},
+		workers:        make([]*Worker, 0),
+		taskDispatcher: NewCrawlerTaskQueue(512),
 	}
 }
 func (e *Engine) Name() string {
@@ -55,6 +51,11 @@ func (e *Engine) Name() string {
 }
 
 func (e *Engine) Start(ctx context.Context) error {
+	cfg := core.PtrFromContext[config.Config](ctx)
+	e.cfg = cfg.Crawler
+	e.downloadService = core.FromContext[downloader.DownloadService](ctx)
+	e.crawlerManager = core.PtrFromContext[Manager](ctx)
+	e.ocrServer = ocr.NewOcrServer(cfg.Crawler.OcrBin)
 	// 启动OCR服务
 	apptools.AutoRestart(ctx, "OCR服务", e.ocrServer.Run, 10*time.Second)
 

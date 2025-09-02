@@ -2,6 +2,8 @@ package aria2_downloader
 
 import (
 	"context"
+	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/downloader"
 	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader/tracker"
 	"github.com/nekoimi/get-magnet/internal/job"
@@ -24,12 +26,10 @@ type Aria2Downloader struct {
 	cronScheduler job.CronScheduler
 }
 
-func NewAria2DownloadService(cfg *Config, cronScheduler job.CronScheduler) downloader.DownloadService {
+func NewAria2DownloadService() downloader.DownloadService {
 	return &Aria2Downloader{
-		cfg:           cfg,
-		onComplete:    make([]downloader.DownloadCallback, 0),
-		onError:       make([]downloader.DownloadCallback, 0),
-		cronScheduler: cronScheduler,
+		onComplete: make([]downloader.DownloadCallback, 0),
+		onError:    make([]downloader.DownloadCallback, 0),
 	}
 }
 
@@ -38,6 +38,9 @@ func (d *Aria2Downloader) Name() string {
 }
 
 func (d *Aria2Downloader) Start(parent context.Context) error {
+	cfg := core.PtrFromContext[config.Config](parent)
+	d.cfg = cfg.Aria2
+	d.cronScheduler = core.FromContext[job.CronScheduler](parent)
 	ctx, cancel := context.WithCancel(parent)
 	d.client = newAria2Client(ctx, d.cfg)
 

@@ -5,6 +5,8 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/stealth"
+	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/core"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/http/httpproxy"
 	"time"
@@ -26,10 +28,8 @@ type Browser struct {
 	browser *rod.Browser
 }
 
-func NewRodBrowser(cfg *Config) *Browser {
-	return &Browser{
-		cfg: cfg,
-	}
+func NewRodBrowser() *Browser {
+	return &Browser{}
 }
 
 func (b *Browser) Name() string {
@@ -37,6 +37,8 @@ func (b *Browser) Name() string {
 }
 
 func (b *Browser) Start(ctx context.Context) error {
+	cfg := core.PtrFromContext[config.Config](ctx)
+	b.cfg = cfg.Browser
 	proxyEnv := httpproxy.FromEnvironment()
 	launchBuilder := launcher.New().
 		Headless(b.cfg.Headless).

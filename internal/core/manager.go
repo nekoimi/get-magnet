@@ -35,10 +35,11 @@ func NewLifecycleManager(parent context.Context) *LifecycleManager {
 }
 
 func (m *LifecycleManager) Register(lifecycle Lifecycle) {
+	log.Infof("[Lifecycle] Registry: %s", lifecycle.Name())
 	m.lifecycles = append(m.lifecycles, lifecycle)
 }
 
-func (m *LifecycleManager) StartAndWait() {
+func (m *LifecycleManager) StartAndServe() {
 	for _, lifecycle := range m.lifecycles {
 		go func(life Lifecycle) {
 			log.Infof("[Lifecycle] Starting: %s ...", life.Name())

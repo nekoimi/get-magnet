@@ -1,7 +1,10 @@
 package javdb
 
 import (
+	"context"
 	"github.com/nekoimi/get-magnet/internal/bus"
+	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 	log "github.com/sirupsen/logrus"
@@ -18,9 +21,11 @@ type Crawler struct {
 	Parser
 }
 
-func NewJavDBCrawler(cfg *Config, browser *rod_browser.Browser) crawler.Crawler {
+func NewJavDBCrawler(ctx context.Context) crawler.Crawler {
+	cfg := core.PtrFromContext[config.Config](ctx)
+	browser := core.PtrFromContext[rod_browser.Browser](ctx)
 	c := &Crawler{Parser{
-		downloader: newBypassDownloader(cfg, browser),
+		downloader: newBypassDownloader(cfg.JavDB, browser),
 	}}
 
 	// 设置任务监听

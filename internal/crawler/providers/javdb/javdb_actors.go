@@ -1,7 +1,10 @@
 package javdb
 
 import (
+	"context"
 	"github.com/nekoimi/get-magnet/internal/bus"
+	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 )
@@ -10,9 +13,11 @@ type ActorCrawler struct {
 	Parser
 }
 
-func NewJavDBActorCrawler(cfg *Config, browser *rod_browser.Browser) crawler.Crawler {
+func NewJavDBActorCrawler(ctx context.Context) crawler.Crawler {
+	cfg := core.PtrFromContext[config.Config](ctx)
+	browser := core.PtrFromContext[rod_browser.Browser](ctx)
 	return &ActorCrawler{Parser{
-		downloader: newBypassDownloader(cfg, browser),
+		downloader: newBypassDownloader(cfg.JavDB, browser),
 	}}
 }
 
