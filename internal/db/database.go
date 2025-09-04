@@ -3,8 +3,8 @@ package db
 import (
 	"context"
 	_ "github.com/lib/pq"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/db/migrate"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
@@ -19,9 +19,9 @@ var (
 	engineOnce sync.Once
 )
 
-func NewDBLifecycle() core.Lifecycle {
-	return core.NewLifecycle("DB", func(ctx context.Context) error {
-		cfg := core.PtrFromContext[config.Config](ctx)
+func NewDBLifecycle() bean.Lifecycle {
+	return bean.NewLifecycle("DB", func(ctx context.Context) error {
+		cfg := bean.PtrFromContext[config.Config](ctx)
 		// 初始化数据库
 		initialize(cfg.DB)
 		return nil

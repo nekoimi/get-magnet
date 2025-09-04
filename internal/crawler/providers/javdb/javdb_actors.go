@@ -2,9 +2,9 @@ package javdb
 
 import (
 	"context"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 )
@@ -15,8 +15,8 @@ type ActorCrawler struct {
 
 func NewJavDBActorCrawler() crawler.BuilderFunc {
 	return func(ctx context.Context) crawler.Crawler {
-		cfg := core.PtrFromContext[config.Config](ctx)
-		browser := core.PtrFromContext[rod_browser.Browser](ctx)
+		cfg := bean.PtrFromContext[config.Config](ctx)
+		browser := bean.PtrFromContext[rod_browser.Browser](ctx)
 		return &ActorCrawler{Parser{
 			downloader: newBypassDownloader(cfg.JavDB, browser),
 		}}

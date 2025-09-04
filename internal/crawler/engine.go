@@ -2,9 +2,9 @@ package crawler
 
 import (
 	"context"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/downloader"
 	"github.com/nekoimi/get-magnet/internal/ocr"
@@ -53,10 +53,10 @@ func (e *Engine) Name() string {
 }
 
 func (e *Engine) Start(parent context.Context) error {
-	cfg := core.PtrFromContext[config.Config](parent)
+	cfg := bean.PtrFromContext[config.Config](parent)
 	e.cfg = cfg.Crawler
-	e.downloadService = core.FromContext[downloader.DownloadService](parent)
-	e.crawlerManager = core.PtrFromContext[Manager](parent)
+	e.downloadService = bean.FromContext[downloader.DownloadService](parent)
+	e.crawlerManager = bean.PtrFromContext[Manager](parent)
 	e.ocrServer = ocr.NewOcrServer(cfg.Crawler.OcrBin)
 
 	var subCtx context.Context

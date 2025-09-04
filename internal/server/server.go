@@ -3,8 +3,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -26,7 +26,7 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	s.cfg = core.PtrFromContext[config.Config](ctx)
+	s.cfg = bean.PtrFromContext[config.Config](ctx)
 	jwt.SetSecret(s.cfg.JwtSecret)
 
 	router := newRouter()

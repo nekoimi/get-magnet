@@ -2,8 +2,8 @@ package bootstrap
 
 import (
 	"context"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
 	"github.com/nekoimi/get-magnet/internal/crawler/providers/sehuatang"
@@ -15,27 +15,27 @@ import (
 	"github.com/nekoimi/get-magnet/internal/server"
 )
 
-func BootLifecycle() *core.LifecycleManager {
-	ctx := core.ContextWithDefaultRegistry(context.Background())
+func BeanLifecycle() *bean.LifecycleManager {
+	ctx := bean.ContextWithDefaultRegistry(context.Background())
 	// 加载配置
-	core.MustRegisterPtr[config.Config](ctx, config.Load())
+	bean.MustRegisterPtr[config.Config](ctx, config.Load())
 	// 数据库
-	core.MustRegister[core.Lifecycle](ctx, db.NewDBLifecycle())
+	bean.MustRegister[bean.Lifecycle](ctx, db.NewDBLifecycle())
 	// 定时任务
-	core.MustRegister[job.CronScheduler](ctx, job.NewCronScheduler())
+	bean.MustRegister[job.CronScheduler](ctx, job.NewCronScheduler())
 	// RodBrowser
-	core.MustRegisterPtr[rod_browser.Browser](ctx, rod_browser.NewRodBrowser())
+	bean.MustRegisterPtr[rod_browser.Browser](ctx, rod_browser.NewRodBrowser())
 	// 下载器
-	core.MustRegister[downloader.DownloadService](ctx, aria2_downloader.NewAria2DownloadService())
+	bean.MustRegister[downloader.DownloadService](ctx, aria2_downloader.NewAria2DownloadService())
 	// 任务管理器
 	crawlerManager := crawler.NewCrawlerManager(ctx)
 	crawlerManager.Register(javdb.NewJavDBCrawler())
 	crawlerManager.Register(javdb.NewJavDBActorCrawler())
 	crawlerManager.Register(sehuatang.NewSeHuaTangCrawler())
-	core.MustRegisterPtr[crawler.Manager](ctx, crawlerManager)
+	bean.MustRegisterPtr[crawler.Manager](ctx, crawlerManager)
 	// 任务处理引擎
-	core.MustRegisterPtr[crawler.Engine](ctx, crawler.NewCrawlerEngine())
+	bean.MustRegisterPtr[crawler.Engine](ctx, crawler.NewCrawlerEngine())
 	// http服务
-	core.MustRegisterPtr[server.Server](ctx, server.NewHttpServer())
-	return core.LifecycleFromContext(ctx)
+	bean.MustRegisterPtr[server.Server](ctx, server.NewHttpServer())
+	return bean.LifecycleFromContext(ctx)
 }

@@ -2,7 +2,7 @@ package crawler
 
 import (
 	"context"
-	"github.com/nekoimi/get-magnet/internal/core"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/job"
 	log "github.com/sirupsen/logrus"
 )
@@ -17,7 +17,7 @@ type Manager struct {
 }
 
 func NewCrawlerManager(ctx context.Context) *Manager {
-	cronScheduler := core.FromContext[job.CronScheduler](ctx)
+	cronScheduler := bean.FromContext[job.CronScheduler](ctx)
 	return &Manager{
 		ctx:           ctx,
 		crawlers:      make([]Crawler, 0),

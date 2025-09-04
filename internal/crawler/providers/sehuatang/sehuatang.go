@@ -2,8 +2,8 @@ package sehuatang
 
 import (
 	"context"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
-	"github.com/nekoimi/get-magnet/internal/core"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 )
@@ -17,7 +17,7 @@ type Crawler struct {
 
 func NewSeHuaTangCrawler() crawler.BuilderFunc {
 	return func(ctx context.Context) crawler.Crawler {
-		browser := core.PtrFromContext[rod_browser.Browser](ctx)
+		browser := bean.PtrFromContext[rod_browser.Browser](ctx)
 		return &Crawler{Parser{
 			downloader: newBypassDownloader(browser),
 		}}

@@ -28,7 +28,7 @@ func Test_Run(t *testing.T) {
 	os.Setenv("DB_DSN", "postgres://devtest:devtest@10.1.1.100:5432/get_magnet_dev?sslmode=disable")
 
 	// 初始化服务
-	lifecycle := bootstrap.BootLifecycle()
+	lifecycle := bootstrap.BeanLifecycle()
 	// 启动服务
 	lifecycle.StartAndServe()
 

@@ -6,7 +6,7 @@ import (
 
 func main() {
 	// 初始化服务
-	lifecycle := bootstrap.BootLifecycle()
+	lifecycle := bootstrap.BeanLifecycle()
 	// 启动服务
 	lifecycle.StartAndServe()
 }
