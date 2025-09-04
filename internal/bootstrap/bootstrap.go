@@ -17,7 +17,6 @@ import (
 
 func BootLifecycle() *core.LifecycleManager {
 	ctx := core.ContextWithDefaultRegistry(context.Background())
-	lifecycle := core.LifecycleFromContext(ctx)
 	// 加载配置
 	core.MustRegisterPtr[config.Config](ctx, config.Load())
 	// 数据库
@@ -38,5 +37,5 @@ func BootLifecycle() *core.LifecycleManager {
 	core.MustRegisterPtr[crawler.Engine](ctx, crawler.NewCrawlerEngine())
 	// http服务
 	core.MustRegisterPtr[server.Server](ctx, server.NewHttpServer())
-	return lifecycle
+	return core.LifecycleFromContext(ctx)
 }

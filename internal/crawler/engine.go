@@ -24,7 +24,7 @@ const (
 
 type Engine struct {
 	// 配置文件
-	cfg *Config
+	cfg *config.CrawlerConfig
 	// worker操作锁
 	workerLock *sync.RWMutex
 	// worker池
@@ -37,6 +37,8 @@ type Engine struct {
 	downloadService downloader.DownloadService
 	// crawler管理器
 	crawlerManager *Manager
+	// cancel
+	cancel context.CancelFunc
 }
 
 func NewCrawlerEngine() *Engine {
@@ -50,20 +52,24 @@ func (e *Engine) Name() string {
 	return "CrawlerEngine"
 }
 
-func (e *Engine) Start(ctx context.Context) error {
-	cfg := core.PtrFromContext[config.Config](ctx)
+func (e *Engine) Start(parent context.Context) error {
+	cfg := core.PtrFromContext[config.Config](parent)
 	e.cfg = cfg.Crawler
-	e.downloadService = core.FromContext[downloader.DownloadService](ctx)
-	e.crawlerManager = core.PtrFromContext[Manager](ctx)
+	e.downloadService = core.FromContext[downloader.DownloadService](parent)
+	e.crawlerManager = core.PtrFromContext[Manager](parent)
 	e.ocrServer = ocr.NewOcrServer(cfg.Crawler.OcrBin)
+
+	var subCtx context.Context
+	subCtx, e.cancel = context.WithCancel(parent)
+
 	// 启动OCR服务
-	apptools.AutoRestart(ctx, "OCR服务", e.ocrServer.Run, 10*time.Second)
+	apptools.AutoRestart(subCtx, "OCR服务", e.ocrServer.Run, 10*time.Second)
 
 	e.workerLock.Lock()
 	defer e.workerLock.Unlock()
 
 	for i := 0; i < mathutil.Max(1, e.cfg.WorkerNum); i++ {
-		w := NewWorker(ctx, i, e.taskDispatcher, e)
+		w := NewWorker(subCtx, i, e.taskDispatcher, e)
 
 		e.workers = append(e.workers, w)
 
@@ -142,6 +148,7 @@ func (e *Engine) Stop(ctx context.Context) error {
 			wait.Done()
 		}(w)
 	}
+	e.cancel()
 	wait.Wait()
 	log.Infoln("stop engine...")
 	return nil

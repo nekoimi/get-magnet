@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"fmt"
+	"github.com/nekoimi/get-magnet/internal/config"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -14,19 +16,15 @@ import (
 type LifecycleManager struct {
 	// context
 	ctx context.Context
-	// context取消函数
-	cancel context.CancelFunc
 	// signal
 	sigs chan os.Signal
 	// 管理的应用列表
 	lifecycles []Lifecycle
 }
 
-func NewLifecycleManager(parent context.Context) *LifecycleManager {
-	ctx, cancel := context.WithCancel(parent)
+func NewLifecycleManager(ctx context.Context) *LifecycleManager {
 	m := &LifecycleManager{
 		ctx:        ctx,
-		cancel:     cancel,
 		sigs:       make(chan os.Signal, 1),
 		lifecycles: make([]Lifecycle, 0),
 	}
@@ -40,13 +38,24 @@ func (m *LifecycleManager) Register(lifecycle Lifecycle) {
 }
 
 func (m *LifecycleManager) StartAndServe() {
+	c := PtrFromContext[config.Config](m.ctx)
+	fmt.Println(c)
+
 	for _, lifecycle := range m.lifecycles {
-		go func(life Lifecycle) {
+		go func(life Lifecycle, ctx context.Context) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Errorf("[Lifecycle] failed to start %s panic: %v", life.Name(), r)
+				} else {
+					log.Infof("[Lifecycle] Start %s success!", life.Name())
+				}
+			}()
+
 			log.Infof("[Lifecycle] Starting: %s ...", life.Name())
-			if err := life.Start(m.ctx); err != nil {
+			if err := life.Start(ctx); err != nil {
 				log.Errorf("[Lifecycle] failed to start %s: %s", life.Name(), err)
 			}
-		}(lifecycle)
+		}(lifecycle, m.ctx)
 	}
 	m.waitForSignal()
 	m.shutdown(30 * time.Second)
@@ -55,7 +64,6 @@ func (m *LifecycleManager) StartAndServe() {
 func (m *LifecycleManager) waitForSignal() {
 	sig := <-m.sigs
 	log.Infof("收到退出信号: %v，正在关闭...", sig)
-	m.cancel()
 }
 
 func (m *LifecycleManager) shutdown(timeout time.Duration) {

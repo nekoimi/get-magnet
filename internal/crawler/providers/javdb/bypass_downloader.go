@@ -3,6 +3,7 @@ package javdb
 import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
+	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
 	"github.com/nekoimi/get-magnet/internal/ocr"
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-func newBypassDownloader(cfg *Config, browser *rod_browser.Browser) download.Downloader {
+func newBypassDownloader(cfg *config.JavDBConfig, browser *rod_browser.Browser) download.Downloader {
 	clickBypassDownloader := download.NewClickBypassDownloader(
 		browser,
 		func(root *goquery.Selection) bool {

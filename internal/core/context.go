@@ -1,21 +1,23 @@
 package core
 
-import "context"
+import (
+	"context"
+)
 
 func DefaultValue[T any]() T {
 	var defaultValue T
 	return defaultValue
 }
 
-func ContextWithRegistry(ctx context.Context, registry Registry) context.Context {
-	return context.WithValue(ctx, DefaultValue[*Registry](), registry)
-}
-
 func ContextWithDefaultRegistry(ctx context.Context) context.Context {
 	if RegistryFromContext(ctx) != nil {
 		return ctx
 	}
-	return context.WithValue(ctx, DefaultValue[*Registry](), NewRegistry(ctx))
+	registry := NewRegistry()
+	newCtx := context.WithValue(ctx, DefaultValue[*Registry](), registry)
+	lifecycleManager := NewLifecycleManager(newCtx)
+	registry.SetLifecycleManager(lifecycleManager)
+	return newCtx
 }
 
 func RegistryFromContext(ctx context.Context) Registry {
@@ -56,26 +58,6 @@ func PtrFromContext[T any](ctx context.Context) *T {
 		return nil
 	}
 	return servicePtr.(*T)
-}
-
-func ContextWith[T any](ctx context.Context, service T) context.Context {
-	registry := RegistryFromContext(ctx)
-	if registry == nil {
-		registry = NewRegistry(ctx)
-		ctx = ContextWithRegistry(ctx, registry)
-	}
-	registry.Register(DefaultValue[*T](), service)
-	return ctx
-}
-
-func ContextWithPtr[T any](ctx context.Context, servicePtr *T) context.Context {
-	registry := RegistryFromContext(ctx)
-	if registry == nil {
-		registry = NewRegistry(ctx)
-		ctx = ContextWithRegistry(ctx, registry)
-	}
-	registry.Register(DefaultValue[*T](), servicePtr)
-	return ctx
 }
 
 func MustRegister[T any](ctx context.Context, service T) {

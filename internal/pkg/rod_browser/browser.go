@@ -12,18 +12,9 @@ import (
 	"time"
 )
 
-type Config struct {
-	// Rod启动路径
-	Bin string `json:"bin,omitempty" mapstructure:"bin"`
-	// Rod调试模式
-	Headless bool `json:"headless,omitempty" mapstructure:"headless"`
-	// Rod浏览器数据存储目录
-	DataDir string `json:"data_dir,omitempty" mapstructure:"data_dir"`
-}
-
 type Browser struct {
 	// 配置信息
-	cfg *Config
+	cfg *config.BrowserConfig
 	// 浏览器实例
 	browser *rod.Browser
 }

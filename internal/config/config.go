@@ -1,13 +1,8 @@
 package config
 
 import (
-	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader"
 	"github.com/nekoimi/get-magnet/internal/logger"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
-	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -24,15 +19,60 @@ type Config struct {
 	// Jwt secret
 	JwtSecret string `json:"jwt_secret,omitempty" mapstructure:"jwt_secret"`
 	// 无头浏览器配置
-	Browser *rod_browser.Config `json:"browser,omitempty" mapstructure:"browser"`
+	Browser *BrowserConfig `json:"browser,omitempty" mapstructure:"browser"`
 	// arai2下载配置
-	Aria2 *aria2_downloader.Config `json:"aria2,omitempty" mapstructure:"aria2"`
+	Aria2 *Aria2Config `json:"aria2,omitempty" mapstructure:"aria2"`
 	// 采集配置
-	Crawler *crawler.Config `json:"crawler,omitempty" mapstructure:"crawler"`
+	Crawler *CrawlerConfig `json:"crawler,omitempty" mapstructure:"crawler"`
 	// JavDB 配置
-	JavDB *javdb.Config `json:"javdb,omitempty" mapstructure:"javdb"`
+	JavDB *JavDBConfig `json:"javdb,omitempty" mapstructure:"javdb"`
 	// 数据库配置
-	DB *db.Config `json:"db,omitempty" mapstructure:"db"`
+	DB *DBConfig `json:"db,omitempty" mapstructure:"db"`
+}
+
+type BrowserConfig struct {
+	// Rod启动路径
+	Bin string `json:"bin,omitempty" mapstructure:"bin"`
+	// Rod调试模式
+	Headless bool `json:"headless,omitempty" mapstructure:"headless"`
+	// Rod浏览器数据存储目录
+	DataDir string `json:"data_dir,omitempty" mapstructure:"data_dir"`
+}
+
+type Aria2Config struct {
+	// jsonRpc
+	JsonRpc string `json:"jsonrpc,omitempty" mapstructure:"jsonrpc"`
+	// 验证token
+	Secret string `json:"secret,omitempty" mapstructure:"secret"`
+	// 移动文件夹
+	MoveTo Aria2MoveToConfig `json:"move_to" mapstructure:"move_to"`
+}
+
+type Aria2MoveToConfig struct {
+	// javdb 移动目录
+	JavDBDir string `json:"javdb_dir,omitempty" mapstructure:"javdb_dir"`
+}
+
+type CrawlerConfig struct {
+	// 启动立即执行
+	ExecOnStartup bool `json:"exec_on_startup,omitempty" mapstructure:"exec_on_startup"`
+	// worker数量
+	WorkerNum int `json:"worker_num,omitempty" mapstructure:"worker_num"`
+	// ocr服务可执行文件路径
+	OcrBin string `json:"ocr_bin,omitempty" mapstructure:"ocr_bin"`
+}
+
+type JavDBConfig struct {
+	// 账号
+	Username string `json:"username,omitempty" mapstructure:"username"`
+	// 密码
+	Password string `json:"password,omitempty" mapstructure:"password"`
+}
+
+// DBConfig 数据库相关配置
+type DBConfig struct {
+	// 数据库连接配置
+	Dsn string `json:"dsn,omitempty" mapstructure:"dsn"`
 }
 
 func Load() *Config {

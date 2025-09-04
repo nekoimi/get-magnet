@@ -31,7 +31,7 @@ func NewDBLifecycle() core.Lifecycle {
 }
 
 // 初始化数据库操作
-func initialize(cfg *Config) {
+func initialize(cfg *config.DBConfig) {
 	engineOnce.Do(func() {
 		log.Debugf("连接数据库")
 		engine, err = xorm.NewEngine(Postgres.String(), cfg.Dsn)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader/speed"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/siku2/arigo"
@@ -27,25 +28,11 @@ var (
 	}
 )
 
-type Config struct {
-	// jsonRpc
-	JsonRpc string `json:"jsonrpc,omitempty" mapstructure:"jsonrpc"`
-	// 验证token
-	Secret string `json:"secret,omitempty" mapstructure:"secret"`
-	// 移动文件夹
-	MoveTo moveToConfig `json:"move_to" mapstructure:"move_to"`
-}
-
-type moveToConfig struct {
-	// javdb 移动目录
-	JavDBDir string `json:"javdb_dir,omitempty" mapstructure:"javdb_dir"`
-}
-
 type Client struct {
 	// context
 	ctx context.Context
 	// 配置信息
-	cfg *Config
+	cfg *config.Aria2Config
 	// aria2 json rpc 客户端
 	arigoClient *arigo.Client
 	// client once
@@ -62,7 +49,7 @@ type Client struct {
 	downloadSpeedManager *speed.Manager
 }
 
-func newAria2Client(ctx context.Context, cfg *Config) *Client {
+func newAria2Client(ctx context.Context, cfg *config.Aria2Config) *Client {
 	sm := speed.NewSpeedManager()
 
 	return &Client{
