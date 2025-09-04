@@ -25,8 +25,8 @@ func NewCrawlerManager(ctx context.Context) *Manager {
 	}
 }
 
-func (m *Manager) Register(crawler Crawler) {
-	m.crawlers = append(m.crawlers, crawler)
+func (m *Manager) Register(f BuilderFunc) {
+	m.crawlers = append(m.crawlers, f(m.ctx))
 }
 
 func (m *Manager) RunAll() {

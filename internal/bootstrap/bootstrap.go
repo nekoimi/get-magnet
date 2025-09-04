@@ -29,9 +29,9 @@ func BootLifecycle() *core.LifecycleManager {
 	core.MustRegister[downloader.DownloadService](ctx, aria2_downloader.NewAria2DownloadService())
 	// 任务管理器
 	crawlerManager := crawler.NewCrawlerManager(ctx)
-	crawlerManager.Register(javdb.NewJavDBCrawler(ctx))
-	crawlerManager.Register(javdb.NewJavDBActorCrawler(ctx))
-	crawlerManager.Register(sehuatang.NewSeHuaTangCrawler(ctx))
+	crawlerManager.Register(javdb.NewJavDBCrawler())
+	crawlerManager.Register(javdb.NewJavDBActorCrawler())
+	crawlerManager.Register(sehuatang.NewSeHuaTangCrawler())
 	core.MustRegisterPtr[crawler.Manager](ctx, crawlerManager)
 	// 任务处理引擎
 	core.MustRegisterPtr[crawler.Engine](ctx, crawler.NewCrawlerEngine())

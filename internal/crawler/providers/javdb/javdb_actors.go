@@ -13,12 +13,14 @@ type ActorCrawler struct {
 	Parser
 }
 
-func NewJavDBActorCrawler(ctx context.Context) crawler.Crawler {
-	cfg := core.PtrFromContext[config.Config](ctx)
-	browser := core.PtrFromContext[rod_browser.Browser](ctx)
-	return &ActorCrawler{Parser{
-		downloader: newBypassDownloader(cfg.JavDB, browser),
-	}}
+func NewJavDBActorCrawler() crawler.BuilderFunc {
+	return func(ctx context.Context) crawler.Crawler {
+		cfg := core.PtrFromContext[config.Config](ctx)
+		browser := core.PtrFromContext[rod_browser.Browser](ctx)
+		return &ActorCrawler{Parser{
+			downloader: newBypassDownloader(cfg.JavDB, browser),
+		}}
+	}
 }
 
 func (c *ActorCrawler) Name() string {

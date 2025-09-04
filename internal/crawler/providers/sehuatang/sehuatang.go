@@ -15,11 +15,13 @@ type Crawler struct {
 	Parser
 }
 
-func NewSeHuaTangCrawler(ctx context.Context) crawler.Crawler {
-	browser := core.PtrFromContext[rod_browser.Browser](ctx)
-	return &Crawler{Parser{
-		downloader: newBypassDownloader(browser),
-	}}
+func NewSeHuaTangCrawler() crawler.BuilderFunc {
+	return func(ctx context.Context) crawler.Crawler {
+		browser := core.PtrFromContext[rod_browser.Browser](ctx)
+		return &Crawler{Parser{
+			downloader: newBypassDownloader(browser),
+		}}
+	}
 }
 
 func (c *Crawler) Name() string {

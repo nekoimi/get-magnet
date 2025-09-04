@@ -21,25 +21,27 @@ type Crawler struct {
 	Parser
 }
 
-func NewJavDBCrawler(ctx context.Context) crawler.Crawler {
-	cfg := core.PtrFromContext[config.Config](ctx)
-	browser := core.PtrFromContext[rod_browser.Browser](ctx)
-	c := &Crawler{Parser{
-		downloader: newBypassDownloader(cfg.JavDB, browser),
-	}}
+func NewJavDBCrawler() crawler.BuilderFunc {
+	return func(ctx context.Context) crawler.Crawler {
+		cfg := core.PtrFromContext[config.Config](ctx)
+		browser := core.PtrFromContext[rod_browser.Browser](ctx)
+		c := &Crawler{Parser{
+			downloader: newBypassDownloader(cfg.JavDB, browser),
+		}}
 
-	// 设置任务监听
-	bus.Event().Subscribe(bus.SubmitJavDB.Topic(), func(url string) {
-		log.Debugf("接收到JavDB任务：%s", url)
-		bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
-			url,
-			c.Name(),
-			crawler.WithHandle(c.parseList),
-			crawler.WithDownloader(c.downloader),
-		))
-	})
+		// 设置任务监听
+		bus.Event().Subscribe(bus.SubmitJavDB.Topic(), func(url string) {
+			log.Debugf("接收到JavDB任务：%s", url)
+			bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
+				url,
+				c.Name(),
+				crawler.WithHandle(c.parseList),
+				crawler.WithDownloader(c.downloader),
+			))
+		})
 
-	return c
+		return c
+	}
 }
 
 func (c *Crawler) Name() string {
