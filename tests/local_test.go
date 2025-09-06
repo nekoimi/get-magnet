@@ -1,7 +1,11 @@
 package tests
 
 import (
-	"github.com/nekoimi/get-magnet/internal/bootstrap"
+	"context"
+	"github.com/nekoimi/get-magnet/internal/bean"
+	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"testing"
 )
@@ -27,10 +31,10 @@ func Test_Run(t *testing.T) {
 	os.Setenv("JAVDB_PASSWORD", "222222222222")
 	os.Setenv("DB_DSN", "postgres://devtest:devtest@10.1.1.100:5432/get_magnet_dev?sslmode=disable")
 
-	// 初始化服务
-	lifecycle := bootstrap.BeanLifecycle()
-	// 启动服务
-	lifecycle.StartAndServe()
+	//// 初始化服务
+	//lifecycle := bootstrap.BeanLifecycle()
+	//// 启动服务
+	//lifecycle.StartAndServe()
 
 	//cfg := config.Load()
 	//
@@ -71,17 +75,32 @@ func Test_Run(t *testing.T) {
 	////// StartAll and Waiting
 	////lc.StartAndWait()
 	//
-	//rawUrl := "https://rucaptcha.com/42"
-	//page, closeFunc := browser.NewTabPage()
-	//defer closeFunc(rawUrl)
-	//page.MustNavigate(rawUrl)
-	//// 等待页面加载
-	//log.Debugf("等待页面 %s 加载...", rawUrl)
-	//err := page.WaitLoad()
-	//if err != nil {
-	//	panic(err)
-	//}
-	//log.Debugf("页面 %s 加载完毕...", rawUrl)
-	//
-	//select {}
+
+	ctx := bean.ContextWithDefaultRegistry(context.Background())
+	// 加载配置
+	bean.MustRegisterPtr[config.Config](ctx, config.Load())
+	// RodBrowser
+	browser := rod_browser.NewRodBrowser()
+	bean.MustRegisterPtr[rod_browser.Browser](ctx, browser)
+	browser.Start(ctx)
+
+	rawUrl := "https://rucaptcha.com/42"
+	//rawUrl := "https://mvnrepository.com/"
+	//rawUrl := "https://javdb.com/censored?vft=2&vst=1"
+	page, closeFunc := browser.NewTabPage()
+	defer closeFunc(rawUrl)
+	page.MustNavigate(rawUrl)
+	// 等待页面加载
+	log.Debugf("等待页面 %s 加载...", rawUrl)
+	err := page.WaitLoad()
+	if err != nil {
+		panic(err)
+	}
+
+	// 截图，识别点击框的位置
+	page.MustScreenshot("logs/1.png")
+
+	log.Debugf("页面 %s 加载完毕...", rawUrl)
+
+	select {}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
 	"github.com/go-rod/stealth"
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
@@ -13,6 +14,7 @@ import (
 )
 
 type Browser struct {
+	ctx context.Context
 	// 配置信息
 	cfg *config.BrowserConfig
 	// 浏览器实例
@@ -28,6 +30,7 @@ func (b *Browser) Name() string {
 }
 
 func (b *Browser) Start(ctx context.Context) error {
+	b.ctx = ctx
 	cfg := bean.PtrFromContext[config.Config](ctx)
 	b.cfg = cfg.Browser
 	proxyEnv := httpproxy.FromEnvironment()
@@ -35,7 +38,7 @@ func (b *Browser) Start(ctx context.Context) error {
 		Headless(b.cfg.Headless).
 		Bin(b.cfg.Bin).
 		UserDataDir(b.cfg.DataDir).
-		Set("lang", "zh-CN")
+		Set("lang", "zh_cn")
 
 	if proxyEnv.HTTPProxy != "" {
 		launchBuilder.Proxy(proxyEnv.HTTPProxy)
@@ -50,8 +53,15 @@ func (b *Browser) Start(ctx context.Context) error {
 
 func (b *Browser) NewTabPage() (*rod.Page, func(url string)) {
 	// 页面持续操作时间：5分钟
-	timeoutCtx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
+	timeoutCtx, cancelFunc := context.WithTimeout(b.ctx, 5*time.Minute)
 	page := stealth.MustPage(b.browser).Context(timeoutCtx)
+	page.MustSetUserAgent(&proto.NetworkSetUserAgentOverride{
+		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+			"AppleWebKit/537.36 (KHTML, like Gecko) " +
+			"Chrome/120.0.0.0 Safari/537.36",
+		Platform: "Windows",
+	})
+	page.MustSetExtraHeaders("Accept-Language", "zh-CN,zh;q=0.9")
 	closeFunc := func(url string) {
 		// try close page
 		if err := page.Close(); err != nil {
