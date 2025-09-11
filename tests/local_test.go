@@ -1,13 +1,14 @@
 package tests
 
 import (
-	"context"
-	"github.com/nekoimi/get-magnet/internal/bean"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
-	log "github.com/sirupsen/logrus"
+	"fmt"
+	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
+	"github.com/nekoimi/get-magnet/internal/bootstrap"
 	"os"
 	"testing"
+	"time"
 )
 
 func Test_Run(t *testing.T) {
@@ -31,10 +32,10 @@ func Test_Run(t *testing.T) {
 	os.Setenv("JAVDB_PASSWORD", "222222222222")
 	os.Setenv("DB_DSN", "postgres://devtest:devtest@10.1.1.100:5432/get_magnet_dev?sslmode=disable")
 
-	//// 初始化服务
-	//lifecycle := bootstrap.BeanLifecycle()
-	//// 启动服务
-	//lifecycle.StartAndServe()
+	// 初始化服务
+	lifecycle := bootstrap.BeanLifecycle()
+	// 启动服务
+	lifecycle.StartAndServe()
 
 	//cfg := config.Load()
 	//
@@ -76,31 +77,85 @@ func Test_Run(t *testing.T) {
 	////lc.StartAndWait()
 	//
 
-	ctx := bean.ContextWithDefaultRegistry(context.Background())
-	// 加载配置
-	bean.MustRegisterPtr[config.Config](ctx, config.Load())
-	// RodBrowser
-	browser := rod_browser.NewRodBrowser()
-	bean.MustRegisterPtr[rod_browser.Browser](ctx, browser)
-	browser.Start(ctx)
+	//ctx := bean.ContextWithDefaultRegistry(context.Background())
+	//// 加载配置
+	//bean.MustRegisterPtr[config.Config](ctx, config.Load())
+	//// RodBrowser
+	//browser := rod_browser.NewRodBrowser()
+	//bean.MustRegisterPtr[rod_browser.Browser](ctx, browser)
+	//browser.Start(ctx)
+	//
+	//rawUrl := "https://rucaptcha.com/42"
+	////rawUrl := "https://mvnrepository.com/"
+	////rawUrl := "https://javdb.com/censored?vft=2&vst=1"
+	//page, closeFunc := browser.NewTabPage()
+	//defer closeFunc(rawUrl)
+	//page.MustNavigate(rawUrl)
+	//// 等待页面加载
+	//log.Debugf("等待页面 %s 加载...", rawUrl)
+	//err := page.WaitLoad()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//// 截图，识别点击框的位置
+	//page.MustScreenshot("logs/1.png")
+	//
+	//log.Debugf("页面 %s 加载完毕...", rawUrl)
 
-	rawUrl := "https://rucaptcha.com/42"
-	//rawUrl := "https://mvnrepository.com/"
-	//rawUrl := "https://javdb.com/censored?vft=2&vst=1"
-	page, closeFunc := browser.NewTabPage()
-	defer closeFunc(rawUrl)
-	page.MustNavigate(rawUrl)
-	// 等待页面加载
-	log.Debugf("等待页面 %s 加载...", rawUrl)
-	err := page.WaitLoad()
+	select {}
+}
+
+func Test_Click(t *testing.T) {
+	u := launcher.New().
+		Headless(false).
+		NoSandbox(true).
+		Proxy("http://127.0.0.1:12080").
+		Set("disable-web-security").
+		Set("disable-site-isolation-trials").
+		RemoteDebuggingPort(9222).
+		Set("no-first-run").
+		Set("no-default-browser-check").
+		Set("enable-privacy-sandbox-ads-apis", "false").
+		Leakless(true).
+		MustLaunch()
+
+	page := rod.New().ControlURL(u).MustConnect().NoDefaultDevice().MustPage("https://dash.cloudflare.com/sign-up")
+	el, err := page.Timeout(30 * time.Second).Element(`div.cf-turnstile-wrapper`)
 	if err != nil {
 		panic(err)
 	}
 
-	// 截图，识别点击框的位置
-	page.MustScreenshot("logs/1.png")
+	<-time.After(time.Second * 10)
 
-	log.Debugf("页面 %s 加载完毕...", rawUrl)
+	res, err := el.Eval(`() => {
+const rect = this.getBoundingClientRect();
+    return { x: rect.left, y: rect.top };
+}`)
+	if err != nil {
+		panic(err)
+	}
 
-	select {}
+	x, y := res.Value.Get("x").Num(), res.Value.Get("y").Num()
+
+	fmt.Println(x, y)
+
+	page.Mouse.MoveLinear(proto.NewPoint(x+27, y+29), 20)
+
+	// 使用JavaScript在鼠标位置添加一个视觉标记
+	page.Eval(`(x, y) => {
+        const marker = document.createElement('div');
+        marker.style.position = 'fixed';  // 使用fixed定位确保可见
+        marker.style.left = x + 'px';
+        marker.style.top = y + 'px';
+        marker.style.width = '10px';
+        marker.style.height = '10px';
+        marker.style.backgroundColor = 'red';
+        marker.style.borderRadius = '50%';
+        marker.style.zIndex = 9999;  // 确保在最上层
+        document.body.appendChild(marker);
+    }`, x+27, y+29)
+
+	page.Mouse.MustClick(proto.InputMouseButtonLeft)
+	fmt.Println("click.")
 }

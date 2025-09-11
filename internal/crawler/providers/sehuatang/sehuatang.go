@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
+	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 )
@@ -17,9 +18,10 @@ type Crawler struct {
 
 func NewSeHuaTangCrawler() crawler.BuilderFunc {
 	return func(ctx context.Context) crawler.Crawler {
+		cfg := bean.PtrFromContext[config.Config](ctx)
 		browser := bean.PtrFromContext[rod_browser.Browser](ctx)
 		return &Crawler{Parser{
-			downloader: newBypassDownloader(browser),
+			downloader: newBypassDownloader(browser, cfg.CloudflarePassApi),
 		}}
 	}
 }

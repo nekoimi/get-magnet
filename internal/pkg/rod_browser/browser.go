@@ -38,7 +38,14 @@ func (b *Browser) Start(ctx context.Context) error {
 		Headless(b.cfg.Headless).
 		Bin(b.cfg.Bin).
 		UserDataDir(b.cfg.DataDir).
-		Set("lang", "zh_cn")
+		NoSandbox(true).
+		Set("lang", "zh_cn").
+		Set("window-size", "1920,1080").
+		Set("disable-setuid-sandbox").
+		Set("disable-dev-shm-usage").
+		Set("no-first-run").
+		Set("disable-blink-features", "AutomationControlled").
+		Set("excludeSwitches", "enable-automation")
 
 	if proxyEnv.HTTPProxy != "" {
 		launchBuilder.Proxy(proxyEnv.HTTPProxy)

@@ -26,11 +26,11 @@ type ClickBypassDownloader struct {
 	handleClickFunc func(page *rod.Page) error
 }
 
-func NewClickBypassDownloader(browser *rod_browser.Browser, shouldClickFunc func(root *goquery.Selection) bool, handleClickFunc func(page *rod.Page) error) Downloader {
+func NewClickBypassDownloader(browser *rod_browser.Browser, cloudflarePassApi string, shouldClickFunc func(root *goquery.Selection) bool, handleClickFunc func(page *rod.Page) error) Downloader {
 	return &ClickBypassDownloader{
 		clickMux:        sync.Mutex{},
 		browser:         browser,
-		downloader:      NewRodBrowserDownloader(browser),
+		downloader:      NewRodBrowserDownloader(browser, cloudflarePassApi),
 		shouldClickFunc: shouldClickFunc,
 		handleClickFunc: handleClickFunc,
 	}
