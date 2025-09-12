@@ -28,8 +28,6 @@ type Config struct {
 	JavDB *JavDBConfig `json:"javdb,omitempty" mapstructure:"javdb"`
 	// 数据库配置
 	DB *DBConfig `json:"db,omitempty" mapstructure:"db"`
-	// cloudflare pass
-	CloudflarePassApi string `json:"cloudflare_pass_api,omitempty" mapstructure:"cloudflare_pass_api"`
 }
 
 type BrowserConfig struct {
@@ -102,7 +100,6 @@ func Load() *Config {
 	v.BindEnv("javdb.username")
 	v.BindEnv("javdb.password")
 	v.BindEnv("db.dsn")
-	v.BindEnv("cloudflare_pass_api")
 
 	// 从环境变量自动映射配置
 	v.AutomaticEnv()

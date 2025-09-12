@@ -8,10 +8,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func newBypassDownloader(browser *rod_browser.Browser, cloudflarePassApi string) download.Downloader {
+func newBypassDownloader(browser *rod_browser.Browser) download.Downloader {
 	return download.NewClickBypassDownloader(
 		browser,
-		cloudflarePassApi,
 		func(root *goquery.Selection) bool {
 			return root.Find("#hd").Size() == 0
 		},

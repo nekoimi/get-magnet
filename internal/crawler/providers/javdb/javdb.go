@@ -26,7 +26,7 @@ func NewJavDBCrawler() crawler.BuilderFunc {
 		cfg := bean.PtrFromContext[config.Config](ctx)
 		browser := bean.PtrFromContext[rod_browser.Browser](ctx)
 		c := &Crawler{Parser{
-			downloader: newBypassDownloader(cfg.JavDB, browser, cfg.CloudflarePassApi),
+			downloader: newBypassDownloader(cfg.JavDB, browser),
 		}}
 
 		// 设置任务监听

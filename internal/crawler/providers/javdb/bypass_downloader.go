@@ -12,10 +12,9 @@ import (
 	"time"
 )
 
-func newBypassDownloader(cfg *config.JavDBConfig, browser *rod_browser.Browser, cloudflarePassApi string) download.Downloader {
+func newBypassDownloader(cfg *config.JavDBConfig, browser *rod_browser.Browser) download.Downloader {
 	clickBypassDownloader := download.NewClickBypassDownloader(
 		browser,
-		cloudflarePassApi,
 		func(root *goquery.Selection) bool {
 			return root.Find("body > div.modal.is-active.over18-modal").Size() > 0
 		},
