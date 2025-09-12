@@ -1,19 +1,23 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
-	"github.com/nekoimi/get-magnet/internal/bootstrap"
+	"github.com/nekoimi/get-magnet/internal/bean"
+	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/crawler/download"
+	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 	"os"
 	"testing"
 	"time"
 )
 
 func Test_Run(t *testing.T) {
-	os.Setenv("HTTP_PROXY", "socks5://127.0.0.1:12080")
-	os.Setenv("HTTPS_PROXY", "socks5://127.0.0.1:12080")
+	//os.Setenv("HTTP_PROXY", "socks5://127.0.0.1:12080")
+	//os.Setenv("HTTPS_PROXY", "socks5://127.0.0.1:12080")
 
 	os.Setenv("PORT", "11234")
 	os.Setenv("LOG_LEVEL", "info")
@@ -32,10 +36,10 @@ func Test_Run(t *testing.T) {
 	os.Setenv("JAVDB_PASSWORD", "222222222222")
 	os.Setenv("DB_DSN", "postgres://devtest:devtest@10.1.1.100:5432/get_magnet_dev?sslmode=disable")
 
-	// 初始化服务
-	lifecycle := bootstrap.BeanLifecycle()
-	// 启动服务
-	lifecycle.StartAndServe()
+	//// 初始化服务
+	//lifecycle := bootstrap.BeanLifecycle()
+	//// 启动服务
+	//lifecycle.StartAndServe()
 
 	//cfg := config.Load()
 	//
@@ -77,17 +81,24 @@ func Test_Run(t *testing.T) {
 	////lc.StartAndWait()
 	//
 
-	//ctx := bean.ContextWithDefaultRegistry(context.Background())
-	//// 加载配置
-	//bean.MustRegisterPtr[config.Config](ctx, config.Load())
-	//// RodBrowser
-	//browser := rod_browser.NewRodBrowser()
-	//bean.MustRegisterPtr[rod_browser.Browser](ctx, browser)
-	//browser.Start(ctx)
-	//
+	ctx := bean.ContextWithDefaultRegistry(context.Background())
+	// 加载配置
+	bean.MustRegisterPtr[config.Config](ctx, config.Load())
+	// RodBrowser
+	browser := rod_browser.NewRodBrowser()
+	bean.MustRegisterPtr[rod_browser.Browser](ctx, browser)
+	browser.Start(ctx)
+
 	//rawUrl := "https://rucaptcha.com/42"
-	////rawUrl := "https://mvnrepository.com/"
-	////rawUrl := "https://javdb.com/censored?vft=2&vst=1"
+	rawUrl := "https://mvnrepository.com/"
+	//rawUrl := "https://javdb.com/censored?vft=2&vst=1"
+
+	downloader := download.NewRodBrowserDownloader(browser, "http://10.1.1.100:8191/v1")
+	_, err := downloader.Download(rawUrl)
+	if err != nil {
+		panic(err)
+	}
+
 	//page, closeFunc := browser.NewTabPage()
 	//defer closeFunc(rawUrl)
 	//page.MustNavigate(rawUrl)

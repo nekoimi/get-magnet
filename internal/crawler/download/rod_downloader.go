@@ -87,6 +87,8 @@ func (s *RodBrowserDownloader) Download(rawUrl string) (selection *goquery.Selec
 		return nil, err
 	}
 
+	log.Debugf("rod页面 %s 加载: %s", rawUrl, html)
+
 	// 检查 challenges.cloudflare.com
 	if strings.Contains(html, "challenges.cloudflare.com") || strings.Contains(html, "Security Verification") {
 		log.Debugf("处理cloudflare rawUrl: %s", rawUrl)
