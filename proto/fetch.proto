@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package grpc;
+
+option go_package="internal/drission_rod/grpc;grpc";
+
+message FetchRequest {
+  string url = 1;
+  int32 timeout = 2;
+}
+
+message FetchResponse {
+  bool success = 1;
+  string html = 2;
+  string error = 3;
+}
+
+service PageFetchService {
+  rpc Fetch(FetchRequest) returns (FetchResponse);
+  rpc FetchJavDB(FetchRequest) returns (FetchResponse);
+  rpc FetchSehuatang(FetchRequest) returns (FetchResponse);
+}

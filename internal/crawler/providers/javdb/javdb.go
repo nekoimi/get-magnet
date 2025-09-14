@@ -4,18 +4,10 @@ import (
 	"context"
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
-	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
+	"github.com/nekoimi/get-magnet/internal/drission_rod"
 	log "github.com/sirupsen/logrus"
 )
-
-type Config struct {
-	// 账号
-	Username string `json:"username,omitempty" mapstructure:"username"`
-	// 密码
-	Password string `json:"password,omitempty" mapstructure:"password"`
-}
 
 type Crawler struct {
 	Parser
@@ -23,10 +15,9 @@ type Crawler struct {
 
 func NewJavDBCrawler() crawler.BuilderFunc {
 	return func(ctx context.Context) crawler.Crawler {
-		cfg := bean.PtrFromContext[config.Config](ctx)
-		browser := bean.PtrFromContext[rod_browser.Browser](ctx)
+		rod := bean.PtrFromContext[drission_rod.DrissionRod](ctx)
 		c := &Crawler{Parser{
-			downloader: newBypassDownloader(cfg.JavDB, browser),
+			downloader: newDrissionRodDownloader(ctx, rod),
 		}}
 
 		// 设置任务监听

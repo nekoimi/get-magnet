@@ -5,7 +5,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
+	"github.com/nekoimi/get-magnet/internal/drission_rod"
 )
 
 const Name = "SeHuaTang"
@@ -17,9 +17,9 @@ type Crawler struct {
 
 func NewSeHuaTangCrawler() crawler.BuilderFunc {
 	return func(ctx context.Context) crawler.Crawler {
-		browser := bean.PtrFromContext[rod_browser.Browser](ctx)
+		rod := bean.PtrFromContext[drission_rod.DrissionRod](ctx)
 		return &Crawler{Parser{
-			downloader: newBypassDownloader(browser),
+			downloader: newDrissionRodDownloader(ctx, rod),
 		}}
 	}
 }

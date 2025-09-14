@@ -7,8 +7,6 @@ import (
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/downloader"
-	"github.com/nekoimi/get-magnet/internal/ocr"
-	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
@@ -31,8 +29,6 @@ type Engine struct {
 	workers []*Worker
 	// 任务队列
 	taskDispatcher TaskDispatcher
-	// ocr服务
-	ocrServer *ocr.Server
 	// 下载器
 	downloadService downloader.DownloadService
 	// crawler管理器
@@ -57,13 +53,9 @@ func (e *Engine) Start(parent context.Context) error {
 	e.cfg = cfg.Crawler
 	e.downloadService = bean.FromContext[downloader.DownloadService](parent)
 	e.crawlerManager = bean.PtrFromContext[Manager](parent)
-	e.ocrServer = ocr.NewOcrServer(cfg.Crawler.OcrBin)
 
 	var subCtx context.Context
 	subCtx, e.cancel = context.WithCancel(parent)
-
-	// 启动OCR服务
-	apptools.AutoRestart(subCtx, "OCR服务", e.ocrServer.Run, 10*time.Second)
 
 	e.workerLock.Lock()
 	defer e.workerLock.Unlock()

@@ -32,7 +32,7 @@ func (s *Server) Start(ctx context.Context) error {
 	router := newRouter()
 
 	s.http = &http.Server{
-		Addr:    fmt.Sprintf(":%d", s.cfg.Port),
+		Addr:    fmt.Sprintf("0.0.0.0:%d", s.cfg.Port),
 		Handler: router,
 	}
 
