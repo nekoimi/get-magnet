@@ -5,6 +5,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
 	"github.com/nekoimi/get-magnet/internal/crawler/providers/sehuatang"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/downloader"
@@ -28,8 +29,8 @@ func BeanLifecycle() *bean.LifecycleManager {
 	bean.MustRegister[downloader.DownloadService](ctx, aria2_downloader.NewAria2DownloadService())
 	// 任务管理器
 	crawlerManager := crawler.NewCrawlerManager(ctx)
-	//crawlerManager.Register(javdb.NewJavDBCrawler())
-	//crawlerManager.Register(javdb.NewJavDBActorCrawler())
+	crawlerManager.Register(javdb.NewJavDBCrawler())
+	crawlerManager.Register(javdb.NewJavDBActorCrawler())
 	crawlerManager.Register(sehuatang.NewSeHuaTangCrawler())
 	bean.MustRegisterPtr[crawler.Manager](ctx, crawlerManager)
 	// 任务处理引擎
