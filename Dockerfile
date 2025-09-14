@@ -16,6 +16,9 @@ COPY --from=builder /build/get-magnet   /usr/bin/get-magnet
 
 ENV LOG_PATH=/workspace/logs
 
+RUN apk add --no-cache tzdata \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
 WORKDIR /workspace
 
 VOLUME /workspace/logs
