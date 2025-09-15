@@ -40,11 +40,11 @@ func (c *Crawler) Run() {
 		crawler.WithDownloader(c.downloader),
 	))
 
-	// FC2PPV
-	bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
-		"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=36&filter=typeid&typeid=368",
-		FC2PPV,
-		crawler.WithHandle(c.parseList),
-		crawler.WithDownloader(c.downloader),
-	))
+	//// FC2PPV
+	//bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
+	//	"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=36&filter=typeid&typeid=368",
+	//	FC2PPV,
+	//	crawler.WithHandle(c.parseList),
+	//	crawler.WithDownloader(c.downloader),
+	//))
 }
