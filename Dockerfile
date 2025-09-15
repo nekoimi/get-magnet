@@ -21,7 +21,15 @@ RUN apk add --no-cache tzdata \
 
 WORKDIR /workspace
 
+# 添加用户
+RUN groupadd -g 1000 appuser && \
+    useradd -u 1000 -g 1000 -ms /bin/bash appuser && \
+    chown -R appuser:appuser /workspace
+
 VOLUME /workspace/logs
+
+# Run as non-privileged
+USER appuser
 
 EXPOSE 8093
 
