@@ -1,13 +1,7 @@
 package config
 
 import (
-	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader"
 	"github.com/nekoimi/get-magnet/internal/logger"
-	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
-	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -23,16 +17,43 @@ type Config struct {
 	LogDir string `json:"log_dir,omitempty" mapstructure:"log_dir"`
 	// Jwt secret
 	JwtSecret string `json:"jwt_secret,omitempty" mapstructure:"jwt_secret"`
-	// 无头浏览器配置
-	Browser *rod_browser.Config `json:"browser,omitempty" mapstructure:"browser"`
 	// arai2下载配置
-	Aria2 *aria2_downloader.Config `json:"aria2,omitempty" mapstructure:"aria2"`
+	Aria2 *Aria2Config `json:"aria2,omitempty" mapstructure:"aria2"`
 	// 采集配置
-	Crawler *crawler.Config `json:"crawler,omitempty" mapstructure:"crawler"`
-	// JavDB 配置
-	JavDB *javdb.Config `json:"javdb,omitempty" mapstructure:"javdb"`
+	Crawler *CrawlerConfig `json:"crawler,omitempty" mapstructure:"crawler"`
 	// 数据库配置
-	DB *db.Config `json:"db,omitempty" mapstructure:"db"`
+	DB *DBConfig `json:"db,omitempty" mapstructure:"db"`
+}
+
+type Aria2Config struct {
+	// jsonRpc
+	JsonRpc string `json:"jsonrpc,omitempty" mapstructure:"jsonrpc"`
+	// 验证token
+	Secret string `json:"secret,omitempty" mapstructure:"secret"`
+	// 移动文件夹
+	MoveTo Aria2MoveToConfig `json:"move_to" mapstructure:"move_to"`
+}
+
+type Aria2MoveToConfig struct {
+	// javdb 移动目录
+	JavDBDir string `json:"javdb_dir,omitempty" mapstructure:"javdb_dir"`
+}
+
+type CrawlerConfig struct {
+	// 启动立即执行
+	ExecOnStartup bool `json:"exec_on_startup,omitempty" mapstructure:"exec_on_startup"`
+	// worker数量
+	WorkerNum int `json:"worker_num,omitempty" mapstructure:"worker_num"`
+
+	// DrissionRod 设置
+	DrissionRodGrpcIp   string `json:"drission_rod_grpc_ip,omitempty" mapstructure:"drission_rod_grpc_ip"`
+	DrissionRodGrpcPort int    `json:"drission_rod_grpc_port,omitempty" mapstructure:"drission_rod_grpc_port"`
+}
+
+// DBConfig 数据库相关配置
+type DBConfig struct {
+	// 数据库连接配置
+	Dsn string `json:"dsn,omitempty" mapstructure:"dsn"`
 }
 
 func Load() *Config {
@@ -41,24 +62,16 @@ func Load() *Config {
 	v.SetDefault("log_level", "debug")
 	v.SetDefault("log_dir", "logs")
 	v.SetDefault("jwt_secret", "abc123456")
-	v.SetDefault("browser.bin", apptools.Getenv("ROD_BROWSER_PATH", ""))
-	v.SetDefault("browser.headless", true)
-	v.SetDefault("browser.data_dir", apptools.Getenv("ROD_DATA_DIR", ""))
 	v.SetDefault("crawler.exec_on_startup", false)
 	v.SetDefault("crawler.worker_num", 4)
-	v.SetDefault("crawler.ocr_bin", apptools.Getenv("OCR_BIN_PATH", ""))
 
-	v.BindEnv("browser.bin")
-	v.BindEnv("browser.headless")
-	v.BindEnv("browser.data_dir")
 	v.BindEnv("aria2.jsonrpc")
 	v.BindEnv("aria2.secret")
 	v.BindEnv("aria2.move_to.javdb_dir")
 	v.BindEnv("crawler.exec_on_startup")
 	v.BindEnv("crawler.worker_num")
-	v.BindEnv("crawler.ocr_bin")
-	v.BindEnv("javdb.username")
-	v.BindEnv("javdb.password")
+	v.BindEnv("crawler.drission_rod_grpc_ip")
+	v.BindEnv("crawler.drission_rod_grpc_port")
 	v.BindEnv("db.dsn")
 
 	// 从环境变量自动映射配置

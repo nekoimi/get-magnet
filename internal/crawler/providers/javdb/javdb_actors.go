@@ -1,19 +1,24 @@
 package javdb
 
 import (
+	"context"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/pkg/rod_browser"
+	"github.com/nekoimi/get-magnet/internal/drission_rod"
 )
 
 type ActorCrawler struct {
 	Parser
 }
 
-func NewJavDBActorCrawler(cfg *Config, browser *rod_browser.Browser) crawler.Crawler {
-	return &ActorCrawler{Parser{
-		downloader: newBypassDownloader(cfg, browser),
-	}}
+func NewJavDBActorCrawler() crawler.BuilderFunc {
+	return func(ctx context.Context) crawler.Crawler {
+		rod := bean.PtrFromContext[drission_rod.DrissionRod](ctx)
+		return &ActorCrawler{Parser{
+			downloader: newDrissionRodDownloader(ctx, rod),
+		}}
+	}
 }
 
 func (c *ActorCrawler) Name() string {

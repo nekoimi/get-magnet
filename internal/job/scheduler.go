@@ -2,13 +2,13 @@ package job
 
 import (
 	"context"
-	"github.com/nekoimi/get-magnet/internal/core"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 )
 
 type CronScheduler interface {
-	core.Lifecycle
+	bean.Lifecycle
 	// Register 注册定时任务
 	Register(spec string, job *CronJob)
 }

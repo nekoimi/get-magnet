@@ -2,6 +2,8 @@ package aria2_downloader
 
 import (
 	"context"
+	"github.com/nekoimi/get-magnet/internal/bean"
+	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/downloader"
 	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader/tracker"
 	"github.com/nekoimi/get-magnet/internal/job"
@@ -13,7 +15,7 @@ import (
 
 type Aria2Downloader struct {
 	// 配置信息
-	cfg *Config
+	cfg *config.Aria2Config
 	// aria2 客户端
 	client *Client
 	// 下载完成回调
@@ -22,14 +24,14 @@ type Aria2Downloader struct {
 	onError []downloader.DownloadCallback
 	// 定时任务调度
 	cronScheduler job.CronScheduler
+	// cancel
+	cancel context.CancelFunc
 }
 
-func NewAria2DownloadService(cfg *Config, cronScheduler job.CronScheduler) downloader.DownloadService {
+func NewAria2DownloadService() downloader.DownloadService {
 	return &Aria2Downloader{
-		cfg:           cfg,
-		onComplete:    make([]downloader.DownloadCallback, 0),
-		onError:       make([]downloader.DownloadCallback, 0),
-		cronScheduler: cronScheduler,
+		onComplete: make([]downloader.DownloadCallback, 0),
+		onError:    make([]downloader.DownloadCallback, 0),
 	}
 }
 
@@ -38,8 +40,13 @@ func (d *Aria2Downloader) Name() string {
 }
 
 func (d *Aria2Downloader) Start(parent context.Context) error {
-	ctx, cancel := context.WithCancel(parent)
-	d.client = newAria2Client(ctx, d.cfg)
+	cfg := bean.PtrFromContext[config.Config](parent)
+	d.cfg = cfg.Aria2
+	d.cronScheduler = bean.FromContext[job.CronScheduler](parent)
+
+	var subCtx context.Context
+	subCtx, d.cancel = context.WithCancel(parent)
+	d.client = newAria2Client(subCtx, d.cfg)
 
 	// 注册定时更新tracker服务器任务
 	d.cronScheduler.Register("10 00 * * *", &job.CronJob{
@@ -51,12 +58,11 @@ func (d *Aria2Downloader) Start(parent context.Context) error {
 	})
 
 	// 启动aria2连接
-	apptools.AutoRestart(ctx, "aria2客户端", d.client.initialize, 10*time.Second)
+	apptools.AutoRestart(subCtx, "aria2客户端", d.client.initialize, 10*time.Second)
 
 	for {
 		select {
-		case <-ctx.Done():
-			cancel()
+		case <-subCtx.Done():
 			return d.client.Close()
 		case e := <-d.client.eventCh:
 			log.Debugf("接收到aria2事件: %s", e.Type)
@@ -106,6 +112,7 @@ func (d *Aria2Downloader) Start(parent context.Context) error {
 }
 
 func (d *Aria2Downloader) Stop(ctx context.Context) error {
+	d.cancel()
 	return d.client.Close()
 }
 

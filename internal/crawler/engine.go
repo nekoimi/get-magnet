@@ -2,11 +2,11 @@ package crawler
 
 import (
 	"context"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
+	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/downloader"
-	"github.com/nekoimi/get-magnet/internal/ocr"
-	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
@@ -22,47 +22,46 @@ const (
 
 type Engine struct {
 	// 配置文件
-	cfg *Config
+	cfg *config.CrawlerConfig
 	// worker操作锁
 	workerLock *sync.RWMutex
 	// worker池
 	workers []*Worker
 	// 任务队列
 	taskDispatcher TaskDispatcher
-	// ocr服务
-	ocrServer *ocr.Server
 	// 下载器
 	downloadService downloader.DownloadService
 	// crawler管理器
 	crawlerManager *Manager
+	// cancel
+	cancel context.CancelFunc
 }
 
-func NewCrawlerEngine(cfg *Config, downloadService downloader.DownloadService, crawlerManager *Manager) *Engine {
-	ocrServer := ocr.NewOcrServer(cfg.OcrBin)
-
+func NewCrawlerEngine() *Engine {
 	return &Engine{
-		cfg:             cfg,
-		workerLock:      &sync.RWMutex{},
-		workers:         make([]*Worker, 0),
-		taskDispatcher:  NewCrawlerTaskQueue(512),
-		ocrServer:       ocrServer,
-		downloadService: downloadService,
-		crawlerManager:  crawlerManager,
+		workerLock:     &sync.RWMutex{},
+		workers:        make([]*Worker, 0),
+		taskDispatcher: NewCrawlerTaskQueue(512),
 	}
 }
 func (e *Engine) Name() string {
 	return "CrawlerEngine"
 }
 
-func (e *Engine) Start(ctx context.Context) error {
-	// 启动OCR服务
-	apptools.AutoRestart(ctx, "OCR服务", e.ocrServer.Run, 10*time.Second)
+func (e *Engine) Start(parent context.Context) error {
+	cfg := bean.PtrFromContext[config.Config](parent)
+	e.cfg = cfg.Crawler
+	e.downloadService = bean.FromContext[downloader.DownloadService](parent)
+	e.crawlerManager = bean.PtrFromContext[Manager](parent)
+
+	var subCtx context.Context
+	subCtx, e.cancel = context.WithCancel(parent)
 
 	e.workerLock.Lock()
 	defer e.workerLock.Unlock()
 
 	for i := 0; i < mathutil.Max(1, e.cfg.WorkerNum); i++ {
-		w := NewWorker(ctx, i, e.taskDispatcher, e)
+		w := NewWorker(subCtx, i, e.taskDispatcher, e)
 
 		e.workers = append(e.workers, w)
 
@@ -141,6 +140,7 @@ func (e *Engine) Stop(ctx context.Context) error {
 			wait.Done()
 		}(w)
 	}
+	e.cancel()
 	wait.Wait()
 	log.Infoln("stop engine...")
 	return nil

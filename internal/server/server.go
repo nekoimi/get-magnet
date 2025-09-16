@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	log "github.com/sirupsen/logrus"
@@ -16,8 +17,8 @@ type Server struct {
 	http *http.Server
 }
 
-func NewHttpServer(cfg *config.Config) *Server {
-	return &Server{cfg: cfg}
+func NewHttpServer() *Server {
+	return &Server{}
 }
 
 func (s *Server) Name() string {
@@ -25,12 +26,13 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	s.cfg = bean.PtrFromContext[config.Config](ctx)
 	jwt.SetSecret(s.cfg.JwtSecret)
 
 	router := newRouter()
 
 	s.http = &http.Server{
-		Addr:    fmt.Sprintf(":%d", s.cfg.Port),
+		Addr:    fmt.Sprintf("0.0.0.0:%d", s.cfg.Port),
 		Handler: router,
 	}
 
