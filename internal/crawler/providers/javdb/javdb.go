@@ -2,10 +2,9 @@ package javdb
 
 import (
 	"context"
-	"github.com/nekoimi/get-magnet/internal/bean"
+
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/drission_rod"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -15,9 +14,8 @@ type Crawler struct {
 
 func NewJavDBCrawler() crawler.BuilderFunc {
 	return func(ctx context.Context) crawler.Crawler {
-		rod := bean.PtrFromContext[drission_rod.DrissionRod](ctx)
 		c := &Crawler{Parser{
-			downloader: newDrissionRodDownloader(ctx, rod),
+			downloader: newDrissionRodDownloader(ctx),
 		}}
 
 		// 设置任务监听
