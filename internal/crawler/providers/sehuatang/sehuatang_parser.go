@@ -20,7 +20,7 @@ var (
 	// 编号正则
 	fc2NumberRe = regexp.MustCompile(`(FC2PPV-\d{5,10})`)
 	// 过滤关键字
-	filterKeywords = []string{"探花", "约炮", "约了", "外围", "兼职"}
+	filterKeywords = []string{"探花", "约炮", "约了", "外围", "兼职", "寻花"}
 )
 
 type Parser struct {
