@@ -2,15 +2,16 @@ package sehuatang
 
 import (
 	"fmt"
+	"net/url"
+	"regexp"
+	"strings"
+
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	log "github.com/sirupsen/logrus"
-	"net/url"
-	"regexp"
-	"strings"
 )
 
 const Fc2TypeId = "368"
@@ -18,6 +19,8 @@ const Fc2TypeId = "368"
 var (
 	// 编号正则
 	fc2NumberRe = regexp.MustCompile(`(FC2PPV-\d{5,10})`)
+	// 过滤关键字
+	filterKeywords = []string{"探花", "约炮", "约了", "外围", "兼职"}
 )
 
 type Parser struct {
@@ -42,6 +45,13 @@ func (p *Parser) parseList(t crawler.CrawlerTask) (tasks []crawler.CrawlerTask, 
 		var detailsHrefs []string
 		tableSelect.Find("[id^='normalthread_']").Each(func(i int, s *goquery.Selection) {
 			aLink := s.Find("tr > th > a.s.xst").First()
+			// 过滤
+			aText := aLink.Text()
+			for _, keyword := range filterKeywords {
+				if strings.Contains(aText, keyword) {
+					return
+				}
+			}
 			href, _ := aLink.Attr("href")
 			detailsHrefs = append(detailsHrefs, href)
 		})
