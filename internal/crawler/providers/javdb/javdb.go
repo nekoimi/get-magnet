@@ -30,6 +30,17 @@ func NewJavDBCrawler() crawler.BuilderFunc {
 			))
 		})
 
+		// 设置任务监听
+		bus.Event().Subscribe(bus.SubmitJavDBPage.Topic(), func(url string) {
+			log.Debugf("接收到JavDB-Page任务：%s", url)
+			bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
+				url,
+				c.Name(),
+				crawler.WithHandle(c.parsePage),
+				crawler.WithDownloader(c.downloader),
+			))
+		})
+
 		return c
 	}
 }

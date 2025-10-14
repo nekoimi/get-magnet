@@ -40,6 +40,7 @@ func newRouter() *mux.Router {
 
 	// 扩展接口
 	r.HandleFunc("/quick-api/download/submit/javdb", api.SubmitJavDB)
+	r.HandleFunc("/quick-api/download/submit/javdb_page", api.SubmitJavDBPage)
 	//r.HandleFunc("/quick-api/download/submit/fc2", api.SubmitFC2)
 
 	// 静态资源
