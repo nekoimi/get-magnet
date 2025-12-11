@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
