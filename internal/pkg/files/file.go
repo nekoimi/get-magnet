@@ -3,14 +3,15 @@ package files
 import (
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"unicode/utf8"
+
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 // MaxFileNameLength 最大文件名长度 255 字节
@@ -194,7 +195,10 @@ func MoveOnce(srcPath, dstPath string) error {
 	}
 
 	// 尝试直接 rename（同设备最快）
-	if err = os.Rename(srcPath, dstPath); err != nil {
+	if err = os.Rename(srcPath, dstPath); err == nil {
+		// 重命名移动成功
+		return nil
+	} else {
 		// 移动失败，记录日志，尝试复制文件
 		log.Warnf("[移动文件] 移动文件异常，将尝试复制模式: %s -> %s，异常：%s", srcPath, dstPath, err.Error())
 	}

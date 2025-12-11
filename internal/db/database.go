@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"sync"
+
 	_ "github.com/lib/pq"
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
@@ -9,7 +11,6 @@ import (
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	log "github.com/sirupsen/logrus"
-	"sync"
 	"xorm.io/xorm"
 )
 

@@ -3,12 +3,13 @@ package server
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"time"
 )
 
 type Server struct {

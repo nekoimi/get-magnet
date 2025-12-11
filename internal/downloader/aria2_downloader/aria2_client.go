@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"runtime/debug"
+	"sync"
+	"time"
+
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader/speed"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
-	"path/filepath"
-	"runtime/debug"
-	"sync"
-	"time"
 )
 
 const (

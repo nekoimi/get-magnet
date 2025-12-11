@@ -1,11 +1,12 @@
 package config
 
 import (
+	"strings"
+
 	"github.com/nekoimi/get-magnet/internal/logger"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"strings"
 )
 
 type Config struct {

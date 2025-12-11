@@ -1,12 +1,13 @@
 package aria2_downloader
 
 import (
+	"path/filepath"
+	"strings"
+
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
 	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
-	"path/filepath"
-	"strings"
 )
 
 func handleDownloadCompleteDelFile(status arigo.Status) {

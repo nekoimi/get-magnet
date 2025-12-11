@@ -6,6 +6,7 @@ const (
 	Download Type = iota
 	SubmitTask
 	SubmitJavDB
+	SubmitJavDBPage
 	Aria2Test
 	Aria2LinkUp
 	Aria2LinkDown
@@ -24,6 +25,7 @@ func init() {
 	// 提交任务
 	eventMap[SubmitTask] = "event.submit.task"
 	eventMap[SubmitJavDB] = "event.submit.javdb"
+	eventMap[SubmitJavDBPage] = "event.submit.javdb.page"
 	// arta2测试
 	eventMap[Aria2Test] = "event.aria2.test"
 	// aria2上线

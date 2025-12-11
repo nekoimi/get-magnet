@@ -1,11 +1,12 @@
 package aria2_downloader
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/nekoimi/get-magnet/internal/pkg/files"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
-	"strconv"
-	"strings"
 )
 
 // MinVideoSize 文件最小大小：100M
