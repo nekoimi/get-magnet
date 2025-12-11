@@ -3,13 +3,14 @@ package bean
 import (
 	"context"
 	"fmt"
-	"github.com/nekoimi/get-magnet/internal/config"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/nekoimi/get-magnet/internal/config"
+	log "github.com/sirupsen/logrus"
 )
 
 // LifecycleManager 负责统一管理模块的启动与关闭

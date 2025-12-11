@@ -1,10 +1,11 @@
 package speed
 
 import (
+	"time"
+
 	"github.com/patrickmn/go-cache"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 const (

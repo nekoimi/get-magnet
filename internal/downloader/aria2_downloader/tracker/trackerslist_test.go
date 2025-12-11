@@ -1,10 +1,11 @@
 package tracker
 
 import (
-	"github.com/siku2/arigo"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/siku2/arigo"
 )
 
 func TestAria2_DownloadLatestTrackers(t *testing.T) {

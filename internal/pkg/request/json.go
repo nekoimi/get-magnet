@@ -2,15 +2,16 @@ package request
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 const ContextJwtUser = "request.context.jwtUser"

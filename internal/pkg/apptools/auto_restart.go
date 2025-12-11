@@ -2,9 +2,10 @@ package apptools
 
 import (
 	"context"
-	log "github.com/sirupsen/logrus"
 	"runtime/debug"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func AutoRestart(ctx context.Context, name string, runFunc func(), delay time.Duration) {

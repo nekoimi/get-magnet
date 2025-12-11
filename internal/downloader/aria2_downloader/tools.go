@@ -1,8 +1,9 @@
 package aria2_downloader
 
 import (
-	"github.com/siku2/arigo"
 	"path/filepath"
+
+	"github.com/siku2/arigo"
 )
 
 func friendly(status arigo.Status) string {

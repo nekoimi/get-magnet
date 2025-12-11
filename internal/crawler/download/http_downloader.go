@@ -3,14 +3,15 @@ package download
 import (
 	"errors"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
-	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
+	log "github.com/sirupsen/logrus"
 )
 
 const RetryLimit = 5

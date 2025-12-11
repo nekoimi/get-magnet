@@ -1,9 +1,10 @@
 package tests
 
 import (
-	"github.com/nekoimi/get-magnet/internal/bootstrap"
 	"os"
 	"testing"
+
+	"github.com/nekoimi/get-magnet/internal/bootstrap"
 )
 
 func Test_Run(t *testing.T) {

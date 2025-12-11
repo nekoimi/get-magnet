@@ -1,10 +1,11 @@
 package aria2_downloader
 
 import (
+	"strings"
+
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
-	"strings"
 )
 
 const ErrorFileNameTooLong = "File name too long"

@@ -1,8 +1,9 @@
 package bean
 
 import (
-	log "github.com/sirupsen/logrus"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Registry interface {

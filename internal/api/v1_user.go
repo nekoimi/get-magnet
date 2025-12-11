@@ -1,13 +1,14 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
-	"net/http"
 )
 
 // Me 获取当前登录用户信息

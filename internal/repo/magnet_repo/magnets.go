@@ -3,10 +3,11 @@ package magnet_repo
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	log "github.com/sirupsen/logrus"
-	"strings"
 )
 
 func Save(m *table.Magnets) {

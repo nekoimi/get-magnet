@@ -2,6 +2,10 @@ package crawler
 
 import (
 	"context"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/config"
@@ -10,9 +14,6 @@ import (
 	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
-	"strings"
-	"sync"
-	"time"
 )
 
 const (

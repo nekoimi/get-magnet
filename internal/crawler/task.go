@@ -1,8 +1,9 @@
 package crawler
 
 import (
-	"github.com/nekoimi/get-magnet/internal/crawler/download"
 	"net/url"
+
+	"github.com/nekoimi/get-magnet/internal/crawler/download"
 )
 
 type TaskHandler func(t CrawlerTask) ([]CrawlerTask, []MagnetEntry, error)
