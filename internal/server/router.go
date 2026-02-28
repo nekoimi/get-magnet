@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/internal/api"
+	"github.com/nekoimi/get-magnet/internal/api/magnets"
 	"github.com/nekoimi/get-magnet/internal/api/middleware"
 	log "github.com/sirupsen/logrus"
 )
@@ -35,6 +36,12 @@ func newRouter() *mux.Router {
 			v1Api.HandleFunc("/me/changePwd", api.ChangePassword)
 			// 提交下载连接
 			v1Api.HandleFunc("/download/submit", api.Submit)
+			// 磁力链接管理
+			v1Api.HandleFunc("/magnets/list", magnets.List).Methods("GET", "POST")
+			v1Api.HandleFunc("/magnets/detail", magnets.Detail).Methods("GET")
+			v1Api.HandleFunc("/magnets/create", magnets.Create).Methods("POST")
+			v1Api.HandleFunc("/magnets/update", magnets.Update).Methods("POST")
+			v1Api.HandleFunc("/magnets/delete", magnets.Delete).Methods("POST")
 		}
 	}
 
