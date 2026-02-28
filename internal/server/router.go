@@ -18,6 +18,7 @@ const aria2JsonApi = "/api/aria2/jsonrpc"
 
 func newRouter() *mux.Router {
 	r := mux.NewRouter()
+	r.Use(middleware.CORSMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(middleware.LoggingMiddleware)
 	r.Use(middleware.AuthMiddleware())
