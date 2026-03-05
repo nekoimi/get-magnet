@@ -57,4 +57,9 @@ var (
 		HttpStatus: http.StatusUnauthorized,
 		Msg:        "认证信息已过期",
 	}
+	DataNotFoundError = &ExtError{
+		Code:       20404,
+		HttpStatus: http.StatusNotFound,
+		Msg:        "数据不存在",
+	}
 )
