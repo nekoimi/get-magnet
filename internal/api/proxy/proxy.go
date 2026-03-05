@@ -1,9 +1,10 @@
-package api
+package proxy
 
 import (
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/http/httputil"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func ReverseAria2() func(http.ResponseWriter, *http.Request) {

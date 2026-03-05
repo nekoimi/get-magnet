@@ -3,10 +3,11 @@ package magnet_repo
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	log "github.com/sirupsen/logrus"
-	"strings"
 )
 
 func Save(m *table.Magnets) {
@@ -63,5 +64,80 @@ func UpdateFollowedBy(source string, target string) error {
 		return err
 	}
 
+	return nil
+}
+
+// GetById 根据 ID 获取磁力链接
+func GetById(id int64) (*table.Magnets, bool) {
+	m := new(table.Magnets)
+	if has, err := db.Instance().ID(id).Get(m); err != nil {
+		log.Errorf("查询资源ID(%d)异常：%s", id, err.Error())
+		return nil, false
+	} else {
+		return m, has
+	}
+}
+
+// PageList 分页查询磁力链接列表
+func PageList(pageNum, pageSize int, keyword string, status *uint8) ([]table.Magnets, int64, error) {
+	session := db.Instance().NewSession()
+	defer session.Close()
+
+	// 构建查询条件
+	if keyword != "" {
+		session = session.Where("(title LIKE ? OR number LIKE ?)", "%"+keyword+"%", "%"+keyword+"%")
+	}
+	if status != nil {
+		session = session.Where("status = ?", *status)
+	}
+
+	// 获取总数
+	total, err := session.Count(new(table.Magnets))
+	if err != nil {
+		log.Errorf("查询磁力链接总数异常：%s", err.Error())
+		return nil, 0, err
+	}
+
+	// 分页查询
+	var list []table.Magnets
+	err = session.OrderBy("created_at DESC").Limit(pageSize, (pageNum-1)*pageSize).Find(&list)
+	if err != nil {
+		log.Errorf("查询磁力链接列表异常：%s", err.Error())
+		return nil, 0, err
+	}
+
+	return list, total, nil
+}
+
+// Update 更新磁力链接
+func Update(m *table.Magnets) error {
+	_, err := db.Instance().ID(m.Id).AllCols().Update(m)
+	if err != nil {
+		log.Errorf("更新磁力链接异常：%s", err.Error())
+		return err
+	}
+	return nil
+}
+
+// Delete 删除磁力链接
+func Delete(id int64) error {
+	_, err := db.Instance().ID(id).Delete(new(table.Magnets))
+	if err != nil {
+		log.Errorf("删除磁力链接异常：%s", err.Error())
+		return err
+	}
+	return nil
+}
+
+// BatchDelete 批量删除磁力链接
+func BatchDelete(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	_, err := db.Instance().In("id", ids).Delete(new(table.Magnets))
+	if err != nil {
+		log.Errorf("批量删除磁力链接异常：%s", err.Error())
+		return err
+	}
 	return nil
 }

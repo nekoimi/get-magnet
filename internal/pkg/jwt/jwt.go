@@ -3,9 +3,10 @@ package jwt
 import (
 	"encoding/json"
 	"errors"
+	"time"
+
 	jwtlib "github.com/cristalhq/jwt/v5"
 	"github.com/google/uuid"
-	"time"
 )
 
 var (

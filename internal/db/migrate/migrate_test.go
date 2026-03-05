@@ -1,8 +1,9 @@
 package migrate
 
 import (
-	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"testing"
+
+	"github.com/nekoimi/get-magnet/internal/pkg/util"
 )
 
 func TestEncodePassword(t *testing.T) {

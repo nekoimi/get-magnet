@@ -3,14 +3,15 @@ package drission_rod
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
 	pb "github.com/nekoimi/get-magnet/internal/drission_rod/grpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"sync"
-	"time"
 )
 
 type DrissionRod struct {

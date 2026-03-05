@@ -1,14 +1,15 @@
 package javdb
 
 import (
+	"net/url"
+	"strings"
+
 	"github.com/PuerkitoBio/goquery"
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	log "github.com/sirupsen/logrus"
-	"net/url"
-	"strings"
 )
 
 var (
@@ -166,8 +167,25 @@ func (p *Parser) parsePage(t crawler.CrawlerTask) (tasks []crawler.CrawlerTask, 
 				}
 			}
 		})
+
 		if len(torrentLinks) == 0 {
-			log.Debugf("处理详情任务 torrentLinks == 0：%s", rawUrl)
+			s.Find("#magnets-content>.item>div>a").Each(func(i int, as *goquery.Selection) {
+				if torrentUrl, exists := as.Attr("href"); exists {
+					aText := as.Text()
+					if strings.Contains(aText, "高清") || strings.Contains(aText, "HD") {
+						torrentName := strings.ToUpper(as.Find("span.name").Text())
+						torrentLinks = append(torrentLinks, crawler.TorrentLink{
+							Sort: i,
+							Name: torrentName,
+							Link: torrentUrl,
+						})
+					}
+				}
+			})
+		}
+
+		if len(torrentLinks) == 0 {
+			log.Warnf("处理详情任务 torrentLinks == 0：%s", rawUrl)
 			return
 		}
 

@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net/http"
+	"net/url"
+
 	"github.com/PuerkitoBio/goquery"
+	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
 	"github.com/nekoimi/get-magnet/internal/drission_rod"
 	pb "github.com/nekoimi/get-magnet/internal/drission_rod/grpc"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"net/url"
 )
 
 type drissionRodDownloader struct {
@@ -18,10 +20,11 @@ type drissionRodDownloader struct {
 	drissionRod *drission_rod.DrissionRod
 }
 
-func newDrissionRodDownloader(ctx context.Context, drissionRod *drission_rod.DrissionRod) download.Downloader {
+func newDrissionRodDownloader(ctx context.Context) download.Downloader {
+	rod := bean.PtrFromContext[drission_rod.DrissionRod](ctx)
 	return &drissionRodDownloader{
 		ctx:         ctx,
-		drissionRod: drissionRod,
+		drissionRod: rod,
 	}
 }
 

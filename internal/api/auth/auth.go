@@ -1,6 +1,8 @@
-package api
+package auth
 
 import (
+	"net/http"
+
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
@@ -9,7 +11,6 @@ import (
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 type LoginReq struct {

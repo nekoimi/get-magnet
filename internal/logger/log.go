@@ -1,10 +1,11 @@
 package logger
 
 import (
-	log "github.com/sirupsen/logrus"
 	"os"
 	"runtime"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Initialize(logLevel string, logDir string) {

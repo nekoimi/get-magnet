@@ -2,10 +2,9 @@ package sehuatang
 
 import (
 	"context"
-	"github.com/nekoimi/get-magnet/internal/bean"
+
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/drission_rod"
 )
 
 const Name = "SeHuaTang"
@@ -17,9 +16,8 @@ type Crawler struct {
 
 func NewSeHuaTangCrawler() crawler.BuilderFunc {
 	return func(ctx context.Context) crawler.Crawler {
-		rod := bean.PtrFromContext[drission_rod.DrissionRod](ctx)
 		return &Crawler{Parser{
-			downloader: newDrissionRodDownloader(ctx, rod),
+			downloader: newDrissionRodDownloader(ctx),
 		}}
 	}
 }

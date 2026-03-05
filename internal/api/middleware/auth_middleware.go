@@ -3,14 +3,15 @@ package middleware
 import (
 	"context"
 	"errors"
+	"net/http"
+	"strings"
+
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"strings"
 )
 
 var allowedApiSet = make(map[string]struct{})

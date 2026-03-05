@@ -2,10 +2,9 @@ package javdb
 
 import (
 	"context"
-	"github.com/nekoimi/get-magnet/internal/bean"
+
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/drission_rod"
 )
 
 type ActorCrawler struct {
@@ -14,9 +13,8 @@ type ActorCrawler struct {
 
 func NewJavDBActorCrawler() crawler.BuilderFunc {
 	return func(ctx context.Context) crawler.Crawler {
-		rod := bean.PtrFromContext[drission_rod.DrissionRod](ctx)
 		return &ActorCrawler{Parser{
-			downloader: newDrissionRodDownloader(ctx, rod),
+			downloader: newDrissionRodDownloader(ctx),
 		}}
 	}
 }

@@ -2,6 +2,8 @@ package aria2_downloader
 
 import (
 	"context"
+	"time"
+
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/downloader"
@@ -10,7 +12,6 @@ import (
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 type Aria2Downloader struct {
@@ -54,6 +55,14 @@ func (d *Aria2Downloader) Start(parent context.Context) error {
 		Exec: func() {
 			btTrackers := tracker.FetchTrackers()
 			d.client.UpdateTrackers(btTrackers)
+		},
+	})
+
+	// 注册定时任务，每3小时检查完成的任务，触发下载产物移动
+	d.cronScheduler.Register("00 */3 * * *", &job.CronJob{
+		Name: "触发下载完成任务Job",
+		Exec: func() {
+			d.client.triggerDownloadCompleteEventJob()
 		},
 	})
 

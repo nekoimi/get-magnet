@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/crawler"
