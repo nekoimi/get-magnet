@@ -5,12 +5,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// 注意：FetchBatchSize 常量定义在 aria2_client.go 中
+
 // 扫描已经完成的任务，触发任务完成事件
 func (c *Client) triggerDownloadCompleteEventJob() {
 	offset := 0
-	fetchNum := 20
 	for {
-		stops := c.FetchStopped(offset, uint(fetchNum))
+		stops := c.FetchStopped(offset, uint(FetchBatchSize))
 		if len(stops) == 0 {
 			break
 		}
@@ -25,6 +26,6 @@ func (c *Client) triggerDownloadCompleteEventJob() {
 			}
 		}
 
-		offset = offset + fetchNum
+		offset = offset + FetchBatchSize
 	}
 }

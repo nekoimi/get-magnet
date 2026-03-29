@@ -18,27 +18,10 @@ import (
 const MaxFileNameLength = 255
 
 var (
-	moveMu         = new(sync.Mutex)
-	lockMap        = make(map[string]*sync.Mutex)
+	// 使用 sync.Map 替代手动锁管理，避免死锁风险
+	moveLocks      sync.Map
 	videoSuffixArr = []string{".avi", ".flv", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".wmv"}
 )
-
-func getMoveLock(path string) *sync.Mutex {
-	moveMu.Lock()
-	defer moveMu.Unlock()
-	if _, ok := lockMap[path]; !ok {
-		lockMap[path] = &sync.Mutex{}
-	}
-	return lockMap[path]
-}
-
-func releaseMoveLock(path string) {
-	moveMu.Lock()
-	defer moveMu.Unlock()
-	if _, ok := lockMap[path]; ok {
-		delete(lockMap, path)
-	}
-}
 
 // Exists 判断文件是否存在
 func Exists(f string) (bool, error) {
@@ -173,10 +156,12 @@ func MoveOnce(srcPath, dstPath string) error {
 		return fmt.Errorf("path is empty")
 	}
 
-	lock := getMoveLock(srcPath)
+	// 使用 LoadOrStore 获取或创建锁，避免双重锁定
+	mu, _ := moveLocks.LoadOrStore(srcPath, &sync.Mutex{})
+	lock := mu.(*sync.Mutex)
 	lock.Lock()
 	defer func() {
-		releaseMoveLock(srcPath)
+		moveLocks.Delete(srcPath)
 		lock.Unlock()
 	}()
 
@@ -216,11 +201,21 @@ func copyThenDelete(srcPath, dstPath string) error {
 	defer src.Close()
 
 	// 创建目标文件（临时）
-	dst, err := os.Create(dstPath + ".tmp")
+	tmpDstPath := dstPath + ".tmp"
+	dst, err := os.Create(tmpDstPath)
 	if err != nil {
 		return fmt.Errorf("[移动文件] 创建目标文件失败: %w", err)
 	}
-	defer dst.Close()
+
+	// 确保失败时清理临时文件
+	defer func() {
+		dst.Close()
+		if _, ferr := os.Stat(tmpDstPath); ferr == nil {
+			if rerr := os.Remove(tmpDstPath); rerr != nil {
+				log.Warnf("[移动文件] 清理临时文件失败: %s, 错误: %v", tmpDstPath, rerr)
+			}
+		}
+	}()
 
 	// 使用 32MB 缓冲区（你可以根据系统内存调整）
 	buf := make([]byte, 32*1024*1024)
@@ -233,18 +228,17 @@ func copyThenDelete(srcPath, dstPath string) error {
 		return fmt.Errorf("[移动文件] 写入磁盘失败: %w", err)
 	}
 
-	// 关闭目标文件
+	// 关闭目标文件（defer 会处理）
 	if err = dst.Close(); err != nil {
 		return fmt.Errorf("[移动文件] 关闭目标文件失败: %w", err)
 	}
 
 	// 原子重命名临时文件
-	if err = os.Rename(dstPath+".tmp", dstPath); err != nil {
+	if err = os.Rename(tmpDstPath, dstPath); err != nil {
 		return fmt.Errorf("[移动文件] 重命名目标文件失败: %w", err)
 	}
 
 	// 删除源文件
-	_ = src.Close()
 	if err = os.Remove(srcPath); err != nil {
 		return fmt.Errorf("[移动文件] 删除源文件失败: %w", err)
 	}

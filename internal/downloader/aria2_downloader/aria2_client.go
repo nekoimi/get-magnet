@@ -20,6 +20,24 @@ import (
 const (
 	// MaxRetryConnNum 最大断线重连次数
 	MaxRetryConnNum = 5
+
+	// ChannelBufferSize 事件通道缓冲区大小
+	EventChannelBufferSize = 128
+
+	// FileSelectChannelBufferSize 文件选择通道缓冲区大小
+	FileSelectChannelBufferSize = 32
+
+	// DownloadSpeedChannelBufferSize 下载速度通道缓冲区大小
+	DownloadSpeedChannelBufferSize = 32
+
+	// FetchBatchSize 每次获取任务数量
+	FetchBatchSize = 20
+
+	// InitialRetryDelay 初始重连延迟
+	InitialRetryDelay = 1 * time.Second
+
+	// MaxRetryDelay 最大重连延迟
+	MaxRetryDelay = 30 * time.Second
 )
 
 var (
@@ -58,9 +76,9 @@ func newAria2Client(ctx context.Context, cfg *config.Aria2Config) *Client {
 		cfg:                  cfg,
 		closeOnce:            sync.Once{},
 		clientMux:            &sync.Mutex{},
-		eventCh:              make(chan Event, 128),
-		fileSelectCh:         make(chan arigo.Status, 32),
-		downloadSpeedCh:      make(chan arigo.Status, 32),
+		eventCh:              make(chan Event, EventChannelBufferSize),
+		fileSelectCh:         make(chan arigo.Status, FileSelectChannelBufferSize),
+		downloadSpeedCh:      make(chan arigo.Status, DownloadSpeedChannelBufferSize),
 		downloadSpeedManager: sm,
 	}
 }
@@ -72,30 +90,48 @@ func (c *Client) initialize() {
 	}
 	log.Infof("aria2版本信息: %s", version.Version)
 
-	c.client().Subscribe(arigo.StartEvent, func(event *arigo.DownloadEvent) {
-		c.handleEvent(arigo.StartEvent, event)
-	})
-	c.client().Subscribe(arigo.PauseEvent, func(event *arigo.DownloadEvent) {
-		c.handleEvent(arigo.PauseEvent, event)
-	})
-	c.client().Subscribe(arigo.StopEvent, func(event *arigo.DownloadEvent) {
-		c.handleEvent(arigo.StopEvent, event)
-	})
-	c.client().Subscribe(arigo.CompleteEvent, func(event *arigo.DownloadEvent) {
-		c.handleEvent(arigo.CompleteEvent, event)
-	})
-	c.client().Subscribe(arigo.BTCompleteEvent, func(event *arigo.DownloadEvent) {
-		c.handleEvent(arigo.BTCompleteEvent, event)
-	})
-	c.client().Subscribe(arigo.ErrorEvent, func(event *arigo.DownloadEvent) {
-		c.handleEvent(arigo.ErrorEvent, event)
-	})
+	// 初始化事件订阅
+	c.initializeEventSubscriptions()
 
-	// 初始化处理异常任务
+	// 处理已停止的任务
+	c.processStoppedTasks()
+
+	c.Loop()
+}
+
+// initializeEventSubscriptions 订阅所有 aria2 事件
+func (c *Client) initializeEventSubscriptions() {
+	eventTypes := []struct {
+		t       arigo.EventType
+		name    string
+		handler func(arigo.EventType, *arigo.DownloadEvent)
+	}{
+		{arigo.StartEvent, "Start", c.handleEvent},
+		{arigo.PauseEvent, "Pause", c.handleEvent},
+		{arigo.StopEvent, "Stop", c.handleEvent},
+		{arigo.CompleteEvent, "Complete", c.handleEvent},
+		{arigo.BTCompleteEvent, "BTComplete", c.handleEvent},
+		{arigo.ErrorEvent, "Error", c.handleEvent},
+	}
+
+	for _, e := range eventTypes {
+		// 使用局部变量避免闭包捕获循环变量问题
+		eventType := e.t
+		eventName := e.name
+		eventHandler := e.handler
+
+		c.client().Subscribe(eventType, func(event *arigo.DownloadEvent) {
+			log.Debugf("收到aria2事件: %s", eventName)
+			eventHandler(eventType, event)
+		})
+	}
+}
+
+// processStoppedTasks 处理已停止的任务（错误或完成）
+func (c *Client) processStoppedTasks() {
 	offset := 0
-	fetchNum := 20
 	for {
-		stops := c.FetchStopped(offset, uint(fetchNum))
+		stops := c.FetchStopped(offset, uint(FetchBatchSize))
 		if len(stops) == 0 {
 			break
 		}
@@ -117,10 +153,8 @@ func (c *Client) initialize() {
 			}
 		}
 
-		offset = offset + fetchNum
+		offset = offset + FetchBatchSize
 	}
-
-	c.Loop()
 }
 
 func (c *Client) Loop() {
@@ -136,19 +170,7 @@ func (c *Client) Loop() {
 			c.handleFileBestSelect(s)
 		case s := <-c.downloadSpeedCh:
 			// 下载速度检查
-			gid := s.GID
-			// 检查任务的下载速度
-			if c.downloadSpeedManager.LowSpeedDownloadCheck(s) {
-				log.Debugf("[下载速度] 下载任务(%s)低速下载，将暂停...", friendly(s))
-				// 检查不通过，需要降低当前任务的优先级
-				if err := c.client().Pause(gid); err != nil {
-					log.Errorf("[下载速度] 暂停下载任务(%s)异常: %s", friendly(s), err.Error())
-				} else {
-					// 清除当前任务的下载速度缓存
-					c.downloadSpeedManager.Clean(gid)
-					log.Infof("[下载速度] 暂停任务：(%s) 下载速度一直小于 %d 字节/s", friendly(s), speed.LowSpeedThreshold)
-				}
-			}
+			c.checkDownloadSpeed(s)
 		case <-ticker.C:
 			if checkRunning {
 				log.Debugln("正在检测中，跳过执行...")
@@ -165,59 +187,88 @@ func (c *Client) Loop() {
 					}
 				}()
 
-				ops, err := c.globalOptions()
-				if err != nil {
-					panic(err)
-				}
-
-				maxDownloadNum := mathutil.Max(int(ops.MaxConcurrentDownloads), 1)
-				actives := c.FetchActive()
-
-				if len(actives) == 0 {
-					// ignore
-					return
-				}
-
-				if len(actives) < maxDownloadNum {
-					// 如果当前没有活跃的任务，查询已经停止的任务启动起来
-					if err = c.client().UnpauseAll(); err != nil {
-						log.Errorf("恢复下载任务信息异常: %s", err.Error())
-					}
-				}
-
-				log.Debugf("下载文件优选：size-%d", len(actives))
-				for _, active := range actives {
-					if active.Status != arigo.StatusActive {
-						// 下载任务不活跃，不做处理
-						continue
-					}
-
-					c.fileSelectCh <- active
-				}
-
-				// 检查是否存在等待中的任务
-				waits := c.FetchWaiting(0, 1)
-				if len(waits) == 0 {
-					// 没有等待中的任务，当前低速下载的任务不做处理
-					return
-				}
-
-				log.Debugf("检查下载任务：size-%d", len(actives))
-				for _, active := range actives {
-					if active.Status != arigo.StatusActive {
-						// 下载任务不活跃，不做处理
-						continue
-					}
-
-					if active.Status == arigo.StatusCompleted {
-						// 已经完成的不做处理
-						continue
-					}
-
-					c.downloadSpeedCh <- active
-				}
+				c.processActiveDownloads()
 			}()
 		}
+	}
+}
+
+// checkDownloadSpeed 检查下载速度，如果过慢则暂停任务
+func (c *Client) checkDownloadSpeed(status arigo.Status) {
+	gid := status.GID
+	if c.downloadSpeedManager.LowSpeedDownloadCheck(status) {
+		log.Debugf("[下载速度] 下载任务(%s)低速下载，将暂停...", friendly(status))
+		// 检查不通过，需要降低当前任务的优先级
+		if err := c.client().Pause(gid); err != nil {
+			log.Errorf("[下载速度] 暂停下载任务(%s)异常: %s", friendly(status), err.Error())
+		} else {
+			// 清除当前任务的下载速度缓存
+			c.downloadSpeedManager.Clean(gid)
+			log.Infof("[下载速度] 暂停任务：(%s) 下载速度一直小于 %d 字节/s", friendly(status), speed.LowSpeedThreshold)
+		}
+	}
+}
+
+// processActiveDownloads 处理活跃的下载任务
+func (c *Client) processActiveDownloads() {
+	ops, err := c.globalOptions()
+	if err != nil {
+		panic(err)
+	}
+
+	maxDownloadNum := mathutil.Max(int(ops.MaxConcurrentDownloads), 1)
+	actives := c.FetchActive()
+
+	if len(actives) == 0 {
+		// ignore
+		return
+	}
+
+	if len(actives) < maxDownloadNum {
+		// 如果当前没有活跃的任务，查询已经停止的任务启动起来
+		if err = c.client().UnpauseAll(); err != nil {
+			log.Errorf("恢复下载任务信息异常: %s", err.Error())
+		}
+	}
+
+	// 处理文件选择
+	c.processFileSelection(actives)
+
+	// 检查是否存在等待中的任务，如果有则检查速度
+	waits := c.FetchWaiting(0, 1)
+	if len(waits) > 0 {
+		c.processSpeedCheck(actives)
+	}
+}
+
+// processFileSelection 处理文件选择
+func (c *Client) processFileSelection(actives []arigo.Status) {
+	log.Debugf("下载文件优选：size-%d", len(actives))
+	for _, active := range actives {
+		if active.Status != arigo.StatusActive {
+			// 下载任务不活跃，不做处理
+			continue
+		}
+
+		c.fileSelectCh <- active
+	}
+}
+
+// processSpeedCheck 处理速度检查
+func (c *Client) processSpeedCheck(actives []arigo.Status) {
+	log.Debugf("检查下载任务：size-%d", len(actives))
+	for _, active := range actives {
+		if active.Status != arigo.StatusActive {
+			// 下载任务不活跃，不做处理
+			continue
+		}
+
+		if active.Status == arigo.StatusCompleted {
+			// 已经完成的不做处理
+			continue
+		}
+
+		c.downloadSpeedCh <- active
 	}
 }
 
@@ -287,37 +338,51 @@ func (c *Client) client() *arigo.Client {
 
 	err := c.ping()
 	if err != nil {
-		exit := false
-		reConnNum := 0
-		for {
-			select {
-			case <-c.ctx.Done():
-				exit = true
-				log.Debugf("aria2取消重连...")
-				break
-			default:
-				err = c.connect()
-				if err != nil {
-					reConnNum++
-					if reConnNum > MaxRetryConnNum {
-						exit = true
-						break
-					}
-					log.Warnf("检测到aria2客户端异常, 重新连接 %d ... %s", reConnNum, err.Error())
-					time.Sleep(3 * time.Second)
-					continue
-				}
-				return c.arigoClient
-			}
-
-			if exit {
-				break
-			}
+		if err = c.reconnect(); err != nil {
+			panic(err)
 		}
-		panic(err)
 	}
 
 	return c.arigoClient
+}
+
+// reconnect 使用指数退避策略重新连接 aria
+func (c *Client) reconnect() error {
+	delay := InitialRetryDelay
+
+	for reConnNum := 0; reConnNum < MaxRetryConnNum; reConnNum++ {
+		select {
+		case <-c.ctx.Done():
+			log.Debugf("aria2取消重连...")
+			return c.ctx.Err()
+		default:
+		}
+
+		err := c.connect()
+		if err == nil {
+			log.Infof("aria2重连成功")
+			return nil
+		}
+
+		if reConnNum < MaxRetryConnNum-1 {
+			log.Warnf("aria2重连失败(%d/%d), %.1f秒后重试: %s",
+				reConnNum+1, MaxRetryConnNum, delay.Seconds(), err.Error())
+			select {
+			case <-c.ctx.Done():
+				log.Debugf("aria2取消重连...")
+				return c.ctx.Err()
+			case <-time.After(delay):
+			}
+
+			// 指数退避：每次延迟增加 50%，最大不超过 MaxRetryDelay
+			delay = time.Duration(float64(delay) * 1.5)
+			if delay > MaxRetryDelay {
+				delay = MaxRetryDelay
+			}
+		}
+	}
+
+	return errors.New("aria2重连失败，超过最大重试次数")
 }
 
 func (c *Client) ping() error {
