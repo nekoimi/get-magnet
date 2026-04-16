@@ -59,11 +59,24 @@ func UpdateFollowedBy(source string, target string) error {
 	}
 
 	m.FollowedBy = target
+	m.PostProcessDone = false
 
-	if _, err := db.Instance().ID(m.Id).Cols("followed_by").Update(m); err != nil {
+	if _, err := db.Instance().ID(m.Id).Cols("followed_by", "post_process_done").Update(m); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func MarkPostProcessDone(id int64) error {
+	m := &table.Magnets{
+		Id:              id,
+		PostProcessDone: true,
+	}
+	if _, err := db.Instance().ID(id).Cols("post_process_done").Update(m); err != nil {
+		log.Errorf("更新资源下载后处理状态异常：%s", err.Error())
+		return err
+	}
 	return nil
 }
 
