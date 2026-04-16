@@ -28,34 +28,40 @@ func (c *Client) handleFileBestSelect(status arigo.Status) {
 	}
 }
 
-func selectDownloadFileBestIndex(files []arigo.File) (selectIndex string, ok bool) {
+func selectDownloadFileBestIndex(files []arigo.File) (selectIndex string, needsChange bool) {
 	if len(files) <= 1 {
 		// 只有一个文件，不做处理
 		return "", false
 	}
 
-	needChangeOps := false
+	needsChange = false
 	for _, f := range files {
 		// if selected non best, need re-change options
 		if f.Selected && !isBestFile(f) {
-			needChangeOps = true
+			needsChange = true
 			break
 		}
 	}
 
-	if needChangeOps {
+	if needsChange {
 		allowFiles, _ := extrBestFile(files)
 		if len(allowFiles) == 0 {
 			// 不做处理
 			return "", false
 		}
 
+		// 预分配容量，假设每个索引最多4位
 		var builder strings.Builder
+		builder.Grow(len(allowFiles) * 5) // 4位数字 + 1个逗号
+
 		for _, a := range allowFiles {
 			builder.WriteString(strconv.Itoa(a.Index))
-			builder.WriteString(",")
+			builder.WriteByte(',')
 		}
-		return builder.String(), true
+
+		// 去掉末尾逗号
+		result := builder.String()
+		return result[:len(result)-1], true
 	}
 
 	return "", false
