@@ -12,6 +12,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader/speed"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
+	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
@@ -145,7 +146,7 @@ func (c *Client) processStoppedTasks() {
 				}
 			}
 
-			if stop.Status == arigo.StatusCompleted {
+			if stop.Status == arigo.StatusCompleted && c.shouldEmitCompleteEvent(stop.GID) {
 				c.eventCh <- Event{
 					Type:       arigo.CompleteEvent,
 					taskStatus: stop,
@@ -155,6 +156,14 @@ func (c *Client) processStoppedTasks() {
 
 		offset = offset + FetchBatchSize
 	}
+}
+
+func (c *Client) shouldEmitCompleteEvent(gid string) bool {
+	m, exists := magnet_repo.GetByFollowed(gid)
+	if !exists {
+		return true
+	}
+	return !m.PostProcessDone
 }
 
 func (c *Client) Loop() {
@@ -290,6 +299,24 @@ func (c *Client) FetchStopped(offset int, num uint) (result []arigo.Status) {
 	return status
 }
 
+func (c *Client) FindStoppedByGID(gid string) (arigo.Status, bool) {
+	offset := 0
+	for {
+		stops := c.FetchStopped(offset, uint(FetchBatchSize))
+		if len(stops) == 0 {
+			return arigo.Status{}, false
+		}
+
+		for _, stop := range stops {
+			if stop.GID == gid {
+				return stop, true
+			}
+		}
+
+		offset += FetchBatchSize
+	}
+}
+
 func (c *Client) FetchActive() (result []arigo.Status) {
 	status, err := c.client().TellActive(queryArgs...)
 	if err != nil {
@@ -349,6 +376,7 @@ func (c *Client) client() *arigo.Client {
 // reconnect 使用指数退避策略重新连接 aria
 func (c *Client) reconnect() error {
 	delay := InitialRetryDelay
+	hadClient := c.arigoClient != nil
 
 	for reConnNum := 0; reConnNum < MaxRetryConnNum; reConnNum++ {
 		select {
@@ -360,6 +388,10 @@ func (c *Client) reconnect() error {
 
 		err := c.connect()
 		if err == nil {
+			if hadClient {
+				c.initializeEventSubscriptions()
+				c.processStoppedTasks()
+			}
 			log.Infof("aria2重连成功")
 			return nil
 		}

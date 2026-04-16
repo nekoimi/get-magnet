@@ -93,8 +93,8 @@ func runMigrates(e *xorm.Engine) {
 			log.Errorf("数据表迁移异常: %s, \n details: %s", m.Desc(), err.Error())
 			break
 		} else if exists {
-			// 已经存在迁移记录，直接跳过所有
-			break
+			// 已经存在迁移记录，仅跳过当前版本
+			continue
 		}
 
 		log.Infof("数据表迁移: %d, %s , 执行...", m.Version(), m.Desc())

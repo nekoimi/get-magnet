@@ -1,6 +1,7 @@
 package aria2_downloader
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,15 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func handleDownloadCompleteDelFile(status arigo.Status) {
-	_, delFiles := extrBestFile(status.Files)
-	// 删除文件
-	for _, delFileFile := range delFiles {
-		files.Delete(delFileFile.Path)
-	}
-}
-
-func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDir string) {
+func handleDownloadComplete(status arigo.Status, origin string, moveToDir string) {
 	followedBys := status.FollowedBy
 	if len(followedBys) >= 1 {
 		// 不是最终的下载任务，尝试更新数据表中关联的id
@@ -34,16 +27,10 @@ func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDi
 	}
 
 	log.Debugf("bt任务下载完成 [origin: %s, moveToDir: %s] - FollowedBy: %s - %s", origin, moveToDir, status.GID, friendly(status))
-	if origin == "" || moveToDir == "" {
-		// 没有配置 ignore
-		return
-	}
-
-	// 最终完成，需要移动位置
 	m, exists := magnet_repo.GetByFollowed(status.GID)
 	if !exists {
-		// 相关任务下载记录不存在 ignore
-		log.Warnf("bt相关任务下载记录不存在，忽略文件移动：%s", friendly(status))
+		// 相关任务下载记录不存在，等待补偿任务兜底
+		log.Warnf("bt相关任务下载记录不存在，忽略本次后处理：%s", friendly(status))
 		return
 	}
 
@@ -52,14 +39,37 @@ func handleDownloadCompleteMoveFile(status arigo.Status, origin string, moveToDi
 		return
 	}
 
-	allowFiles, _ := extrBestFile(status.Files)
-	for _, file := range allowFiles {
-		moveSingleFile(status, file, m, moveToDir)
+	if m.PostProcessDone {
+		log.Debugf("任务[%s]下载完成后处理已执行，忽略重复处理", friendly(status))
+		return
+	}
+
+	allowFiles, delFiles := extrBestFile(status.Files)
+	for _, delFile := range delFiles {
+		files.Delete(delFile.Path)
+	}
+
+	var moveErrs []error
+	if moveToDir != "" {
+		for _, file := range allowFiles {
+			if err := moveSingleFile(status, file, m, moveToDir); err != nil {
+				moveErrs = append(moveErrs, err)
+			}
+		}
+	}
+
+	if len(moveErrs) > 0 {
+		log.Errorf("任务[%s]下载完成 - 后处理存在失败，等待补偿重试: %v", friendly(status), moveErrs)
+		return
+	}
+
+	if err := magnet_repo.MarkPostProcessDone(m.Id); err != nil {
+		log.Errorf("任务[%s]下载完成 - 标记后处理完成失败：%s", friendly(status), err.Error())
 	}
 }
 
 // moveSingleFile 移动单个下载文件
-func moveSingleFile(status arigo.Status, file arigo.File, magnet *table.Magnets, moveToDir string) {
+func moveSingleFile(status arigo.Status, file arigo.File, magnet *table.Magnets, moveToDir string) error {
 	sourcePath := file.Path
 	sourceFile := filepath.Base(sourcePath)
 
@@ -69,15 +79,21 @@ func moveSingleFile(status arigo.Status, file arigo.File, magnet *table.Magnets,
 	// 获取截断后的标题
 	title := files.TruncateFilename(magnet.Title, files.MaxFileNameLength)
 
+	targetFile := sourceFile
+	if normalizedFile, ok := buildNormalizedVideoFilename(magnet.Number, sourceFile); ok {
+		targetFile = normalizedFile
+	}
+
 	// 构建目标路径
-	targetPath := buildTargetPath(moveToDir, actress, magnet.CreatedAt, title, sourceFile)
+	targetPath := buildTargetPath(moveToDir, actress, magnet.CreatedAt, title, targetFile)
 
 	err := files.MoveOnce(sourcePath, targetPath)
 	if err != nil {
 		log.Errorf("[JavDB] bt任务下载完成 - 移动文件: %s -> %s，异常：%s", sourcePath, targetPath, err.Error())
-		return
+		return fmt.Errorf("move %s -> %s: %w", sourcePath, targetPath, err)
 	}
 	log.Debugf("[JavDB] bt任务下载完成 - 移动文件：%s -> %s", sourcePath, targetPath)
+	return nil
 }
 
 // getActressName 获取女演员名称，默认返回 "0未知"

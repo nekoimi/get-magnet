@@ -54,6 +54,7 @@ func WriteLine(w io.Writer, content string) error {
 // IsVideo check file is video
 // *.avi;*.flv;*.m4v;*.mkv;*.mov;*.mp4;*.mpeg;*.mpg;*.wmv
 func IsVideo(filename string) bool {
+	filename = strings.ToLower(filename)
 	for _, suffix := range videoSuffixArr {
 		if strings.HasSuffix(filename, suffix) {
 			return true
@@ -63,7 +64,7 @@ func IsVideo(filename string) bool {
 }
 
 func IsTorrentFile(filename string) bool {
-	return strings.HasSuffix(filename, ".torrent")
+	return strings.HasSuffix(strings.ToLower(filename), ".torrent")
 }
 
 // IsValidFileName 检查文件名是否合法（长度与非法字符）

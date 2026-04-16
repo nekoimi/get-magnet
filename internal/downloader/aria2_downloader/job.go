@@ -1,6 +1,7 @@
 package aria2_downloader
 
 import (
+	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
 )
@@ -19,6 +20,10 @@ func (c *Client) triggerDownloadCompleteEventJob() {
 		for _, stop := range stops {
 			log.Debugf("已完成任务：%s - %s", friendly(stop), stop.Status)
 			if stop.Status == arigo.StatusCompleted {
+				m, exists := magnet_repo.GetByFollowed(stop.GID)
+				if !exists || m.PostProcessDone {
+					continue
+				}
 				c.eventCh <- Event{
 					Type:       arigo.CompleteEvent,
 					taskStatus: stop,

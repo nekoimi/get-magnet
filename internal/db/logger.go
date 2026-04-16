@@ -14,42 +14,42 @@ func newXormLogger() *xormLogger {
 
 // Debug implement ILogger
 func (s *xormLogger) Debug(v ...interface{}) {
-	log.Debug(v)
+	log.Debug(v...)
 }
 
 // Debugf implement ILogger
 func (s *xormLogger) Debugf(format string, v ...interface{}) {
-	log.Debugf(format, v)
+	log.Debugf(format, v...)
 }
 
 // Error implement ILogger
 func (s *xormLogger) Error(v ...interface{}) {
-	log.Error(v)
+	log.Error(v...)
 }
 
 // Errorf implement ILogger
 func (s *xormLogger) Errorf(format string, v ...interface{}) {
-	log.Errorf(format, v)
+	log.Errorf(format, v...)
 }
 
 // Info implement ILogger
 func (s *xormLogger) Info(v ...interface{}) {
-	log.Info(v)
+	log.Info(v...)
 }
 
 // Infof implement ILogger
 func (s *xormLogger) Infof(format string, v ...interface{}) {
-	log.Infof(format, v)
+	log.Infof(format, v...)
 }
 
 // Warn implement ILogger
 func (s *xormLogger) Warn(v ...interface{}) {
-	log.Warn(v)
+	log.Warn(v...)
 }
 
 // Warnf implement ILogger
 func (s *xormLogger) Warnf(format string, v ...interface{}) {
-	log.Warnf(format, v)
+	log.Warnf(format, v...)
 }
 
 // Level implement ILogger
