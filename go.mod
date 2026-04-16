@@ -1,9 +1,9 @@
 module github.com/nekoimi/get-magnet
 
-go 1.24.0
+go 1.25.0
 
 require (
-	github.com/PuerkitoBio/goquery v1.8.1
+	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 	github.com/cristalhq/jwt/v5 v5.4.0
 	github.com/google/uuid v1.6.0
@@ -14,7 +14,7 @@ require (
 	github.com/siku2/arigo v0.2.1-0.20250426130944-80d0332f34e9
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.20.1
-	golang.org/x/crypto v0.46.0
+	golang.org/x/crypto v0.49.0
 	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.10
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -23,7 +23,7 @@ require (
 )
 
 require (
-	github.com/andybalholm/cascadia v1.3.2 // indirect
+	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/cenkalti/hub v1.0.1-0.20160527103212-11382a9960d3 // indirect
 	github.com/cenkalti/rpc2 v0.0.0-20180727162946-9642ea02d0aa // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
@@ -47,9 +47,9 @@ require (
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
-	golang.org/x/net v0.48.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
