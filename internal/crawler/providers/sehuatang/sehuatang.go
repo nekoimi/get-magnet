@@ -8,7 +8,6 @@ import (
 )
 
 const Name = "SeHuaTang"
-const FC2PPV = "FC2PPV"
 
 type Crawler struct {
 	Parser
@@ -37,12 +36,4 @@ func (c *Crawler) Run() {
 		crawler.WithHandle(c.parseList),
 		crawler.WithDownloader(c.downloader),
 	))
-
-	//// FC2PPV
-	//bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
-	//	"https://www.sehuatang.net/forum.php?mod=forumdisplay&fid=36&filter=typeid&typeid=368",
-	//	FC2PPV,
-	//	crawler.WithHandle(c.parseList),
-	//	crawler.WithDownloader(c.downloader),
-	//))
 }

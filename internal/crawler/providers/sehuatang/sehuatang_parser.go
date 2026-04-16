@@ -3,7 +3,6 @@ package sehuatang
 import (
 	"fmt"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -14,11 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const Fc2TypeId = "368"
-
 var (
-	// 编号正则
-	fc2NumberRe = regexp.MustCompile(`(FC2PPV-\d{5,10})`)
 	// 过滤关键字
 	filterKeywords = []string{"探花", "约炮", "约了", "外围", "兼职", "寻花"}
 )
@@ -124,17 +119,10 @@ func (p *Parser) parsePage(t crawler.CrawlerTask) (tasks []crawler.CrawlerTask, 
 		tid := u.Query().Get("tid")
 		typeId := u.Query().Get("typeid")
 
-		// 检查编号
-		var number string
-
-		if Fc2TypeId != typeId {
-			// 不是fc2 使用自定义编号规则
-			// Number: Name-typeId-tid
-			number = fmt.Sprintf("%s-%s-%s", Name, typeId, tid)
-			if magnet_repo.ExistsByNumber(number) {
-				log.Debugf("资源已经存在：%s - %s", number, rawUrl)
-				return
-			}
+		number := fmt.Sprintf("%s-%s-%s", Name, typeId, tid)
+		if magnet_repo.ExistsByNumber(number) {
+			log.Debugf("资源已经存在：%s - %s", number, rawUrl)
+			return
 		}
 
 		var root *goquery.Selection
@@ -144,23 +132,11 @@ func (p *Parser) parsePage(t crawler.CrawlerTask) (tasks []crawler.CrawlerTask, 
 			return
 		}
 
-		var origin = Name
-
 		// Title
 		var title = root.Find("#thread_subject").Text()
-		if strings.Contains(title, FC2PPV) {
-			origin = FC2PPV
-			// 重新获取编号
-			number = fc2NumberRe.FindString(strings.ToUpper(title))
-			if number == "" {
-				log.Warnf("FC2资源未匹配到编号，忽略：%s - %s", title, rawUrl)
-				return
-			}
-
-			if magnet_repo.ExistsByNumber(number) {
-				log.Debugf("FC2资源已经存在：%s - %s", number, rawUrl)
-				return
-			}
+		if strings.Contains(strings.ToUpper(title), "FC2PPV") {
+			log.Infof("跳过FC2PPV资源：%s - %s", title, rawUrl)
+			return
 		}
 
 		// optimalLink
@@ -169,7 +145,7 @@ func (p *Parser) parsePage(t crawler.CrawlerTask) (tasks []crawler.CrawlerTask, 
 		var links = []string{optimalLink}
 
 		outputs = append(outputs, crawler.MagnetEntry{
-			Origin:      origin,
+			Origin:      Name,
 			Title:       title,
 			Number:      number,
 			OptimalLink: optimalLink,

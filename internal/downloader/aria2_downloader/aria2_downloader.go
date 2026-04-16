@@ -97,9 +97,6 @@ func (d *Aria2Downloader) Start(parent context.Context) error {
 					}(callback)
 				}
 			case arigo.ErrorEvent:
-				// 处理内置的名称错误
-				d.client.handleFileNameTooLongError(e.taskStatus)
-
 				// 处理其他回调
 				for _, callback := range d.onError {
 					go func(call downloader.DownloadCallback) {
