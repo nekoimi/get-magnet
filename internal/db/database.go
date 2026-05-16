@@ -79,6 +79,18 @@ func initMigrates(e *xorm.Engine) {
 			panic(err)
 		}
 	}
+	// 修复 success 列类型：旧版 xorm 可能将 bool 映射为 smallint
+	if _, err := e.Exec(`DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'migrates' AND column_name = 'success' AND data_type = 'smallint'
+  ) THEN
+    ALTER TABLE migrates ALTER COLUMN success TYPE boolean USING (success != 0);
+  END IF;
+END $$`); err != nil {
+		log.Debugf("修复 migrates 表 success 列类型: %s", err.Error())
+	}
 }
 
 // 初始化数据表迁移

@@ -8,6 +8,6 @@ type Migrates struct {
 	UpdatedAt time.Time `xorm:"updated" json:"updated_at"`
 	DeletedAt time.Time `xorm:"deleted" json:"-"`
 	Version   int64     `json:"version,omitempty"`
-	Success   bool      `json:"success,omitempty"`
+	Success   bool      `xorm:"bool" json:"success,omitempty"`
 	Message   string    `json:"message,omitempty"`
 }
