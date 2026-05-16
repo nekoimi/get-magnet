@@ -2,6 +2,7 @@ package javdb
 
 import (
 	"context"
+	"time"
 
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/crawler"
@@ -53,14 +54,14 @@ func (c *Crawler) CronSpec() string {
 }
 
 func (c *Crawler) Run() {
-	//bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
-	//	"https://javdb.com/censored?vft=2&vst=2",
-	//	c.Name(),
-	//	crawler.WithHandle(c.parseList),
-	//	crawler.WithDownloader(c.downloader),
-	//))
-	//
-	//time.Sleep(10 * time.Minute)
+	bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
+		"https://javdb.com/censored?vft=2&vst=2",
+		c.Name(),
+		crawler.WithHandle(c.parseList),
+		crawler.WithDownloader(c.downloader),
+	))
+
+	time.Sleep(10 * time.Minute)
 
 	bus.Event().Publish(bus.SubmitTask.Topic(), crawler.NewCrawlerTask(
 		"https://javdb.com/censored?vft=2&vst=1",
