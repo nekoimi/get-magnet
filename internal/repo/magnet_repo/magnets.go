@@ -80,6 +80,18 @@ func MarkPostProcessDone(id int64) error {
 	return nil
 }
 
+// GetByNumber 根据番号获取磁力链接
+func GetByNumber(number string) (*table.Magnets, bool) {
+	m := new(table.Magnets)
+	m.Number = strings.ToUpper(number)
+	if has, err := db.Instance().Get(m); err != nil {
+		log.Errorf("查询资源Number(%s)异常：%s", number, err.Error())
+		return nil, false
+	} else {
+		return m, has
+	}
+}
+
 // GetById 根据 ID 获取磁力链接
 func GetById(id int64) (*table.Magnets, bool) {
 	m := new(table.Magnets)
