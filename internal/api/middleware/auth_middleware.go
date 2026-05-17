@@ -20,6 +20,7 @@ func init() {
 	allowedApis := []string{
 		"/ui/aria-ng",
 		"/api/auth/login",
+		"/api/play",
 		"/quick-api",
 	}
 

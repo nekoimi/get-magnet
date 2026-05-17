@@ -6,6 +6,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/api/download"
 	"github.com/nekoimi/get-magnet/internal/api/magnets"
 	"github.com/nekoimi/get-magnet/internal/api/middleware"
+	"github.com/nekoimi/get-magnet/internal/api/play"
 	"github.com/nekoimi/get-magnet/internal/api/proxy"
 	"github.com/nekoimi/get-magnet/internal/api/ui"
 	"github.com/nekoimi/get-magnet/internal/api/user"
@@ -32,6 +33,8 @@ func newRouter() *mux.Router {
 		apiRoute.HandleFunc("/auth/login", auth.Login)
 		// 登出
 		apiRoute.HandleFunc("/auth/logout", auth.Logout)
+		// 视频播放地址
+		apiRoute.HandleFunc("/play/{number}", play.Play).Methods("GET")
 
 		v1Api := apiRoute.PathPrefix("/v1").Subrouter()
 		{
