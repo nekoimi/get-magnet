@@ -13,6 +13,7 @@
 
 # IDEA
 .idea
+.claude
 
 # Runtime
 output
