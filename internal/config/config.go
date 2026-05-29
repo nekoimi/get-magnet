@@ -20,6 +20,8 @@ type Config struct {
 	JwtSecret string `json:"jwt_secret,omitempty" mapstructure:"jwt_secret"`
 	// arai2下载配置
 	Aria2 *Aria2Config `json:"aria2,omitempty" mapstructure:"aria2"`
+	// 网盘驱动中间服务配置
+	CloudDriver *CloudDriverConfig `json:"cloud_driver,omitempty" mapstructure:"cloud_driver"`
 	// 采集配置
 	Crawler *CrawlerConfig `json:"crawler,omitempty" mapstructure:"crawler"`
 	// 数据库配置
@@ -38,6 +40,21 @@ type Aria2Config struct {
 type Aria2MoveToConfig struct {
 	// javdb 移动目录
 	JavDBDir string `json:"javdb_dir,omitempty" mapstructure:"javdb_dir"`
+}
+
+type CloudDriverConfig struct {
+	// 中间服务地址
+	BaseURL string `json:"base_url,omitempty" mapstructure:"base_url"`
+	// 网盘平台
+	Platform string `json:"platform,omitempty" mapstructure:"platform"`
+	// 浏览器 Profile ID
+	ProfileID string `json:"profile_id,omitempty" mapstructure:"profile_id"`
+	// 网盘保存根目录
+	SaveRoot string `json:"save_root,omitempty" mapstructure:"save_root"`
+	// HTTP 超时时间，单位秒
+	Timeout int `json:"timeout,omitempty" mapstructure:"timeout"`
+	// 轮询未完成任务的 cron 表达式
+	PollCron string `json:"poll_cron,omitempty" mapstructure:"poll_cron"`
 }
 
 type CrawlerConfig struct {
@@ -63,12 +80,22 @@ func Load() *Config {
 	v.SetDefault("log_level", "debug")
 	v.SetDefault("log_dir", "logs")
 	v.SetDefault("jwt_secret", "abc123456")
+	v.SetDefault("cloud_driver.platform", "115")
+	v.SetDefault("cloud_driver.save_root", "/get-magnet")
+	v.SetDefault("cloud_driver.timeout", 30)
+	v.SetDefault("cloud_driver.poll_cron", "*/10 * * * *")
 	v.SetDefault("crawler.exec_on_startup", false)
 	v.SetDefault("crawler.worker_num", 4)
 
 	v.BindEnv("aria2.jsonrpc")
 	v.BindEnv("aria2.secret")
 	v.BindEnv("aria2.move_to.javdb_dir")
+	v.BindEnv("cloud_driver.base_url")
+	v.BindEnv("cloud_driver.platform")
+	v.BindEnv("cloud_driver.profile_id")
+	v.BindEnv("cloud_driver.save_root")
+	v.BindEnv("cloud_driver.timeout")
+	v.BindEnv("cloud_driver.poll_cron")
 	v.BindEnv("crawler.exec_on_startup")
 	v.BindEnv("crawler.worker_num")
 	v.BindEnv("crawler.drission_rod_grpc_ip")

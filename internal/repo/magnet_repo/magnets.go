@@ -80,6 +80,29 @@ func MarkPostProcessDone(id int64) error {
 	return nil
 }
 
+func MarkPostProcessDoneByFollowed(followedBy string) error {
+	m, exists := GetByFollowed(followedBy)
+	if !exists {
+		return errors.New(fmt.Sprintf("查询资源FollowedBy(%s)不存在", followedBy))
+	}
+	return MarkPostProcessDone(m.Id)
+}
+
+func ListPendingPostProcess(limit int) ([]table.Magnets, error) {
+	var list []table.Magnets
+	err := db.Instance().
+		Where("followed_by <> ''").
+		And("followed_by <> ?", "unknow").
+		And("post_process_done = ?", false).
+		Limit(limit).
+		Find(&list)
+	if err != nil {
+		log.Errorf("查询未完成下载后处理资源异常：%s", err.Error())
+		return nil, err
+	}
+	return list, nil
+}
+
 // GetByNumber 根据番号获取磁力链接
 func GetByNumber(number string) (*table.Magnets, bool) {
 	m := new(table.Magnets)
