@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"strings"
 
 	"github.com/nekoimi/get-magnet/internal/logger"
@@ -87,6 +88,9 @@ func Load() *Config {
 	v.SetDefault("crawler.exec_on_startup", false)
 	v.SetDefault("crawler.worker_num", 4)
 
+	// 加载 YAML 配置文件
+	loadYamlFile(v)
+
 	v.BindEnv("aria2.jsonrpc")
 	v.BindEnv("aria2.secret")
 	v.BindEnv("aria2.move_to.javdb_dir")
@@ -115,6 +119,31 @@ func Load() *Config {
 	log.Infof("配置信息：\n%s", cfg)
 
 	return cfg
+}
+
+// loadYamlFile 加载环境特定的 YAML 配置文件
+// 优先级：CONFIG_FILE 环境变量（指定完整路径）> config/{APP_ENV}.yaml
+// 配置文件不存在不是错误，仅格式错误会输出警告
+func loadYamlFile(v *viper.Viper) {
+	if configFile := os.Getenv("CONFIG_FILE"); configFile != "" {
+		v.SetConfigFile(configFile)
+	} else {
+		env := os.Getenv("APP_ENV")
+		if env == "" {
+			env = "dev"
+		}
+		v.SetConfigName(env)
+		v.SetConfigType("yaml")
+		v.AddConfigPath("config")
+	}
+
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			log.Warnf("读取配置文件异常: %s", err.Error())
+		}
+	} else {
+		log.Infof("已加载配置文件: %s", v.ConfigFileUsed())
+	}
 }
 
 func (c *Config) String() string {

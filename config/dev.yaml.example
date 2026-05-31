@@ -1,0 +1,29 @@
+# 开发环境配置
+# 复制为 config/dev.yaml 并按需调整
+
+port: 8093
+log_level: debug
+log_dir: logs
+
+jwt_secret: dev-secret-not-for-production
+
+aria2:
+  jsonrpc: "http://localhost:6800/jsonrpc"
+  secret: "123456"
+  move_to:
+    javdb_dir: "/tmp/javdb"
+
+cloud_driver:
+  base_url: "http://localhost:8080"
+  platform: "115"
+  save_root: "/get-magnet"
+  timeout: 30
+
+crawler:
+  exec_on_startup: false
+  worker_num: 2
+  drission_rod_grpc_ip: "127.0.0.1"
+  drission_rod_grpc_port: 8191
+
+db:
+  dsn: "postgres://dev:dev@localhost:5432/get_magnet_dev?sslmode=disable"

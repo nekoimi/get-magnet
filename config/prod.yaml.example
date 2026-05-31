@@ -1,0 +1,28 @@
+# 生产环境配置
+# 复制为 config/prod.yaml 并按需调整
+
+port: 8093
+log_level: warn
+log_dir: logs
+
+# jwt_secret: 建议通过环境变量 JWT_SECRET 设置
+
+aria2:
+  jsonrpc: ""   # 通过环境变量 ARIA2_JSONRPC 设置
+  secret: ""    # 通过环境变量 ARIA2_SECRET 设置
+  move_to:
+    javdb_dir: "/data/javdb"
+
+cloud_driver:
+  base_url: "http://cloud-service:8080"
+  platform: "115"
+  save_root: "/get-magnet"
+  timeout: 60
+  poll_cron: "*/5 * * * *"
+
+crawler:
+  exec_on_startup: true
+  worker_num: 8
+
+db:
+  dsn: ""  # 通过环境变量 DB_DSN 设置
