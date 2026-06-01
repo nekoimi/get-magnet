@@ -134,14 +134,23 @@ func (d *CloudDownloader) pollPendingTasks(ctx context.Context) {
 		log.Debugf("网盘离线下载任务状态: %s - %s", taskID, task.Status)
 		switch strings.ToLower(task.Status) {
 		case "completed":
-			d.handleComplete(task)
+			d.handleComplete(ctx, task)
 		case "failed", "canceled":
 			d.handleError(task)
 		}
 	}
 }
 
-func (d *CloudDownloader) handleComplete(task offlineTask) {
+func (d *CloudDownloader) handleComplete(ctx context.Context, task offlineTask) {
+	allowFiles, delFiles := selectBestCloudFiles(task.Files)
+	for _, delFile := range delFiles {
+		if err := d.client.removeFile(ctx, delFile); err != nil {
+			log.Errorf("网盘离线下载任务文件清理失败: %s - %s - %s", task.TaskID, cloudFilePath(delFile), err.Error())
+			return
+		}
+		log.Debugf("网盘离线下载任务文件清理完成: %s - %s", task.TaskID, cloudFilePath(delFile))
+	}
+
 	if err := magnet_repo.MarkPostProcessDoneByFollowed(task.TaskID); err != nil {
 		log.Errorf("网盘离线下载任务完成后处理失败: %s - %s", task.TaskID, err.Error())
 		return
@@ -150,7 +159,7 @@ func (d *CloudDownloader) handleComplete(task offlineTask) {
 	t := downloader.DownloadTask{
 		Id:    task.TaskID,
 		Name:  task.Name,
-		Files: taskFilePaths(task),
+		Files: cloudFilePaths(allowFiles),
 	}
 	d.emitComplete(t)
 }
@@ -191,15 +200,16 @@ func safeCallback(name string, callback downloader.DownloadCallback, task downlo
 }
 
 func taskFilePaths(task offlineTask) []string {
-	files := make([]string, 0, len(task.Files))
-	for _, file := range task.Files {
-		if file.Path != "" {
-			files = append(files, file.Path)
-			continue
-		}
-		if file.Name != "" {
-			files = append(files, file.Name)
+	return cloudFilePaths(task.Files)
+}
+
+func cloudFilePaths(taskFiles []cloudFile) []string {
+	paths := make([]string, 0, len(taskFiles))
+	for _, file := range taskFiles {
+		filePath := cloudFilePath(file)
+		if filePath != "" {
+			paths = append(paths, filePath)
 		}
 	}
-	return files
+	return paths
 }

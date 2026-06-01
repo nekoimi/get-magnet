@@ -60,6 +60,20 @@ func (c *cloudClient) getOfflineTask(ctx context.Context, taskID string) (offlin
 	return data, nil
 }
 
+func (c *cloudClient) removeFile(ctx context.Context, file cloudFile) error {
+	req := removeCloudFileRequest{
+		FileID: file.FileID,
+		Path:   file.Path,
+	}
+	if req.FileID == "" && req.Path == "" {
+		req.Path = file.Name
+	}
+	if req.FileID == "" && req.Path == "" {
+		return fmt.Errorf("网盘文件缺少 file_id/path/name，无法删除")
+	}
+	return c.do(ctx, http.MethodDelete, c.driverPath("/fs/remove"), req, nil)
+}
+
 func (c *cloudClient) do(ctx context.Context, method string, path string, body any, data any) error {
 	if c.cfg.BaseURL == "" {
 		return fmt.Errorf("cloud_driver.base_url 未配置")

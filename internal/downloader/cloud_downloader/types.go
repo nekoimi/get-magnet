@@ -47,3 +47,8 @@ type cloudFile struct {
 	Path   string `json:"path,omitempty"`
 	Size   int64  `json:"size,omitempty"`
 }
+
+type removeCloudFileRequest struct {
+	FileID string `json:"file_id,omitempty"`
+	Path   string `json:"path,omitempty"`
+}
