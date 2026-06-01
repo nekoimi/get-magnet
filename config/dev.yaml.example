@@ -16,6 +16,7 @@ aria2:
 cloud_driver:
   base_url: "http://localhost:8080"
   platform: "115"
+  profile_id: ""
   save_root: "/get-magnet"
   timeout: 30
 
