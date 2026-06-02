@@ -78,16 +78,19 @@ func Detail(w http.ResponseWriter, r *http.Request) {
 
 // CreateRequest 创建磁力链接请求
 type CreateRequest struct {
-	Origin      string   `json:"origin,omitempty"`
-	Title       string   `json:"title,omitempty"`
-	Number      string   `json:"number,omitempty"`
-	OptimalLink string   `json:"optimal_link,omitempty"`
-	Links       []string `json:"links,omitempty"`
-	RawURLHost  string   `json:"raw_url_host,omitempty"`
-	RawURLPath  string   `json:"raw_url_path,omitempty"`
-	Status      uint8    `json:"status,omitempty"`
-	Actress0    string   `json:"actress0,omitempty"`
-	FollowedBy  string   `json:"followed_by,omitempty"`
+	Origin       string   `json:"origin,omitempty"`
+	Title        string   `json:"title,omitempty"`
+	Number       string   `json:"number,omitempty"`
+	OptimalLink  string   `json:"optimal_link,omitempty"`
+	Links        []string `json:"links,omitempty"`
+	RawURLHost   string   `json:"raw_url_host,omitempty"`
+	RawURLPath   string   `json:"raw_url_path,omitempty"`
+	Status       uint8    `json:"status,omitempty"`
+	Actress0     string   `json:"actress0,omitempty"`
+	FollowedBy   string   `json:"followed_by,omitempty"`
+	PlayFileID   string   `json:"play_file_id,omitempty"`
+	PlayFilePath string   `json:"play_file_path,omitempty"`
+	STRMPath     string   `json:"strm_path,omitempty"`
 }
 
 // Create 创建磁力链接
@@ -99,16 +102,19 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m := &table.Magnets{
-		Origin:      p.Origin,
-		Title:       p.Title,
-		Number:      p.Number,
-		OptimalLink: p.OptimalLink,
-		Links:       p.Links,
-		RawURLHost:  p.RawURLHost,
-		RawURLPath:  p.RawURLPath,
-		Status:      p.Status,
-		Actress0:    p.Actress0,
-		FollowedBy:  p.FollowedBy,
+		Origin:       p.Origin,
+		Title:        p.Title,
+		Number:       p.Number,
+		OptimalLink:  p.OptimalLink,
+		Links:        p.Links,
+		RawURLHost:   p.RawURLHost,
+		RawURLPath:   p.RawURLPath,
+		Status:       p.Status,
+		Actress0:     p.Actress0,
+		FollowedBy:   p.FollowedBy,
+		PlayFileID:   p.PlayFileID,
+		PlayFilePath: p.PlayFilePath,
+		STRMPath:     p.STRMPath,
 	}
 
 	magnet_repo.Save(m)
@@ -118,17 +124,20 @@ func Create(w http.ResponseWriter, r *http.Request) {
 
 // UpdateRequest 更新磁力链接请求
 type UpdateRequest struct {
-	Id          int64    `json:"id,omitempty"`
-	Origin      string   `json:"origin,omitempty"`
-	Title       string   `json:"title,omitempty"`
-	Number      string   `json:"number,omitempty"`
-	OptimalLink string   `json:"optimal_link,omitempty"`
-	Links       []string `json:"links,omitempty"`
-	RawURLHost  string   `json:"raw_url_host,omitempty"`
-	RawURLPath  string   `json:"raw_url_path,omitempty"`
-	Status      uint8    `json:"status,omitempty"`
-	Actress0    string   `json:"actress0,omitempty"`
-	FollowedBy  string   `json:"followed_by,omitempty"`
+	Id           int64    `json:"id,omitempty"`
+	Origin       string   `json:"origin,omitempty"`
+	Title        string   `json:"title,omitempty"`
+	Number       string   `json:"number,omitempty"`
+	OptimalLink  string   `json:"optimal_link,omitempty"`
+	Links        []string `json:"links,omitempty"`
+	RawURLHost   string   `json:"raw_url_host,omitempty"`
+	RawURLPath   string   `json:"raw_url_path,omitempty"`
+	Status       uint8    `json:"status,omitempty"`
+	Actress0     string   `json:"actress0,omitempty"`
+	FollowedBy   string   `json:"followed_by,omitempty"`
+	PlayFileID   string   `json:"play_file_id,omitempty"`
+	PlayFilePath string   `json:"play_file_path,omitempty"`
+	STRMPath     string   `json:"strm_path,omitempty"`
 }
 
 // Update 更新磁力链接
@@ -152,17 +161,20 @@ func Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m := &table.Magnets{
-		Id:          p.Id,
-		Origin:      p.Origin,
-		Title:       p.Title,
-		Number:      p.Number,
-		OptimalLink: p.OptimalLink,
-		Links:       p.Links,
-		RawURLHost:  p.RawURLHost,
-		RawURLPath:  p.RawURLPath,
-		Status:      p.Status,
-		Actress0:    p.Actress0,
-		FollowedBy:  p.FollowedBy,
+		Id:           p.Id,
+		Origin:       p.Origin,
+		Title:        p.Title,
+		Number:       p.Number,
+		OptimalLink:  p.OptimalLink,
+		Links:        p.Links,
+		RawURLHost:   p.RawURLHost,
+		RawURLPath:   p.RawURLPath,
+		Status:       p.Status,
+		Actress0:     p.Actress0,
+		FollowedBy:   p.FollowedBy,
+		PlayFileID:   p.PlayFileID,
+		PlayFilePath: p.PlayFilePath,
+		STRMPath:     p.STRMPath,
 	}
 
 	if err := magnet_repo.Update(m); err != nil {

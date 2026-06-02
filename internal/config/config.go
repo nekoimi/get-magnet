@@ -13,6 +13,8 @@ import (
 type Config struct {
 	// http服务端口
 	Port int `json:"port,omitempty" mapstructure:"port"`
+	// 应用配置
+	App *AppConfig `json:"app,omitempty" mapstructure:"app"`
 	// 日志等级
 	LogLevel string `json:"log_level,omitempty" mapstructure:"log_level"`
 	// 日志文件夹
@@ -23,10 +25,17 @@ type Config struct {
 	Aria2 *Aria2Config `json:"aria2,omitempty" mapstructure:"aria2"`
 	// 网盘驱动中间服务配置
 	CloudDriver *CloudDriverConfig `json:"cloud_driver,omitempty" mapstructure:"cloud_driver"`
+	// strm 文件配置
+	STRM *STRMConfig `json:"strm,omitempty" mapstructure:"strm"`
 	// 采集配置
 	Crawler *CrawlerConfig `json:"crawler,omitempty" mapstructure:"crawler"`
 	// 数据库配置
 	DB *DBConfig `json:"db,omitempty" mapstructure:"db"`
+}
+
+type AppConfig struct {
+	// 外部访问地址，用于生成 strm 内的播放接口地址
+	ExternalBaseURL string `json:"external_base_url,omitempty" mapstructure:"external_base_url"`
 }
 
 type Aria2Config struct {
@@ -58,6 +67,15 @@ type CloudDriverConfig struct {
 	PollCron string `json:"poll_cron,omitempty" mapstructure:"poll_cron"`
 }
 
+type STRMConfig struct {
+	// 是否启用 strm 文件生成
+	Enabled bool `json:"enabled,omitempty" mapstructure:"enabled"`
+	// strm 文件整理根目录
+	RootDir string `json:"root_dir,omitempty" mapstructure:"root_dir"`
+	// 已存在时是否覆盖
+	Overwrite bool `json:"overwrite,omitempty" mapstructure:"overwrite"`
+}
+
 type CrawlerConfig struct {
 	// 启动立即执行
 	ExecOnStartup bool `json:"exec_on_startup,omitempty" mapstructure:"exec_on_startup"`
@@ -81,6 +99,8 @@ func Load() *Config {
 	v.SetDefault("log_level", "debug")
 	v.SetDefault("log_dir", "logs")
 	v.SetDefault("jwt_secret", "abc123456")
+	v.SetDefault("strm.enabled", false)
+	v.SetDefault("strm.overwrite", true)
 	v.SetDefault("cloud_driver.platform", "115")
 	v.SetDefault("cloud_driver.save_root", "/get-magnet")
 	v.SetDefault("cloud_driver.timeout", 30)
@@ -94,12 +114,16 @@ func Load() *Config {
 	v.BindEnv("aria2.jsonrpc")
 	v.BindEnv("aria2.secret")
 	v.BindEnv("aria2.move_to.javdb_dir")
+	v.BindEnv("app.external_base_url")
 	v.BindEnv("cloud_driver.base_url")
 	v.BindEnv("cloud_driver.platform")
 	v.BindEnv("cloud_driver.profile_id")
 	v.BindEnv("cloud_driver.save_root")
 	v.BindEnv("cloud_driver.timeout")
 	v.BindEnv("cloud_driver.poll_cron")
+	v.BindEnv("strm.enabled")
+	v.BindEnv("strm.root_dir")
+	v.BindEnv("strm.overwrite")
 	v.BindEnv("crawler.exec_on_startup")
 	v.BindEnv("crawler.worker_num")
 	v.BindEnv("crawler.drission_rod_grpc_ip")

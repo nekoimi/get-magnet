@@ -10,6 +10,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/api/proxy"
 	"github.com/nekoimi/get-magnet/internal/api/ui"
 	"github.com/nekoimi/get-magnet/internal/api/user"
+	"github.com/nekoimi/get-magnet/internal/config"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,7 +18,7 @@ const uiDir = "/workspace/ui"
 const uiAriaNgDir = "/workspace/ui/aria-ng"
 const aria2JsonApi = "/api/aria2/jsonrpc"
 
-func newRouter() *mux.Router {
+func newRouter(cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
 	r.Use(middleware.CORSMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
@@ -34,7 +35,7 @@ func newRouter() *mux.Router {
 		// 登出
 		apiRoute.HandleFunc("/auth/logout", auth.Logout)
 		// 视频播放地址
-		apiRoute.HandleFunc("/play/{number}", play.Play).Methods("GET")
+		apiRoute.HandleFunc("/play/{number}", play.Play(cfg)).Methods("GET")
 
 		v1Api := apiRoute.PathPrefix("/v1").Subrouter()
 		{

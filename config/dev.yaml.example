@@ -7,6 +7,9 @@ log_dir: logs
 
 jwt_secret: dev-secret-not-for-production
 
+app:
+  external_base_url: "http://localhost:8093"
+
 aria2:
   jsonrpc: "http://localhost:6800/jsonrpc"
   secret: "123456"
@@ -19,6 +22,12 @@ cloud_driver:
   profile_id: ""
   save_root: "/get-magnet"
   timeout: 30
+  poll_cron: "*/10 * * * *"
+
+strm:
+  enabled: false
+  root_dir: "/tmp/get-magnet-strm"
+  overwrite: true
 
 crawler:
   exec_on_startup: false

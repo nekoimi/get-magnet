@@ -29,6 +29,10 @@ type addOfflineTaskResponse struct {
 	Status         string `json:"status,omitempty"`
 }
 
+type mediaURLResponse struct {
+	URL string `json:"url"`
+}
+
 type offlineTask struct {
 	TaskID         string      `json:"task_id"`
 	ProviderTaskID string      `json:"provider_task_id,omitempty"`

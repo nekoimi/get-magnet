@@ -30,7 +30,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.cfg = bean.PtrFromContext[config.Config](ctx)
 	jwt.SetSecret(s.cfg.JwtSecret)
 
-	router := newRouter()
+	router := newRouter(s.cfg)
 
 	s.http = &http.Server{
 		Addr:    fmt.Sprintf("0.0.0.0:%d", s.cfg.Port),

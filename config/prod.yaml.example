@@ -7,6 +7,9 @@ log_dir: logs
 
 # jwt_secret: 建议通过环境变量 JWT_SECRET 设置
 
+app:
+  external_base_url: "https://media.example.com"
+
 aria2:
   jsonrpc: ""   # 通过环境变量 ARIA2_JSONRPC 设置
   secret: ""    # 通过环境变量 ARIA2_SECRET 设置
@@ -20,6 +23,11 @@ cloud_driver:
   save_root: "/get-magnet"
   timeout: 60
   poll_cron: "*/5 * * * *"
+
+strm:
+  enabled: true
+  root_dir: "/data/jellyfin/strm"
+  overwrite: true
 
 crawler:
   exec_on_startup: true

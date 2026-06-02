@@ -18,4 +18,7 @@ type Magnets struct {
 	Actress0        string `json:"actress0,omitempty"`
 	FollowedBy      string `xorm:"followed_by" json:"followed_by,omitempty"`
 	PostProcessDone bool   `xorm:"post_process_done" json:"post_process_done,omitempty"`
+	PlayFileID      string `xorm:"play_file_id" json:"play_file_id,omitempty"`
+	PlayFilePath    string `xorm:"play_file_path" json:"play_file_path,omitempty"`
+	STRMPath        string `xorm:"strm_path" json:"strm_path,omitempty"`
 }

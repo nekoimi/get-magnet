@@ -74,6 +74,29 @@ func (c *cloudClient) removeFile(ctx context.Context, file cloudFile) error {
 	return c.do(ctx, http.MethodDelete, c.driverPath("/fs/remove"), req, nil)
 }
 
+func (c *cloudClient) getMediaURL(ctx context.Context, file cloudFile) (string, error) {
+	params := url.Values{}
+	if file.FileID != "" {
+		params.Set("file_id", file.FileID)
+	} else if file.Path != "" {
+		params.Set("path", file.Path)
+	} else if file.Name != "" {
+		params.Set("path", file.Name)
+	} else {
+		return "", fmt.Errorf("网盘文件缺少 file_id/path/name，无法获取下载地址")
+	}
+
+	var data mediaURLResponse
+	err := c.do(ctx, http.MethodGet, c.driverPath("/media/url")+"?"+params.Encode(), nil, &data)
+	if err != nil {
+		return "", err
+	}
+	if data.URL == "" {
+		return "", fmt.Errorf("网盘中间服务返回下载地址为空")
+	}
+	return data.URL, nil
+}
+
 func (c *cloudClient) do(ctx context.Context, method string, path string, body any, data any) error {
 	if c.cfg.BaseURL == "" {
 		return fmt.Errorf("cloud_driver.base_url 未配置")

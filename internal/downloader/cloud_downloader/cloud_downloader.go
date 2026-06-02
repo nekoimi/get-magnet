@@ -2,14 +2,17 @@ package cloud_downloader
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/downloader"
 	"github.com/nekoimi/get-magnet/internal/job"
+	"github.com/nekoimi/get-magnet/internal/pkg/files"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
 	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	log "github.com/sirupsen/logrus"
@@ -18,7 +21,9 @@ import (
 const pendingPostProcessLimit = 100
 
 type CloudDownloader struct {
+	appCfg        *config.AppConfig
 	cfg           *config.CloudDriverConfig
+	strmCfg       *config.STRMConfig
 	client        *cloudClient
 	onComplete    []downloader.DownloadCallback
 	onError       []downloader.DownloadCallback
@@ -39,9 +44,17 @@ func (d *CloudDownloader) Name() string {
 
 func (d *CloudDownloader) Start(parent context.Context) error {
 	cfg := bean.PtrFromContext[config.Config](parent)
+	d.appCfg = cfg.App
+	if d.appCfg == nil {
+		d.appCfg = &config.AppConfig{}
+	}
 	d.cfg = cfg.CloudDriver
 	if d.cfg == nil {
 		d.cfg = &config.CloudDriverConfig{}
+	}
+	d.strmCfg = cfg.STRM
+	if d.strmCfg == nil {
+		d.strmCfg = &config.STRMConfig{}
 	}
 	d.cronScheduler = bean.FromContext[job.CronScheduler](parent)
 	d.client = newCloudClient(d.cfg)
@@ -142,7 +155,17 @@ func (d *CloudDownloader) pollPendingTasks(ctx context.Context) {
 }
 
 func (d *CloudDownloader) handleComplete(ctx context.Context, task offlineTask) {
+	m, exists := magnet_repo.GetByFollowed(task.TaskID)
+	if !exists {
+		log.Warnf("网盘离线下载任务完成后处理失败，资源记录不存在: %s", task.TaskID)
+		return
+	}
+
 	allowFiles, delFiles := selectBestCloudFiles(task.Files)
+	if len(allowFiles) == 0 {
+		log.Errorf("网盘离线下载任务完成后处理失败，没有可播放视频文件: %s", task.TaskID)
+		return
+	}
 	for _, delFile := range delFiles {
 		if err := d.client.removeFile(ctx, delFile); err != nil {
 			log.Errorf("网盘离线下载任务文件清理失败: %s - %s - %s", task.TaskID, cloudFilePath(delFile), err.Error())
@@ -151,7 +174,19 @@ func (d *CloudDownloader) handleComplete(ctx context.Context, task offlineTask) 
 		log.Debugf("网盘离线下载任务文件清理完成: %s - %s", task.TaskID, cloudFilePath(delFile))
 	}
 
-	if err := magnet_repo.MarkPostProcessDoneByFollowed(task.TaskID); err != nil {
+	strmPaths, err := d.writeSTRMFiles(m, allowFiles)
+	if err != nil {
+		log.Errorf("网盘离线下载任务生成strm失败: %s - %s", task.TaskID, err.Error())
+		return
+	}
+
+	selectedFile := allowFiles[0]
+	selectedFilePath := cloudFilePath(selectedFile)
+	selectedSTRMPath := ""
+	if len(strmPaths) > 0 {
+		selectedSTRMPath = strmPaths[0]
+	}
+	if err := magnet_repo.MarkPostProcessDoneWithPlayInfo(m.Id, selectedFile.FileID, selectedFilePath, selectedSTRMPath); err != nil {
 		log.Errorf("网盘离线下载任务完成后处理失败: %s - %s", task.TaskID, err.Error())
 		return
 	}
@@ -162,6 +197,43 @@ func (d *CloudDownloader) handleComplete(ctx context.Context, task offlineTask) 
 		Files: cloudFilePaths(allowFiles),
 	}
 	d.emitComplete(t)
+}
+
+func (d *CloudDownloader) writeSTRMFiles(m *table.Magnets, taskFiles []cloudFile) ([]string, error) {
+	if d.strmCfg == nil || !d.strmCfg.Enabled {
+		return nil, nil
+	}
+	if strings.TrimSpace(d.strmCfg.RootDir) == "" {
+		return nil, fmt.Errorf("strm.root_dir 未配置")
+	}
+	if len(taskFiles) == 0 {
+		return nil, fmt.Errorf("没有可生成strm的目标视频文件")
+	}
+
+	playURL, err := buildPlayURL(d.appCfg, m.Number)
+	if err != nil {
+		return nil, err
+	}
+
+	strmPaths := make([]string, 0, len(taskFiles))
+	for _, taskFile := range taskFiles {
+		targetPath := buildSTRMTargetPath(d.strmCfg.RootDir, m, cloudFilePath(taskFile))
+		if !d.strmCfg.Overwrite {
+			if exists, err := files.Exists(targetPath); err != nil {
+				return nil, err
+			} else if exists {
+				log.Debugf("strm文件已存在，跳过生成: %s", targetPath)
+				strmPaths = append(strmPaths, targetPath)
+				continue
+			}
+		}
+		if err := writeSTRMFile(targetPath, playURL); err != nil {
+			return nil, err
+		}
+		strmPaths = append(strmPaths, targetPath)
+		log.Infof("strm文件生成完成: %s -> %s", targetPath, playURL)
+	}
+	return strmPaths, nil
 }
 
 func (d *CloudDownloader) handleError(task offlineTask) {
