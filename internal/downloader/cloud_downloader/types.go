@@ -42,14 +42,24 @@ type offlineTask struct {
 	SavePath       string      `json:"save_path,omitempty"`
 	ErrorCode      string      `json:"error_code,omitempty"`
 	ErrorMessage   string      `json:"error_message,omitempty"`
-	Files          []cloudFile `json:"files,omitempty"`
+	Files          []cloudFile `json:"files"`
+	Warnings       []string    `json:"warnings,omitempty"`
 }
 
 type cloudFile struct {
+	ID     string `json:"id,omitempty"`
 	FileID string `json:"file_id,omitempty"`
 	Name   string `json:"name,omitempty"`
 	Path   string `json:"path,omitempty"`
+	IsDir  bool   `json:"is_dir,omitempty"`
 	Size   int64  `json:"size,omitempty"`
+}
+
+func (f cloudFile) identity() string {
+	if f.FileID != "" {
+		return f.FileID
+	}
+	return f.ID
 }
 
 type removeCloudFileRequest struct {

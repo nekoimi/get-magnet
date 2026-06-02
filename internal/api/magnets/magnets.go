@@ -13,10 +13,10 @@ import (
 
 // ListRequest 磁力链接列表查询请求
 type ListRequest struct {
-	PageNum   int    `json:"page_num,omitempty"`
-	PageSize  int    `json:"page_size,omitempty"`
-	Keyword   string `json:"keyword,omitempty"`
-	Status    *uint8 `json:"status,omitempty"`
+	PageNum  int    `json:"page_num,omitempty"`
+	PageSize int    `json:"page_size,omitempty"`
+	Keyword  string `json:"keyword,omitempty"`
+	Status   *uint8 `json:"status,omitempty"`
 }
 
 // ListResponse 磁力链接列表响应
@@ -90,6 +90,7 @@ type CreateRequest struct {
 	FollowedBy   string   `json:"followed_by,omitempty"`
 	PlayFileID   string   `json:"play_file_id,omitempty"`
 	PlayFilePath string   `json:"play_file_path,omitempty"`
+	PlayFileSize int64    `json:"play_file_size,omitempty"`
 	STRMPath     string   `json:"strm_path,omitempty"`
 }
 
@@ -114,6 +115,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		FollowedBy:   p.FollowedBy,
 		PlayFileID:   p.PlayFileID,
 		PlayFilePath: p.PlayFilePath,
+		PlayFileSize: p.PlayFileSize,
 		STRMPath:     p.STRMPath,
 	}
 
@@ -137,6 +139,7 @@ type UpdateRequest struct {
 	FollowedBy   string   `json:"followed_by,omitempty"`
 	PlayFileID   string   `json:"play_file_id,omitempty"`
 	PlayFilePath string   `json:"play_file_path,omitempty"`
+	PlayFileSize int64    `json:"play_file_size,omitempty"`
 	STRMPath     string   `json:"strm_path,omitempty"`
 }
 
@@ -174,6 +177,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		FollowedBy:   p.FollowedBy,
 		PlayFileID:   p.PlayFileID,
 		PlayFilePath: p.PlayFilePath,
+		PlayFileSize: p.PlayFileSize,
 		STRMPath:     p.STRMPath,
 	}
 

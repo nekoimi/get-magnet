@@ -62,7 +62,7 @@ func (c *cloudClient) getOfflineTask(ctx context.Context, taskID string) (offlin
 
 func (c *cloudClient) removeFile(ctx context.Context, file cloudFile) error {
 	req := removeCloudFileRequest{
-		FileID: file.FileID,
+		FileID: file.identity(),
 		Path:   file.Path,
 	}
 	if req.FileID == "" && req.Path == "" {
@@ -76,8 +76,8 @@ func (c *cloudClient) removeFile(ctx context.Context, file cloudFile) error {
 
 func (c *cloudClient) getMediaURL(ctx context.Context, file cloudFile) (string, error) {
 	params := url.Values{}
-	if file.FileID != "" {
-		params.Set("file_id", file.FileID)
+	if file.identity() != "" {
+		params.Set("file_id", file.identity())
 	} else if file.Path != "" {
 		params.Set("path", file.Path)
 	} else if file.Name != "" {

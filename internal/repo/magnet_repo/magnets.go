@@ -80,15 +80,16 @@ func MarkPostProcessDone(id int64) error {
 	return nil
 }
 
-func MarkPostProcessDoneWithPlayInfo(id int64, playFileID, playFilePath, strmPath string) error {
+func MarkPostProcessDoneWithPlayInfo(id int64, playFileID, playFilePath string, playFileSize int64, strmPath string) error {
 	m := &table.Magnets{
 		Id:              id,
 		PostProcessDone: true,
 		PlayFileID:      playFileID,
 		PlayFilePath:    playFilePath,
+		PlayFileSize:    playFileSize,
 		STRMPath:        strmPath,
 	}
-	if _, err := db.Instance().ID(id).Cols("post_process_done", "play_file_id", "play_file_path", "strm_path").Update(m); err != nil {
+	if _, err := db.Instance().ID(id).Cols("post_process_done", "play_file_id", "play_file_path", "play_file_size", "strm_path").Update(m); err != nil {
 		log.Errorf("更新资源下载后处理播放信息异常：%s", err.Error())
 		return err
 	}

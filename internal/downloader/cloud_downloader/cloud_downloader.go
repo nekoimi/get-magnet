@@ -145,6 +145,9 @@ func (d *CloudDownloader) pollPendingTasks(ctx context.Context) {
 		}
 
 		log.Debugf("网盘离线下载任务状态: %s - %s", taskID, task.Status)
+		for _, warning := range task.Warnings {
+			log.Warnf("网盘离线下载任务警告: %s - %s", taskID, warning)
+		}
 		switch strings.ToLower(task.Status) {
 		case "completed":
 			d.handleComplete(ctx, task)
@@ -186,7 +189,7 @@ func (d *CloudDownloader) handleComplete(ctx context.Context, task offlineTask) 
 	if len(strmPaths) > 0 {
 		selectedSTRMPath = strmPaths[0]
 	}
-	if err := magnet_repo.MarkPostProcessDoneWithPlayInfo(m.Id, selectedFile.FileID, selectedFilePath, selectedSTRMPath); err != nil {
+	if err := magnet_repo.MarkPostProcessDoneWithPlayInfo(m.Id, selectedFile.identity(), selectedFilePath, selectedFile.Size, selectedSTRMPath); err != nil {
 		log.Errorf("网盘离线下载任务完成后处理失败: %s - %s", task.TaskID, err.Error())
 		return
 	}

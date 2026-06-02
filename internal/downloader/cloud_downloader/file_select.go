@@ -12,6 +12,11 @@ func selectBestCloudFiles(fs []cloudFile) ([]cloudFile, []cloudFile) {
 	var allowFiles []cloudFile
 	var notAllowFiles []cloudFile
 	for _, f := range fs {
+		if f.IsDir {
+			log.Debugf("网盘下载任务文件优选 - 跳过目录: %s", cloudFilePath(f))
+			continue
+		}
+
 		filePath := cloudFilePath(f)
 		if err := files.IsValidFileName(filePath); err != nil {
 			log.Debugf("网盘下载任务文件优选 - 文件名不合法，删除: %s - %s", filePath, err.Error())
