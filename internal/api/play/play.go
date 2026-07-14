@@ -2,6 +2,7 @@ package play
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/internal/config"
@@ -35,7 +36,13 @@ func Play(cfg *config.Config) http.HandlerFunc {
 		if cfg != nil {
 			cloudCfg = cfg.CloudDriver
 		}
-		playURL, err := cloud_downloader.ResolveMediaURLWithFile(r.Context(), cloudCfg, m.FollowedBy, m.PlayFileID, m.PlayFilePath)
+		fileID := strings.TrimSpace(r.URL.Query().Get("file_id"))
+		filePath := strings.TrimSpace(r.URL.Query().Get("path"))
+		if fileID == "" && filePath == "" {
+			fileID = m.PlayFileID
+			filePath = m.PlayFilePath
+		}
+		playURL, err := cloud_downloader.ResolveMediaURLWithFile(r.Context(), cloudCfg, m.FollowedBy, fileID, filePath)
 		if err != nil {
 			respond.Error(w, err)
 			return

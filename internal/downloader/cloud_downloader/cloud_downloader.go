@@ -2,6 +2,8 @@ package cloud_downloader
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"path"
 	"strings"
@@ -96,9 +98,10 @@ func (d *CloudDownloader) Stop(ctx context.Context) error {
 func (d *CloudDownloader) Download(category string, rawURL string) (string, error) {
 	savePath := path.Join(d.cfg.SaveRoot, category, util.NowDate("-"))
 	resp, err := d.client.addOfflineTask(context.Background(), addOfflineTaskRequest{
-		URL:      rawURL,
-		Category: category,
-		SavePath: savePath,
+		URL:          rawURL,
+		Category:     category,
+		SavePath:     savePath,
+		ClientTaskID: cloudClientTaskID(category, savePath, rawURL),
 		Metadata: map[string]string{
 			"origin": category,
 		},
@@ -213,14 +216,13 @@ func (d *CloudDownloader) writeSTRMFiles(m *table.Magnets, taskFiles []cloudFile
 		return nil, fmt.Errorf("没有可生成strm的目标视频文件")
 	}
 
-	playURL, err := buildPlayURL(d.appCfg, m.Number)
-	if err != nil {
-		return nil, err
-	}
-
 	strmPaths := make([]string, 0, len(taskFiles))
 	for _, taskFile := range taskFiles {
-		targetPath := buildSTRMTargetPath(d.strmCfg.RootDir, m, cloudFilePath(taskFile))
+		playURL, err := buildPlayURL(d.appCfg, m.Number, taskFile)
+		if err != nil {
+			return nil, err
+		}
+		targetPath := buildSTRMTargetPath(d.strmCfg.RootDir, m, cloudFileDisplayPath(taskFile))
 		if !d.strmCfg.Overwrite {
 			if exists, err := files.Exists(targetPath); err != nil {
 				return nil, err
@@ -237,6 +239,16 @@ func (d *CloudDownloader) writeSTRMFiles(m *table.Magnets, taskFiles []cloudFile
 		log.Infof("strm文件生成完成: %s -> %s", targetPath, playURL)
 	}
 	return strmPaths, nil
+}
+
+func cloudClientTaskID(category, savePath, rawURL string) string {
+	hash := sha1.New()
+	_, _ = hash.Write([]byte(strings.TrimSpace(category)))
+	_, _ = hash.Write([]byte{0})
+	_, _ = hash.Write([]byte(strings.TrimSpace(savePath)))
+	_, _ = hash.Write([]byte{0})
+	_, _ = hash.Write([]byte(strings.TrimSpace(rawURL)))
+	return "get-magnet:" + hex.EncodeToString(hash.Sum(nil))
 }
 
 func (d *CloudDownloader) handleError(task offlineTask) {

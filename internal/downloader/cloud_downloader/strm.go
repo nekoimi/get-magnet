@@ -16,7 +16,7 @@ import (
 
 var singleEditionSuffixPattern = regexp.MustCompile(`^-[A-Z0-9]{1,6}$`)
 
-func buildPlayURL(cfg *config.AppConfig, number string) (string, error) {
+func buildPlayURL(cfg *config.AppConfig, number string, file cloudFile) (string, error) {
 	if cfg == nil || strings.TrimSpace(cfg.ExternalBaseURL) == "" {
 		return "", fmt.Errorf("app.external_base_url 未配置")
 	}
@@ -24,7 +24,17 @@ func buildPlayURL(cfg *config.AppConfig, number string) (string, error) {
 	if normalizedNumber == "" {
 		return "", fmt.Errorf("番号为空，无法生成播放地址")
 	}
-	return strings.TrimRight(cfg.ExternalBaseURL, "/") + "/api/play/" + url.PathEscape(normalizedNumber), nil
+	playURL := strings.TrimRight(cfg.ExternalBaseURL, "/") + "/api/play/" + url.PathEscape(normalizedNumber)
+	params := url.Values{}
+	if file.identity() != "" {
+		params.Set("file_id", file.identity())
+	} else if filePath := cloudFilePath(file); filePath != "" {
+		params.Set("path", filePath)
+	}
+	if len(params) > 0 {
+		playURL += "?" + params.Encode()
+	}
+	return playURL, nil
 }
 
 func buildSTRMTargetPath(rootDir string, magnet *table.Magnets, sourceFile string) string {

@@ -40,6 +40,7 @@ type offlineTask struct {
 	Name           string      `json:"name,omitempty"`
 	Progress       float64     `json:"progress,omitempty"`
 	SavePath       string      `json:"save_path,omitempty"`
+	SaveDir        *cloudFile  `json:"save_dir,omitempty"`
 	ErrorCode      string      `json:"error_code,omitempty"`
 	ErrorMessage   string      `json:"error_message,omitempty"`
 	Files          []cloudFile `json:"files"`
@@ -47,12 +48,15 @@ type offlineTask struct {
 }
 
 type cloudFile struct {
-	ID     string `json:"id,omitempty"`
-	FileID string `json:"file_id,omitempty"`
-	Name   string `json:"name,omitempty"`
-	Path   string `json:"path,omitempty"`
-	IsDir  bool   `json:"is_dir,omitempty"`
-	Size   int64  `json:"size,omitempty"`
+	ID           string         `json:"id,omitempty"`
+	FileID       string         `json:"file_id,omitempty"`
+	ParentID     string         `json:"parent_id,omitempty"`
+	Name         string         `json:"name,omitempty"`
+	Path         string         `json:"path,omitempty"`
+	RelativePath string         `json:"relative_path,omitempty"`
+	IsDir        bool           `json:"is_dir,omitempty"`
+	Size         int64          `json:"size,omitempty"`
+	Extra        map[string]any `json:"extra,omitempty"`
 }
 
 func (f cloudFile) identity() string {
