@@ -1,0 +1,290 @@
+package cloud_downloader
+
+import (
+	"context"
+	"fmt"
+	"path"
+	"strings"
+	"time"
+
+	"github.com/nekoimi/get-magnet/internal/bean"
+	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/get-magnet/internal/downloader"
+	"github.com/nekoimi/get-magnet/internal/job"
+	"github.com/nekoimi/get-magnet/internal/pkg/files"
+	"github.com/nekoimi/get-magnet/internal/pkg/util"
+	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
+	log "github.com/sirupsen/logrus"
+)
+
+const pendingPostProcessLimit = 100
+
+type CloudDownloader struct {
+	appCfg        *config.AppConfig
+	cfg           *config.CloudDriverConfig
+	strmCfg       *config.STRMConfig
+	client        *cloudClient
+	onComplete    []downloader.DownloadCallback
+	onError       []downloader.DownloadCallback
+	cronScheduler job.CronScheduler
+	cancel        context.CancelFunc
+}
+
+func NewCloudDownloadService() downloader.DownloadService {
+	return &CloudDownloader{
+		onComplete: make([]downloader.DownloadCallback, 0),
+		onError:    make([]downloader.DownloadCallback, 0),
+	}
+}
+
+func (d *CloudDownloader) Name() string {
+	return "CloudDownloader"
+}
+
+func (d *CloudDownloader) Start(parent context.Context) error {
+	cfg := bean.PtrFromContext[config.Config](parent)
+	d.appCfg = cfg.App
+	if d.appCfg == nil {
+		d.appCfg = &config.AppConfig{}
+	}
+	d.cfg = cfg.CloudDriver
+	if d.cfg == nil {
+		d.cfg = &config.CloudDriverConfig{}
+	}
+	d.strmCfg = cfg.STRM
+	if d.strmCfg == nil {
+		d.strmCfg = &config.STRMConfig{}
+	}
+	d.cronScheduler = bean.FromContext[job.CronScheduler](parent)
+	d.client = newCloudClient(d.cfg)
+
+	var subCtx context.Context
+	subCtx, d.cancel = context.WithCancel(parent)
+
+	if err := d.client.health(subCtx); err != nil {
+		log.Warnf("网盘中间服务健康检查失败，后续将通过定时任务重试: %s", err.Error())
+	} else {
+		log.Infof("网盘中间服务健康检查成功")
+	}
+
+	pollCron := d.cfg.PollCron
+	if pollCron == "" {
+		pollCron = "*/10 * * * *"
+	}
+	d.cronScheduler.Register(pollCron, &job.CronJob{
+		Name: "轮询网盘离线下载任务",
+		Exec: func() {
+			d.pollPendingTasks(subCtx)
+		},
+	})
+
+	time.AfterFunc(10*time.Second, func() {
+		d.pollPendingTasks(subCtx)
+	})
+
+	return nil
+}
+
+func (d *CloudDownloader) Stop(ctx context.Context) error {
+	if d.cancel != nil {
+		d.cancel()
+	}
+	return nil
+}
+
+func (d *CloudDownloader) Download(category string, rawURL string) (string, error) {
+	savePath := path.Join(d.cfg.SaveRoot, category, util.NowDate("-"))
+	resp, err := d.client.addOfflineTask(context.Background(), addOfflineTaskRequest{
+		URL:      rawURL,
+		Category: category,
+		SavePath: savePath,
+		Metadata: map[string]string{
+			"origin": category,
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	log.Infof("提交网盘离线下载任务成功: %s -> %s", rawURL, resp.TaskID)
+	return resp.TaskID, nil
+}
+
+func (d *CloudDownloader) OnComplete(callback downloader.DownloadCallback) {
+	d.onComplete = append(d.onComplete, callback)
+}
+
+func (d *CloudDownloader) OnError(callback downloader.DownloadCallback) {
+	d.onError = append(d.onError, callback)
+}
+
+func (d *CloudDownloader) pollPendingTasks(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
+	list, err := magnet_repo.ListPendingPostProcess(pendingPostProcessLimit)
+	if err != nil {
+		return
+	}
+
+	for _, m := range list {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		taskID := m.FollowedBy
+		task, err := d.client.getOfflineTask(ctx, taskID)
+		if err != nil {
+			log.Errorf("查询网盘离线下载任务异常: %s - %s", taskID, err.Error())
+			continue
+		}
+
+		log.Debugf("网盘离线下载任务状态: %s - %s", taskID, task.Status)
+		for _, warning := range task.Warnings {
+			log.Warnf("网盘离线下载任务警告: %s - %s", taskID, warning)
+		}
+		switch strings.ToLower(task.Status) {
+		case "completed":
+			d.handleComplete(ctx, task)
+		case "failed", "canceled":
+			d.handleError(task)
+		}
+	}
+}
+
+func (d *CloudDownloader) handleComplete(ctx context.Context, task offlineTask) {
+	m, exists := magnet_repo.GetByFollowed(task.TaskID)
+	if !exists {
+		log.Warnf("网盘离线下载任务完成后处理失败，资源记录不存在: %s", task.TaskID)
+		return
+	}
+
+	allowFiles, delFiles := selectBestCloudFiles(task.Files)
+	if len(allowFiles) == 0 {
+		log.Errorf("网盘离线下载任务完成后处理失败，没有可播放视频文件: %s", task.TaskID)
+		return
+	}
+	for _, delFile := range delFiles {
+		if err := d.client.removeFile(ctx, delFile); err != nil {
+			log.Errorf("网盘离线下载任务文件清理失败: %s - %s - %s", task.TaskID, cloudFilePath(delFile), err.Error())
+			return
+		}
+		log.Debugf("网盘离线下载任务文件清理完成: %s - %s", task.TaskID, cloudFilePath(delFile))
+	}
+
+	strmPaths, err := d.writeSTRMFiles(m, allowFiles)
+	if err != nil {
+		log.Errorf("网盘离线下载任务生成strm失败: %s - %s", task.TaskID, err.Error())
+		return
+	}
+
+	selectedFile := allowFiles[0]
+	selectedFilePath := cloudFilePath(selectedFile)
+	selectedSTRMPath := ""
+	if len(strmPaths) > 0 {
+		selectedSTRMPath = strmPaths[0]
+	}
+	if err := magnet_repo.MarkPostProcessDoneWithPlayInfo(m.Id, selectedFile.identity(), selectedFilePath, selectedFile.Size, selectedSTRMPath); err != nil {
+		log.Errorf("网盘离线下载任务完成后处理失败: %s - %s", task.TaskID, err.Error())
+		return
+	}
+
+	t := downloader.DownloadTask{
+		Id:    task.TaskID,
+		Name:  task.Name,
+		Files: cloudFilePaths(allowFiles),
+	}
+	d.emitComplete(t)
+}
+
+func (d *CloudDownloader) writeSTRMFiles(m *table.Magnets, taskFiles []cloudFile) ([]string, error) {
+	if d.strmCfg == nil || !d.strmCfg.Enabled {
+		return nil, nil
+	}
+	if strings.TrimSpace(d.strmCfg.RootDir) == "" {
+		return nil, fmt.Errorf("strm.root_dir 未配置")
+	}
+	if len(taskFiles) == 0 {
+		return nil, fmt.Errorf("没有可生成strm的目标视频文件")
+	}
+
+	playURL, err := buildPlayURL(d.appCfg, m.Number)
+	if err != nil {
+		return nil, err
+	}
+
+	strmPaths := make([]string, 0, len(taskFiles))
+	for _, taskFile := range taskFiles {
+		targetPath := buildSTRMTargetPath(d.strmCfg.RootDir, m, cloudFilePath(taskFile))
+		if !d.strmCfg.Overwrite {
+			if exists, err := files.Exists(targetPath); err != nil {
+				return nil, err
+			} else if exists {
+				log.Debugf("strm文件已存在，跳过生成: %s", targetPath)
+				strmPaths = append(strmPaths, targetPath)
+				continue
+			}
+		}
+		if err := writeSTRMFile(targetPath, playURL); err != nil {
+			return nil, err
+		}
+		strmPaths = append(strmPaths, targetPath)
+		log.Infof("strm文件生成完成: %s -> %s", targetPath, playURL)
+	}
+	return strmPaths, nil
+}
+
+func (d *CloudDownloader) handleError(task offlineTask) {
+	t := downloader.DownloadTask{
+		Id:    task.TaskID,
+		Name:  task.Name,
+		Files: taskFilePaths(task),
+	}
+	if task.ErrorMessage != "" {
+		log.Errorf("网盘离线下载任务失败: %s - %s", task.TaskID, task.ErrorMessage)
+	} else {
+		log.Errorf("网盘离线下载任务失败: %s - %s", task.TaskID, task.Status)
+	}
+	d.emitError(t)
+}
+
+func (d *CloudDownloader) emitComplete(task downloader.DownloadTask) {
+	for _, callback := range d.onComplete {
+		go safeCallback("网盘下载完成", callback, task)
+	}
+}
+
+func (d *CloudDownloader) emitError(task downloader.DownloadTask) {
+	for _, callback := range d.onError {
+		go safeCallback("网盘下载异常", callback, task)
+	}
+}
+
+func safeCallback(name string, callback downloader.DownloadCallback, task downloader.DownloadTask) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("处理%s回调panic: %v", name, r)
+		}
+	}()
+	callback(task)
+}
+
+func taskFilePaths(task offlineTask) []string {
+	return cloudFilePaths(task.Files)
+}
+
+func cloudFilePaths(taskFiles []cloudFile) []string {
+	paths := make([]string, 0, len(taskFiles))
+	for _, file := range taskFiles {
+		filePath := cloudFilePath(file)
+		if filePath != "" {
+			paths = append(paths, filePath)
+		}
+	}
+	return paths
+}

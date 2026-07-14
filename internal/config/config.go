@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"strings"
 
 	"github.com/nekoimi/get-magnet/internal/logger"
@@ -12,6 +13,8 @@ import (
 type Config struct {
 	// http服务端口
 	Port int `json:"port,omitempty" mapstructure:"port"`
+	// 应用配置
+	App *AppConfig `json:"app,omitempty" mapstructure:"app"`
 	// 日志等级
 	LogLevel string `json:"log_level,omitempty" mapstructure:"log_level"`
 	// 日志文件夹
@@ -20,10 +23,19 @@ type Config struct {
 	JwtSecret string `json:"jwt_secret,omitempty" mapstructure:"jwt_secret"`
 	// arai2下载配置
 	Aria2 *Aria2Config `json:"aria2,omitempty" mapstructure:"aria2"`
+	// 网盘驱动中间服务配置
+	CloudDriver *CloudDriverConfig `json:"cloud_driver,omitempty" mapstructure:"cloud_driver"`
+	// strm 文件配置
+	STRM *STRMConfig `json:"strm,omitempty" mapstructure:"strm"`
 	// 采集配置
 	Crawler *CrawlerConfig `json:"crawler,omitempty" mapstructure:"crawler"`
 	// 数据库配置
 	DB *DBConfig `json:"db,omitempty" mapstructure:"db"`
+}
+
+type AppConfig struct {
+	// 外部访问地址，用于生成 strm 内的播放接口地址
+	ExternalBaseURL string `json:"external_base_url,omitempty" mapstructure:"external_base_url"`
 }
 
 type Aria2Config struct {
@@ -38,6 +50,30 @@ type Aria2Config struct {
 type Aria2MoveToConfig struct {
 	// javdb 移动目录
 	JavDBDir string `json:"javdb_dir,omitempty" mapstructure:"javdb_dir"`
+}
+
+type CloudDriverConfig struct {
+	// 中间服务地址
+	BaseURL string `json:"base_url,omitempty" mapstructure:"base_url"`
+	// 网盘平台
+	Platform string `json:"platform,omitempty" mapstructure:"platform"`
+	// 浏览器 Profile ID
+	ProfileID string `json:"profile_id,omitempty" mapstructure:"profile_id"`
+	// 网盘保存根目录
+	SaveRoot string `json:"save_root,omitempty" mapstructure:"save_root"`
+	// HTTP 超时时间，单位秒
+	Timeout int `json:"timeout,omitempty" mapstructure:"timeout"`
+	// 轮询未完成任务的 cron 表达式
+	PollCron string `json:"poll_cron,omitempty" mapstructure:"poll_cron"`
+}
+
+type STRMConfig struct {
+	// 是否启用 strm 文件生成
+	Enabled bool `json:"enabled,omitempty" mapstructure:"enabled"`
+	// strm 文件整理根目录
+	RootDir string `json:"root_dir,omitempty" mapstructure:"root_dir"`
+	// 已存在时是否覆盖
+	Overwrite bool `json:"overwrite,omitempty" mapstructure:"overwrite"`
 }
 
 type CrawlerConfig struct {
@@ -63,12 +99,31 @@ func Load() *Config {
 	v.SetDefault("log_level", "debug")
 	v.SetDefault("log_dir", "logs")
 	v.SetDefault("jwt_secret", "abc123456")
+	v.SetDefault("strm.enabled", false)
+	v.SetDefault("strm.overwrite", true)
+	v.SetDefault("cloud_driver.platform", "115")
+	v.SetDefault("cloud_driver.save_root", "/get-magnet")
+	v.SetDefault("cloud_driver.timeout", 30)
+	v.SetDefault("cloud_driver.poll_cron", "*/10 * * * *")
 	v.SetDefault("crawler.exec_on_startup", false)
 	v.SetDefault("crawler.worker_num", 4)
+
+	// 加载 YAML 配置文件
+	loadYamlFile(v)
 
 	v.BindEnv("aria2.jsonrpc")
 	v.BindEnv("aria2.secret")
 	v.BindEnv("aria2.move_to.javdb_dir")
+	v.BindEnv("app.external_base_url")
+	v.BindEnv("cloud_driver.base_url")
+	v.BindEnv("cloud_driver.platform")
+	v.BindEnv("cloud_driver.profile_id")
+	v.BindEnv("cloud_driver.save_root")
+	v.BindEnv("cloud_driver.timeout")
+	v.BindEnv("cloud_driver.poll_cron")
+	v.BindEnv("strm.enabled")
+	v.BindEnv("strm.root_dir")
+	v.BindEnv("strm.overwrite")
 	v.BindEnv("crawler.exec_on_startup")
 	v.BindEnv("crawler.worker_num")
 	v.BindEnv("crawler.drission_rod_grpc_ip")
@@ -88,6 +143,31 @@ func Load() *Config {
 	log.Infof("配置信息：\n%s", cfg)
 
 	return cfg
+}
+
+// loadYamlFile 加载环境特定的 YAML 配置文件
+// 优先级：CONFIG_FILE 环境变量（指定完整路径）> config/{APP_ENV}.yaml
+// 配置文件不存在不是错误，仅格式错误会输出警告
+func loadYamlFile(v *viper.Viper) {
+	if configFile := os.Getenv("CONFIG_FILE"); configFile != "" {
+		v.SetConfigFile(configFile)
+	} else {
+		env := os.Getenv("APP_ENV")
+		if env == "" {
+			env = "dev"
+		}
+		v.SetConfigName(env)
+		v.SetConfigType("yaml")
+		v.AddConfigPath("config")
+	}
+
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			log.Warnf("读取配置文件异常: %s", err.Error())
+		}
+	} else {
+		log.Infof("已加载配置文件: %s", v.ConfigFileUsed())
+	}
 }
 
 func (c *Config) String() string {
