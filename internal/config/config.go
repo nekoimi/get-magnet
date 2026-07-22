@@ -79,6 +79,8 @@ type STRMConfig struct {
 }
 
 type DownloadConfig struct {
+	// 是否启用下载调度器
+	Enabled bool `json:"enabled,omitempty" mapstructure:"enabled"`
 	// 提交未下载磁力任务的 cron 表达式
 	SubmitCron string `json:"submit_cron,omitempty" mapstructure:"submit_cron"`
 	// 每轮最多提交数量
@@ -116,6 +118,7 @@ func Load() *Config {
 	v.SetDefault("cloud_driver.save_root", "/get-magnet")
 	v.SetDefault("cloud_driver.timeout", 30)
 	v.SetDefault("cloud_driver.poll_cron", "*/10 * * * *")
+	v.SetDefault("download.enabled", true)
 	v.SetDefault("download.submit_cron", "*/5 * * * *")
 	v.SetDefault("download.batch_size", 20)
 	v.SetDefault("download.max_retry", 5)
@@ -138,6 +141,7 @@ func Load() *Config {
 	v.BindEnv("strm.enabled")
 	v.BindEnv("strm.root_dir")
 	v.BindEnv("strm.overwrite")
+	v.BindEnv("download.enabled")
 	v.BindEnv("download.submit_cron")
 	v.BindEnv("download.batch_size")
 	v.BindEnv("download.max_retry")

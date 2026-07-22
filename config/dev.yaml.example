@@ -30,6 +30,7 @@ strm:
   overwrite: true
 
 download:
+  enabled: true
   submit_cron: "*/5 * * * *"
   batch_size: 20
   max_retry: 5

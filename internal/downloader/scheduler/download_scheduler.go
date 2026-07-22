@@ -40,6 +40,11 @@ func (s *DownloadScheduler) Start(parent context.Context) error {
 	if s.cfg == nil {
 		s.cfg = &config.DownloadConfig{}
 	}
+	if !s.cfg.Enabled {
+		log.Infoln("下载调度器已禁用，跳过定时任务注册")
+		return nil
+	}
+
 	s.cronScheduler = bean.FromContext[job.CronScheduler](parent)
 	s.downloadService = bean.FromContext[downloader.DownloadService](parent)
 
