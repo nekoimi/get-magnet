@@ -29,6 +29,11 @@ strm:
   root_dir: "/tmp/get-magnet-strm"
   overwrite: true
 
+download:
+  submit_cron: "*/5 * * * *"
+  batch_size: 20
+  max_retry: 5
+
 crawler:
   exec_on_startup: false
   worker_num: 2
