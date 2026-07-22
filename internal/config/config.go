@@ -27,6 +27,8 @@ type Config struct {
 	CloudDriver *CloudDriverConfig `json:"cloud_driver,omitempty" mapstructure:"cloud_driver"`
 	// strm 文件配置
 	STRM *STRMConfig `json:"strm,omitempty" mapstructure:"strm"`
+	// 下载调度配置
+	Download *DownloadConfig `json:"download,omitempty" mapstructure:"download"`
 	// 采集配置
 	Crawler *CrawlerConfig `json:"crawler,omitempty" mapstructure:"crawler"`
 	// 数据库配置
@@ -76,6 +78,15 @@ type STRMConfig struct {
 	Overwrite bool `json:"overwrite,omitempty" mapstructure:"overwrite"`
 }
 
+type DownloadConfig struct {
+	// 提交未下载磁力任务的 cron 表达式
+	SubmitCron string `json:"submit_cron,omitempty" mapstructure:"submit_cron"`
+	// 每轮最多提交数量
+	BatchSize int `json:"batch_size,omitempty" mapstructure:"batch_size"`
+	// 最大重试次数
+	MaxRetry int `json:"max_retry,omitempty" mapstructure:"max_retry"`
+}
+
 type CrawlerConfig struct {
 	// 启动立即执行
 	ExecOnStartup bool `json:"exec_on_startup,omitempty" mapstructure:"exec_on_startup"`
@@ -105,6 +116,9 @@ func Load() *Config {
 	v.SetDefault("cloud_driver.save_root", "/get-magnet")
 	v.SetDefault("cloud_driver.timeout", 30)
 	v.SetDefault("cloud_driver.poll_cron", "*/10 * * * *")
+	v.SetDefault("download.submit_cron", "*/5 * * * *")
+	v.SetDefault("download.batch_size", 20)
+	v.SetDefault("download.max_retry", 5)
 	v.SetDefault("crawler.exec_on_startup", false)
 	v.SetDefault("crawler.worker_num", 4)
 
@@ -124,6 +138,9 @@ func Load() *Config {
 	v.BindEnv("strm.enabled")
 	v.BindEnv("strm.root_dir")
 	v.BindEnv("strm.overwrite")
+	v.BindEnv("download.submit_cron")
+	v.BindEnv("download.batch_size")
+	v.BindEnv("download.max_retry")
 	v.BindEnv("crawler.exec_on_startup")
 	v.BindEnv("crawler.worker_num")
 	v.BindEnv("crawler.drission_rod_grpc_ip")

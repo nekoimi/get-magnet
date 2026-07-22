@@ -196,6 +196,10 @@ func (d *CloudDownloader) handleComplete(ctx context.Context, task offlineTask) 
 		log.Errorf("网盘离线下载任务完成后处理失败: %s - %s", task.TaskID, err.Error())
 		return
 	}
+	if err := magnet_repo.MarkDownloadCompletedByFollowed(task.TaskID); err != nil {
+		log.Errorf("网盘离线下载任务完成状态更新失败: %s - %s", task.TaskID, err.Error())
+		return
+	}
 
 	t := downloader.DownloadTask{
 		Id:    task.TaskID,
@@ -252,6 +256,13 @@ func cloudClientTaskID(category, savePath, rawURL string) string {
 }
 
 func (d *CloudDownloader) handleError(task offlineTask) {
+	reason := task.Status
+	if task.ErrorMessage != "" {
+		reason = task.ErrorMessage
+	}
+	if err := magnet_repo.MarkDownloadFailedByFollowed(task.TaskID, reason); err != nil {
+		log.Errorf("网盘离线下载任务失败状态更新异常: %s - %s", task.TaskID, err.Error())
+	}
 	t := downloader.DownloadTask{
 		Id:    task.TaskID,
 		Name:  task.Name,

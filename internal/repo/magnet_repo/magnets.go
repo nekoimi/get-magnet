@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
@@ -109,6 +110,7 @@ func ListPendingPostProcess(limit int) ([]table.Magnets, error) {
 	err := db.Instance().
 		Where("followed_by <> ''").
 		And("followed_by <> ?", "unknow").
+		And("status = ?", table.MagnetStatusDownloading).
 		And("post_process_done = ?", false).
 		Limit(limit).
 		Find(&list)
@@ -117,6 +119,128 @@ func ListPendingPostProcess(limit int) ([]table.Magnets, error) {
 		return nil, err
 	}
 	return list, nil
+}
+
+func ListPendingDownload(limit int, maxRetry int) ([]table.Magnets, error) {
+	var list []table.Magnets
+	session := db.Instance().
+		Where("optimal_link <> ''").
+		And("(followed_by = '' OR followed_by IS NULL OR followed_by = ?)", "unknow").
+		And("(status = ? OR (status = ? AND download_retry_count < ?))",
+			table.MagnetStatusCollected,
+			table.MagnetStatusFailed,
+			maxRetry,
+		).
+		OrderBy("created_at ASC")
+	if limit > 0 {
+		session = session.Limit(limit)
+	}
+	err := session.Find(&list)
+	if err != nil {
+		log.Errorf("查询待提交下载资源异常：%s", err.Error())
+		return nil, err
+	}
+	return list, nil
+}
+
+func MarkDownloadSubmitting(id int64, maxRetry int) (bool, error) {
+	now := time.Now()
+	m := &table.Magnets{
+		Status:       table.MagnetStatusSubmitting,
+		LastSubmitAt: &now,
+	}
+	affected, err := db.Instance().
+		Where("id = ?", id).
+		And("(status = ? OR (status = ? AND download_retry_count < ?))",
+			table.MagnetStatusCollected,
+			table.MagnetStatusFailed,
+			maxRetry,
+		).
+		Cols("status", "last_submit_at").
+		Update(m)
+	if err != nil {
+		log.Errorf("领取下载资源异常：%d - %s", id, err.Error())
+		return false, err
+	}
+	return affected > 0, nil
+}
+
+func MarkDownloadSubmitted(id int64, followedBy string) error {
+	now := time.Now()
+	m := &table.Magnets{
+		Status:          table.MagnetStatusDownloading,
+		FollowedBy:      followedBy,
+		PostProcessDone: false,
+		DownloadError:   "",
+		LastSubmitAt:    &now,
+	}
+	if _, err := db.Instance().
+		ID(id).
+		Cols("status", "followed_by", "post_process_done", "download_error", "last_submit_at").
+		Update(m); err != nil {
+		log.Errorf("标记资源已提交下载异常：%d - %s", id, err.Error())
+		return err
+	}
+	return nil
+}
+
+func MarkDownloadSubmitFailed(id int64, submitErr error) error {
+	message := ""
+	if submitErr != nil {
+		message = submitErr.Error()
+	}
+	if _, err := db.Instance().Exec(
+		"UPDATE magnets SET status = ?, download_retry_count = download_retry_count + 1, download_error = ?, updated_at = NOW() WHERE id = ?",
+		table.MagnetStatusFailed,
+		truncateDownloadError(message),
+		id,
+	); err != nil {
+		log.Errorf("标记资源提交下载失败异常：%d - %s", id, err.Error())
+		return err
+	}
+	return nil
+}
+
+func MarkDownloadCompletedByFollowed(followedBy string) error {
+	now := time.Now()
+	m := &table.Magnets{
+		Status:              table.MagnetStatusCompleted,
+		PostProcessDone:     true,
+		DownloadError:       "",
+		DownloadCompletedAt: &now,
+	}
+	if _, err := db.Instance().
+		Where("followed_by = ?", followedBy).
+		Cols("status", "post_process_done", "download_error", "download_completed_at").
+		Update(m); err != nil {
+		log.Errorf("标记资源下载完成异常：%s - %s", followedBy, err.Error())
+		return err
+	}
+	return nil
+}
+
+func MarkDownloadFailedByFollowed(followedBy string, reason string) error {
+	if followedBy == "" {
+		return nil
+	}
+	if _, err := db.Instance().Exec(
+		"UPDATE magnets SET status = ?, download_retry_count = download_retry_count + 1, download_error = ?, updated_at = NOW() WHERE followed_by = ?",
+		table.MagnetStatusFailed,
+		truncateDownloadError(reason),
+		followedBy,
+	); err != nil {
+		log.Errorf("标记资源下载失败异常：%s - %s", followedBy, err.Error())
+		return err
+	}
+	return nil
+}
+
+func truncateDownloadError(message string) string {
+	message = strings.TrimSpace(message)
+	if len(message) <= 2000 {
+		return message
+	}
+	return message[:2000]
 }
 
 // GetByNumber 根据番号获取磁力链接

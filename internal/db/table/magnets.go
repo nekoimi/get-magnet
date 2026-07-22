@@ -22,4 +22,9 @@ type Magnets struct {
 	PlayFilePath    string `xorm:"play_file_path" json:"play_file_path,omitempty"`
 	PlayFileSize    int64  `xorm:"play_file_size" json:"play_file_size,omitempty"`
 	STRMPath        string `xorm:"strm_path" json:"strm_path,omitempty"`
+	// 下载调度字段
+	DownloadError       string     `xorm:"download_error" json:"download_error,omitempty"`
+	DownloadRetryCount  int        `xorm:"download_retry_count" json:"download_retry_count,omitempty"`
+	LastSubmitAt        *time.Time `xorm:"last_submit_at" json:"last_submit_at,omitempty"`
+	DownloadCompletedAt *time.Time `xorm:"download_completed_at" json:"download_completed_at,omitempty"`
 }
