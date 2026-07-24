@@ -32,15 +32,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Prepare submodules
-        shell: bash
-        run: |
-          git submodule sync --recursive
-          git submodule update --init --recursive
-          test -f ui/get-magnet-ui/package.json
-          test -f ui/get-magnet-ui/pnpm-lock.yaml
-          test -f ui/aria-ng/package.json
-
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
@@ -96,33 +87,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Prepare Docker build context
-        id: build-context
-        shell: bash
-        run: |
-          git submodule sync --recursive
-          git submodule update --init --recursive
-          test -f ui/get-magnet-ui/package.json
-          test -f ui/get-magnet-ui/pnpm-lock.yaml
-          test -f ui/aria-ng/package.json
-
-          build_context="${RUNNER_TEMP}/get-magnet-context-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          mkdir -p "${build_context}"
-          git archive --format=tar HEAD | tar -xf - -C "${build_context}"
-          mkdir -p "${build_context}/ui/get-magnet-ui" "${build_context}/ui/aria-ng"
-          git -C ui/get-magnet-ui archive --format=tar HEAD | tar -xf - -C "${build_context}/ui/get-magnet-ui"
-          git -C ui/aria-ng archive --format=tar HEAD | tar -xf - -C "${build_context}/ui/aria-ng"
-
-          test -f "${build_context}/ui/get-magnet-ui/pnpm-lock.yaml"
-          test -f "${build_context}/ui/aria-ng/package.json"
-          ls -l \
-            "${build_context}/Dockerfile" \
-            "${build_context}/ui/get-magnet-ui/package.json" \
-            "${build_context}/ui/get-magnet-ui/pnpm-lock.yaml" \
-            "${build_context}/ui/aria-ng/package.json" \
-            "${build_context}/ui/aria-ng/package-lock.json"
-          echo "path=${build_context}" >> "${GITHUB_OUTPUT}"
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -154,8 +118,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v7
         with:
-          context: ${{ steps.build-context.outputs.path }}
-          file: ${{ steps.build-context.outputs.path }}/Dockerfile
+          context: .
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
