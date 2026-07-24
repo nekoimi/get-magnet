@@ -18,6 +18,7 @@ var allowedApiSet = make(map[string]struct{})
 
 func init() {
 	allowedApis := []string{
+		"/healthz",
 		"/ui/aria-ng",
 		"/api/auth/login",
 		"/api/play",

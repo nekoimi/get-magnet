@@ -1,6 +1,8 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/internal/api/auth"
 	"github.com/nekoimi/get-magnet/internal/api/download"
@@ -24,6 +26,10 @@ func newRouter(cfg *config.Config) *mux.Router {
 	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(middleware.LoggingMiddleware)
 	r.Use(middleware.AuthMiddleware())
+
+	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}).Methods("GET")
 
 	// aria2 jsonrpc 代理
 	r.HandleFunc(aria2JsonApi, proxy.ReverseAria2())
