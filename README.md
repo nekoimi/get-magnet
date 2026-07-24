@@ -16,6 +16,10 @@
 - **数据库持久化**：PostgreSQL 数据存储
 - **DrissionRod 集成**：gRPC 客户端支持浏览器自动化操作
 - **下载完成后自动移动**：支持将下载完成的文件移动到指定目录
+- **资源生命周期管理**：下载队列、失败重试、事件时间线、播放信息与 STRM 重建
+- **网盘离线下载**：支持 cloud-driver 任务提交、状态查询和完成后处理
+- **在线运维**：运行配置脱敏展示、依赖健康检查、调度任务与版本信息
+- **采集状态**：查看 worker、队列、当前任务和 provider，并支持手动触发
 
 ## 技术栈
 
@@ -62,6 +66,10 @@ go mod download
 
 # 3. 配置环境变量（可选）
 export DB_DSN="postgres://user:password@localhost:5432/getmagnet?sslmode=disable"
+export JWT_SECRET="replace-with-a-strong-random-secret"
+export APP_EXTERNAL_BASE_URL="https://magnet.example.com"
+# 可选：配置后 /quick-api 请求必须携带 X-Quick-API-Token 或 Bearer token
+export QUICK_API_TOKEN="replace-with-a-random-token"
 export ARIA2_JSONRPC="http://localhost:6800/jsonrpc"
 export ARIA2_SECRET="your_aria2_secret"
 
@@ -113,6 +121,8 @@ docker run -d \
 | `LOG_LEVEL` | 日志级别 (debug/info/warning/error) | `debug` |
 | `LOG_DIR` | 日志目录 | `logs` |
 | `JWT_SECRET` | JWT 密钥 | `abc123456` |
+| `APP_EXTERNAL_BASE_URL` | 外部访问根地址，用于生成 STRM 播放 URL | - |
+| `QUICK_API_TOKEN` | 可选的 `/quick-api` 访问令牌 | - |
 | `DB_DSN` | PostgreSQL 连接字符串 | - |
 | `ARIA2_JSONRPC` | aria2 JSON-RPC 地址 | - |
 | `ARIA2_SECRET` | aria2 验证令牌 | - |

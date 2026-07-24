@@ -35,6 +35,13 @@ type Engine struct {
 	cancel context.CancelFunc
 }
 
+type EngineSnapshot struct {
+	WorkerCount int              `json:"worker_count"`
+	Running     int              `json:"running"`
+	QueueLength int              `json:"queue_length"`
+	Workers     []WorkerSnapshot `json:"workers"`
+}
+
 func NewCrawlerEngine() *Engine {
 	return &Engine{
 		workerLock:     &sync.RWMutex{},
@@ -132,4 +139,22 @@ func (e *Engine) Stop(ctx context.Context) error {
 	wait.Wait()
 	log.Infoln("stop engine...")
 	return nil
+}
+
+func (e *Engine) Snapshot() EngineSnapshot {
+	e.workerLock.RLock()
+	defer e.workerLock.RUnlock()
+	result := EngineSnapshot{
+		WorkerCount: len(e.workers),
+		QueueLength: e.taskDispatcher.Len(),
+		Workers:     make([]WorkerSnapshot, 0, len(e.workers)),
+	}
+	for _, worker := range e.workers {
+		item := worker.Snapshot()
+		if item.Running {
+			result.Running++
+		}
+		result.Workers = append(result.Workers, item)
+	}
+	return result
 }

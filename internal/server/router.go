@@ -20,6 +20,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/api/user"
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
+	crawlercore "github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/downloader"
 	download_scheduler "github.com/nekoimi/get-magnet/internal/downloader/scheduler"
 	"github.com/nekoimi/get-magnet/internal/job"
@@ -35,11 +36,13 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 	downloadService := bean.FromContext[downloader.DownloadService](ctx)
 	downloadScheduler := bean.PtrFromContext[download_scheduler.DownloadScheduler](ctx)
 	cronScheduler := bean.FromContext[job.CronScheduler](ctx)
+	crawlerEngine := bean.PtrFromContext[crawlercore.Engine](ctx)
+	crawlerManager := bean.PtrFromContext[crawlercore.Manager](ctx)
 
 	r.Use(middleware.CORSMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(middleware.LoggingMiddleware)
-	r.Use(middleware.AuthMiddleware())
+	r.Use(middleware.AuthMiddleware(cfg))
 
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
@@ -82,9 +85,13 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v1Api.HandleFunc("/cloud-driver/tasks/{taskID}", cloud_driver.Task(cfg)).Methods("GET")
 			v1Api.HandleFunc("/crawler/submit/javdb", crawlerapi.SubmitJavDB).Methods("POST")
 			v1Api.HandleFunc("/crawler/submit/javdbPage", crawlerapi.SubmitJavDBPage).Methods("POST")
+			v1Api.HandleFunc("/crawler/status", crawlerapi.Status(crawlerEngine)).Methods("GET")
+			v1Api.HandleFunc("/crawler/providers", crawlerapi.Providers(crawlerManager)).Methods("GET")
+			v1Api.HandleFunc("/crawler/run", crawlerapi.Run(crawlerManager)).Methods("POST")
 			// 磁力链接管理
 			v1Api.HandleFunc("/magnets/list", magnets.List).Methods("GET", "POST")
 			v1Api.HandleFunc("/magnets/statusOptions", magnets.StatusOptions).Methods("GET")
+			v1Api.HandleFunc("/magnets/sourceOptions", magnets.SourceOptions).Methods("GET")
 			v1Api.HandleFunc("/magnets/detail", magnets.Detail(cfg)).Methods("GET")
 			v1Api.HandleFunc("/magnets/create", magnets.Create).Methods("POST")
 			v1Api.HandleFunc("/magnets/update", magnets.Update).Methods("POST")

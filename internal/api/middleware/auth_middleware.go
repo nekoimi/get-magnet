@@ -2,11 +2,13 @@ package middleware
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
@@ -22,7 +24,6 @@ func init() {
 		"/ui/aria-ng",
 		"/api/auth/login",
 		"/api/play",
-		"/quick-api",
 	}
 
 	for _, allowedApi := range allowedApis {
@@ -30,10 +31,18 @@ func init() {
 	}
 }
 
-func AuthMiddleware() mux.MiddlewareFunc {
+func AuthMiddleware(cfg *config.Config) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			uri := r.RequestURI
+			if strings.HasPrefix(uri, "/quick-api") {
+				if allowQuickAPI(r, cfg) {
+					next.ServeHTTP(w, r)
+				} else {
+					respond.Error(w, error_ext.AuthenticationError)
+				}
+				return
+			}
 			for path := range allowedApiSet {
 				if uri == path || strings.HasPrefix(uri, path) {
 					next.ServeHTTP(w, r)
@@ -73,4 +82,15 @@ func AuthMiddleware() mux.MiddlewareFunc {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func allowQuickAPI(r *http.Request, cfg *config.Config) bool {
+	if cfg == nil || cfg.QuickAPI == nil || cfg.QuickAPI.Token == "" {
+		return true
+	}
+	token := r.Header.Get("X-Quick-API-Token")
+	if token == "" {
+		token = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	}
+	return subtle.ConstantTimeCompare([]byte(token), []byte(cfg.QuickAPI.Token)) == 1
 }

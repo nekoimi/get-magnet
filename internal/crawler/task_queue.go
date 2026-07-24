@@ -15,3 +15,7 @@ func (q *TaskQueue) Submit(t CrawlerTask) {
 func (q *TaskQueue) Chan() <-chan CrawlerTask {
 	return q.queue
 }
+
+func (q *TaskQueue) Len() int {
+	return len(q.queue)
+}

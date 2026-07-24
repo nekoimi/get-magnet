@@ -27,6 +27,7 @@ services:
       PORT: 8093
       DB_DSN: postgres://${POSTGRES_USER:-get_magnet}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-get_magnet}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      QUICK_API_TOKEN: ${QUICK_API_TOKEN:-}
       APP_EXTERNAL_BASE_URL: ${APP_EXTERNAL_BASE_URL:?APP_EXTERNAL_BASE_URL is required}
       CLOUD_DRIVER_BASE_URL: ${CLOUD_DRIVER_BASE_URL:-http://cloud-driver:8080}
       ARIA2_JSONRPC: ${ARIA2_JSONRPC:-}

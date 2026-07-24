@@ -23,19 +23,7 @@ type TestResult struct {
 
 func List(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		safe := *cfg
-		safe.JwtSecret = mask(cfg.JwtSecret)
-		if cfg.Aria2 != nil {
-			aria2 := *cfg.Aria2
-			aria2.Secret = mask(cfg.Aria2.Secret)
-			safe.Aria2 = &aria2
-		}
-		if cfg.DB != nil {
-			database := *cfg.DB
-			database.Dsn = maskDSN(cfg.DB.Dsn)
-			safe.DB = &database
-		}
-		respond.Ok(w, safe)
+		respond.Ok(w, cfg.Redacted())
 	}
 }
 
@@ -90,24 +78,4 @@ func CheckDrissionRod(ctx context.Context, cfg *config.CrawlerConfig) error {
 		return err
 	}
 	return conn.Close()
-}
-
-func mask(value string) string {
-	if value == "" {
-		return ""
-	}
-	if len(value) <= 4 {
-		return "****"
-	}
-	return value[:2] + "****" + value[len(value)-2:]
-}
-
-func maskDSN(value string) string {
-	if value == "" {
-		return ""
-	}
-	if at := strings.LastIndex(value, "@"); at >= 0 {
-		return "****" + value[at:]
-	}
-	return mask(value)
 }

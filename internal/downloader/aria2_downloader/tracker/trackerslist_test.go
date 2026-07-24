@@ -9,8 +9,9 @@ import (
 )
 
 func TestAria2_DownloadLatestTrackers(t *testing.T) {
-	os.Setenv("HTTP_PROXY", "socks5://127.0.0.1:12080")
-	os.Setenv("HTTPS_PROXY", "socks5://127.0.0.1:12080")
+	if os.Getenv("RUN_NETWORK_TESTS") != "1" {
+		t.Skip("set RUN_NETWORK_TESTS=1 to run external tracker and aria2 integration test")
+	}
 
 	trackers, err := downloadLatestTrackers()
 	if err != nil {
@@ -25,7 +26,11 @@ func TestAria2_DownloadLatestTrackers(t *testing.T) {
 	t.Log(trackerStr)
 
 	// 更新aria2配置
-	client, err := arigo.Dial("", "")
+	jsonRPC := os.Getenv("ARIA2_JSONRPC")
+	if jsonRPC == "" {
+		t.Skip("ARIA2_JSONRPC is required")
+	}
+	client, err := arigo.Dial(jsonRPC, os.Getenv("ARIA2_SECRET"))
 	if err != nil {
 		t.Errorf("异常：%s", err.Error())
 		return

@@ -33,6 +33,8 @@ type Config struct {
 	Crawler *CrawlerConfig `json:"crawler,omitempty" mapstructure:"crawler"`
 	// 数据库配置
 	DB *DBConfig `json:"db,omitempty" mapstructure:"db"`
+	// 调试 API 配置
+	QuickAPI *QuickAPIConfig `json:"quick_api,omitempty" mapstructure:"quick_api"`
 }
 
 type AppConfig struct {
@@ -106,6 +108,10 @@ type DBConfig struct {
 	Dsn string `json:"dsn,omitempty" mapstructure:"dsn"`
 }
 
+type QuickAPIConfig struct {
+	Token string `json:"token,omitempty" mapstructure:"token"`
+}
+
 func Load() *Config {
 	v := viper.New()
 	v.SetDefault("port", 8093)
@@ -150,6 +156,7 @@ func Load() *Config {
 	v.BindEnv("crawler.drission_rod_grpc_ip")
 	v.BindEnv("crawler.drission_rod_grpc_port")
 	v.BindEnv("db.dsn")
+	v.BindEnv("quick_api.token")
 
 	// 从环境变量自动映射配置
 	v.AutomaticEnv()
@@ -192,5 +199,49 @@ func loadYamlFile(v *viper.Viper) {
 }
 
 func (c *Config) String() string {
-	return util.ToJson(c)
+	return util.ToJson(c.Redacted())
+}
+
+func (c *Config) Redacted() *Config {
+	if c == nil {
+		return nil
+	}
+	safe := *c
+	safe.JwtSecret = maskSecret(c.JwtSecret)
+	if c.Aria2 != nil {
+		aria2 := *c.Aria2
+		aria2.Secret = maskSecret(c.Aria2.Secret)
+		safe.Aria2 = &aria2
+	}
+	if c.DB != nil {
+		database := *c.DB
+		database.Dsn = maskDSN(c.DB.Dsn)
+		safe.DB = &database
+	}
+	if c.QuickAPI != nil {
+		quickAPI := *c.QuickAPI
+		quickAPI.Token = maskSecret(c.QuickAPI.Token)
+		safe.QuickAPI = &quickAPI
+	}
+	return &safe
+}
+
+func maskSecret(value string) string {
+	if value == "" {
+		return ""
+	}
+	if len(value) <= 4 {
+		return "****"
+	}
+	return value[:2] + "****" + value[len(value)-2:]
+}
+
+func maskDSN(value string) string {
+	if value == "" {
+		return ""
+	}
+	if at := strings.LastIndex(value, "@"); at >= 0 {
+		return "****" + value[at:]
+	}
+	return maskSecret(value)
 }

@@ -26,6 +26,7 @@ type ListRequest struct {
 	Status               *uint8 `json:"status,omitempty"`
 	Origin               string `json:"origin,omitempty"`
 	HasOptimalLink       *bool  `json:"has_optimal_link,omitempty"`
+	HasSTRM              *bool  `json:"has_strm,omitempty"`
 	CreatedAtStart       string `json:"created_at_start,omitempty"`
 	CreatedAtEnd         string `json:"created_at_end,omitempty"`
 	LastSubmitAtStart    string `json:"last_submit_at_start,omitempty"`
@@ -93,6 +94,7 @@ func List(w http.ResponseWriter, r *http.Request) {
 		Status:            p.Status,
 		Origin:            p.Origin,
 		HasOptimalLink:    p.HasOptimalLink,
+		HasSTRM:           p.HasSTRM,
 		CreatedAtStart:    p.CreatedAtStart,
 		CreatedAtEnd:      p.CreatedAtEnd,
 		LastSubmitAtStart: p.LastSubmitAtStart,
@@ -123,6 +125,10 @@ func firstNonEmpty(values ...string) string {
 // StatusOptions 获取磁力资源状态选项
 func StatusOptions(w http.ResponseWriter, r *http.Request) {
 	respond.Ok(w, table.MagnetStatusOptions())
+}
+
+func SourceOptions(w http.ResponseWriter, r *http.Request) {
+	respond.Ok(w, table.MagnetSourceOptions())
 }
 
 // Detail 获取磁力链接详情

@@ -1,17 +1,28 @@
 package tests
 
 import (
+	"net"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/nekoimi/get-magnet/internal/bootstrap"
 )
 
 func Test_Run(t *testing.T) {
+	if os.Getenv("RUN_INTEGRATION_TESTS") != "1" {
+		t.Skip("set RUN_INTEGRATION_TESTS=1 to start the full application integration test")
+	}
 	//os.Setenv("HTTP_PROXY", "socks5://127.0.0.1:12080")
 	//os.Setenv("HTTPS_PROXY", "socks5://127.0.0.1:12080")
 
-	os.Setenv("PORT", "11235")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	_ = listener.Close()
+	os.Setenv("PORT", strconv.Itoa(port))
 	os.Setenv("LOG_LEVEL", "info")
 	os.Setenv("LOG_DIR", "logs")
 	os.Setenv("JWT_SECRET", "xxxxxxx")

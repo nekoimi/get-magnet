@@ -20,6 +20,7 @@ type PageFilter struct {
 	Status            *uint8
 	Origin            string
 	HasOptimalLink    *bool
+	HasSTRM           *bool
 	CreatedAtStart    string
 	CreatedAtEnd      string
 	LastSubmitAtStart string
@@ -384,6 +385,13 @@ func applyPageFilter(session *xorm.Session, filter PageFilter) {
 			session.And("optimal_link <> ''")
 		} else {
 			session.And("(optimal_link = '' OR optimal_link IS NULL)")
+		}
+	}
+	if filter.HasSTRM != nil {
+		if *filter.HasSTRM {
+			session.And("strm_path <> ''")
+		} else {
+			session.And("(strm_path = '' OR strm_path IS NULL)")
 		}
 	}
 	applyTimeRange(session, "created_at", filter.CreatedAtStart, filter.CreatedAtEnd)

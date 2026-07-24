@@ -18,6 +18,19 @@ type MagnetStatusOption struct {
 	Value uint8  `json:"value"`
 }
 
+type MagnetSourceOption struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+}
+
+func MagnetSourceOptions() []MagnetSourceOption {
+	return []MagnetSourceOption{
+		{Label: "JavDB", Value: "JavDB"},
+		{Label: "SeHuaTang", Value: "SeHuaTang"},
+		{Label: "手动", Value: "Manual"},
+	}
+}
+
 func MagnetStatusOptions() []MagnetStatusOption {
 	return []MagnetStatusOption{
 		{Label: "已采集", Value: MagnetStatusCollected},
