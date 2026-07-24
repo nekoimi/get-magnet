@@ -5,7 +5,7 @@ FROM node:22-alpine AS ui-builder
 WORKDIR /build/ui/get-magnet-ui
 RUN corepack enable
 
-COPY ui/get-magnet-ui/package.json ui/get-magnet-ui/pnpm-lock.yaml ./
+COPY ui/get-magnet-ui/package.json ui/get-magnet-ui/pnpm-lock.yaml ui/get-magnet-ui/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
