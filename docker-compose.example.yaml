@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-get_magnet}
+      POSTGRES_USER: ${POSTGRES_USER:-get_magnet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  get-magnet:
+    image: ghcr.io/nekoimi/get-magnet:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8093}:8093"
+    environment:
+      TZ: Asia/Shanghai
+      PORT: 8093
+      DB_DSN: postgres://${POSTGRES_USER:-get_magnet}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-get_magnet}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      APP_EXTERNAL_BASE_URL: ${APP_EXTERNAL_BASE_URL:?APP_EXTERNAL_BASE_URL is required}
+      CLOUD_DRIVER_BASE_URL: ${CLOUD_DRIVER_BASE_URL:-http://cloud-driver:8080}
+      ARIA2_JSONRPC: ${ARIA2_JSONRPC:-}
+      ARIA2_SECRET: ${ARIA2_SECRET:-}
+    volumes:
+      - app-logs:/workspace/logs
+      - strm-data:/workspace/strm
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8093/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  postgres-data:
+  app-logs:
+  strm-data:

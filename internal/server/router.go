@@ -12,14 +12,17 @@ import (
 	"github.com/nekoimi/get-magnet/internal/api/download"
 	"github.com/nekoimi/get-magnet/internal/api/magnets"
 	"github.com/nekoimi/get-magnet/internal/api/middleware"
+	"github.com/nekoimi/get-magnet/internal/api/ops"
 	"github.com/nekoimi/get-magnet/internal/api/play"
 	"github.com/nekoimi/get-magnet/internal/api/proxy"
+	"github.com/nekoimi/get-magnet/internal/api/settings"
 	"github.com/nekoimi/get-magnet/internal/api/ui"
 	"github.com/nekoimi/get-magnet/internal/api/user"
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/downloader"
 	download_scheduler "github.com/nekoimi/get-magnet/internal/downloader/scheduler"
+	"github.com/nekoimi/get-magnet/internal/job"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -31,6 +34,7 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
 	downloadService := bean.FromContext[downloader.DownloadService](ctx)
 	downloadScheduler := bean.PtrFromContext[download_scheduler.DownloadScheduler](ctx)
+	cronScheduler := bean.FromContext[job.CronScheduler](ctx)
 
 	r.Use(middleware.CORSMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
@@ -56,6 +60,13 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 		v1Api := apiRoute.PathPrefix("/v1").Subrouter()
 		{
 			v1Api.HandleFunc("/dashboard/summary", dashboard.Summary).Methods("GET")
+			v1Api.HandleFunc("/settings", settings.List(cfg)).Methods("GET")
+			v1Api.HandleFunc("/settings/testCloudDriver", settings.TestCloudDriver(cfg)).Methods("POST")
+			v1Api.HandleFunc("/settings/testAria2", settings.TestAria2(cfg)).Methods("POST")
+			v1Api.HandleFunc("/settings/testDrissionRod", settings.TestDrissionRod(cfg)).Methods("POST")
+			v1Api.HandleFunc("/ops/health", ops.Health(cfg)).Methods("GET")
+			v1Api.HandleFunc("/ops/jobs", ops.Jobs(cronScheduler)).Methods("GET")
+			v1Api.HandleFunc("/ops/version", ops.Version).Methods("GET")
 
 			// 获取当前用户信息
 			v1Api.HandleFunc("/me", user.Me)

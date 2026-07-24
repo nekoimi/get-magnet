@@ -641,36 +641,36 @@
 
 #### 后端
 
-- [ ] 新增 `internal/api/settings` 模块。
-- [ ] 实现 `GET /api/v1/settings`，只读返回运行时配置。
-- [ ] 实现 `POST /api/v1/settings/testCloudDriver`。
-- [ ] 实现 `POST /api/v1/settings/testAria2`。
-- [ ] 实现 `POST /api/v1/settings/testDrissionRod`。
-- [ ] 新增 `internal/api/ops` 模块。
-- [ ] 实现 `GET /api/v1/ops/health`，聚合应用、数据库、cloud-driver、DrissionRod、aria2 状态。
-- [ ] 实现 `GET /api/v1/ops/jobs`，返回 cron 任务列表和最近执行结果。
-- [ ] 实现 `GET /api/v1/ops/version`，返回版本、commit、启动时间、运行时长。
-- [ ] 设计 `job_runs` 表，用于记录调度任务执行结果。
-- [ ] 在 `CronScheduler` 中记录最近执行时间、耗时、状态、错误信息。
-- [ ] 评估日志查询 API 的安全边界，只允许读取 `LogDir` 下的日志文件。
+- [x] 新增 `internal/api/settings` 模块。
+- [x] 实现 `GET /api/v1/settings`，只读返回运行时配置。
+- [x] 实现 `POST /api/v1/settings/testCloudDriver`。
+- [x] 实现 `POST /api/v1/settings/testAria2`。
+- [x] 实现 `POST /api/v1/settings/testDrissionRod`。
+- [x] 新增 `internal/api/ops` 模块。
+- [x] 实现 `GET /api/v1/ops/health`，聚合应用、数据库、cloud-driver、DrissionRod、aria2 状态。
+- [x] 实现 `GET /api/v1/ops/jobs`，返回 cron 任务列表和最近执行结果。
+- [x] 实现 `GET /api/v1/ops/version`，返回版本、commit、启动时间、运行时长。
+- [x] 设计 `job_runs` 表，用于记录调度任务执行结果。
+- [x] 在 `CronScheduler` 中记录最近执行时间、耗时、状态、错误信息。
+- [x] 评估日志查询 API 的安全边界，只允许读取 `LogDir` 下的日志文件。
 
 #### 前端
 
-- [ ] 新增系统设置页面，分组展示应用、下载、网盘、STRM、爬虫、aria2 配置。
-- [ ] 新增连接测试按钮：cloud-driver、aria2、DrissionRod。
-- [ ] 新增运维健康页面，展示依赖服务状态。
-- [ ] 新增调度任务页面，展示任务名、cron、最近执行时间、最近结果。
-- [ ] 新增版本信息展示。
-- [ ] 对配置中的敏感字段做脱敏展示，例如 `jwt_secret`、`aria2.secret`。
+- [x] 新增系统设置页面，分组展示应用、下载、网盘、STRM、爬虫、aria2 配置。
+- [x] 新增连接测试按钮：cloud-driver、aria2、DrissionRod。
+- [x] 新增运维健康页面，展示依赖服务状态。
+- [x] 新增调度任务页面，展示任务名、cron、最近执行时间、最近结果。
+- [x] 新增版本信息展示。
+- [x] 对配置中的敏感字段做脱敏展示，例如 `jwt_secret`、`aria2.secret`。
 
 #### 部署
 
-- [ ] 为 get-magnet compose 服务加入 `/healthz` healthcheck。
-- [ ] 为 PostgreSQL compose 服务加入 `pg_isready` healthcheck。
+- [x] 为 get-magnet compose 服务加入 `/healthz` healthcheck。
+- [x] 为 PostgreSQL compose 服务加入 `pg_isready` healthcheck。
 - [ ] 为 cloud-driver compose 服务加入 `/health` healthcheck。
-- [ ] 明确 `APP_EXTERNAL_BASE_URL` 的线上配置方式。
-- [ ] 明确前端静态资源构建和部署路径。
-- [ ] 检查 Docker 镜像内是否具备健康检查命令，确认使用 `wget` 或安装 `curl`。
+- [x] 明确 `APP_EXTERNAL_BASE_URL` 的线上配置方式。
+- [x] 明确前端静态资源构建和部署路径。
+- [x] 检查 Docker 镜像内是否具备健康检查命令，确认使用 `wget` 或安装 `curl`。
 
 #### 验收
 

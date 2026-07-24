@@ -335,10 +335,6 @@ func PageList(pageNum, pageSize int, keyword string, status *uint8) ([]table.Mag
 }
 
 func PageListByFilter(filter PageFilter) ([]table.Magnets, int64, error) {
-	session := db.Instance().NewSession()
-	defer session.Close()
-	session = session.Where("1 = 1")
-
 	if filter.PageNum <= 0 {
 		filter.PageNum = 1
 	}
@@ -346,41 +342,53 @@ func PageListByFilter(filter PageFilter) ([]table.Magnets, int64, error) {
 		filter.PageSize = 10
 	}
 
-	if filter.Keyword != "" {
-		keyword := "%" + filter.Keyword + "%"
-		session = session.And("(title LIKE ? OR number LIKE ?)", keyword, keyword)
-	}
-	if filter.Status != nil {
-		session = session.And("status = ?", *filter.Status)
-	}
-	if filter.Origin != "" {
-		session = session.And("origin = ?", filter.Origin)
-	}
-	if filter.HasOptimalLink != nil {
-		if *filter.HasOptimalLink {
-			session = session.And("optimal_link <> ''")
-		} else {
-			session = session.And("(optimal_link = '' OR optimal_link IS NULL)")
-		}
-	}
-	applyTimeRange(session, "created_at", filter.CreatedAtStart, filter.CreatedAtEnd)
-	applyTimeRange(session, "last_submit_at", filter.LastSubmitAtStart, filter.LastSubmitAtEnd)
-	applyTimeRange(session, "download_completed_at", filter.CompletedAtStart, filter.CompletedAtEnd)
-
-	total, err := session.Count(new(table.Magnets))
+	countSession := db.Instance().NewSession()
+	defer countSession.Close()
+	applyPageFilter(countSession, filter)
+	total, err := countSession.Count(new(table.Magnets))
 	if err != nil {
 		log.Errorf("查询磁力链接总数异常：%s", err.Error())
 		return nil, 0, err
 	}
 
+	listSession := db.Instance().NewSession()
+	defer listSession.Close()
+	applyPageFilter(listSession, filter)
 	var list []table.Magnets
-	err = session.OrderBy("created_at DESC").Limit(filter.PageSize, (filter.PageNum-1)*filter.PageSize).Find(&list)
+	err = listSession.
+		OrderBy("created_at DESC").
+		Limit(filter.PageSize, (filter.PageNum-1)*filter.PageSize).
+		Find(&list)
 	if err != nil {
 		log.Errorf("查询磁力链接列表异常：%s", err.Error())
 		return nil, 0, err
 	}
 
 	return list, total, nil
+}
+
+func applyPageFilter(session *xorm.Session, filter PageFilter) {
+	session.Where("1 = 1")
+	if filter.Keyword != "" {
+		keyword := "%" + filter.Keyword + "%"
+		session.And("(title LIKE ? OR number LIKE ?)", keyword, keyword)
+	}
+	if filter.Status != nil {
+		session.And("status = ?", *filter.Status)
+	}
+	if filter.Origin != "" {
+		session.And("origin = ?", filter.Origin)
+	}
+	if filter.HasOptimalLink != nil {
+		if *filter.HasOptimalLink {
+			session.And("optimal_link <> ''")
+		} else {
+			session.And("(optimal_link = '' OR optimal_link IS NULL)")
+		}
+	}
+	applyTimeRange(session, "created_at", filter.CreatedAtStart, filter.CreatedAtEnd)
+	applyTimeRange(session, "last_submit_at", filter.LastSubmitAtStart, filter.LastSubmitAtEnd)
+	applyTimeRange(session, "download_completed_at", filter.CompletedAtStart, filter.CompletedAtEnd)
 }
 
 func applyTimeRange(session *xorm.Session, column string, start string, end string) {
