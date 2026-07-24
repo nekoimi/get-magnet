@@ -9,7 +9,23 @@ import (
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	log "github.com/sirupsen/logrus"
+	"xorm.io/xorm"
 )
+
+type PageFilter struct {
+	PageNum           int
+	PageSize          int
+	Keyword           string
+	Status            *uint8
+	Origin            string
+	HasOptimalLink    *bool
+	CreatedAtStart    string
+	CreatedAtEnd      string
+	LastSubmitAtStart string
+	LastSubmitAtEnd   string
+	CompletedAtStart  string
+	CompletedAtEnd    string
+}
 
 func Save(m *table.Magnets) {
 	_, err := db.Instance().InsertOne(m)
@@ -165,6 +181,27 @@ func MarkDownloadSubmitting(id int64, maxRetry int) (bool, error) {
 	return affected > 0, nil
 }
 
+func MarkDownloadSubmittingManual(id int64) (bool, error) {
+	now := time.Now()
+	m := &table.Magnets{
+		Status:       table.MagnetStatusSubmitting,
+		LastSubmitAt: &now,
+	}
+	affected, err := db.Instance().
+		Where("id = ?", id).
+		And("(status = ? OR status = ?)",
+			table.MagnetStatusCollected,
+			table.MagnetStatusFailed,
+		).
+		Cols("status", "last_submit_at").
+		Update(m)
+	if err != nil {
+		log.Errorf("手动领取下载资源异常：%d - %s", id, err.Error())
+		return false, err
+	}
+	return affected > 0, nil
+}
+
 func MarkDownloadSubmitted(id int64, followedBy string) error {
 	now := time.Now()
 	m := &table.Magnets{
@@ -268,33 +305,114 @@ func GetById(id int64) (*table.Magnets, bool) {
 
 // PageList 分页查询磁力链接列表
 func PageList(pageNum, pageSize int, keyword string, status *uint8) ([]table.Magnets, int64, error) {
+	return PageListByFilter(PageFilter{
+		PageNum:  pageNum,
+		PageSize: pageSize,
+		Keyword:  keyword,
+		Status:   status,
+	})
+}
+
+func PageListByFilter(filter PageFilter) ([]table.Magnets, int64, error) {
 	session := db.Instance().NewSession()
 	defer session.Close()
+	session = session.Where("1 = 1")
 
-	// 构建查询条件
-	if keyword != "" {
-		session = session.Where("(title LIKE ? OR number LIKE ?)", "%"+keyword+"%", "%"+keyword+"%")
+	if filter.PageNum <= 0 {
+		filter.PageNum = 1
 	}
-	if status != nil {
-		session = session.Where("status = ?", *status)
+	if filter.PageSize <= 0 {
+		filter.PageSize = 10
 	}
 
-	// 获取总数
+	if filter.Keyword != "" {
+		keyword := "%" + filter.Keyword + "%"
+		session = session.And("(title LIKE ? OR number LIKE ?)", keyword, keyword)
+	}
+	if filter.Status != nil {
+		session = session.And("status = ?", *filter.Status)
+	}
+	if filter.Origin != "" {
+		session = session.And("origin = ?", filter.Origin)
+	}
+	if filter.HasOptimalLink != nil {
+		if *filter.HasOptimalLink {
+			session = session.And("optimal_link <> ''")
+		} else {
+			session = session.And("(optimal_link = '' OR optimal_link IS NULL)")
+		}
+	}
+	applyTimeRange(session, "created_at", filter.CreatedAtStart, filter.CreatedAtEnd)
+	applyTimeRange(session, "last_submit_at", filter.LastSubmitAtStart, filter.LastSubmitAtEnd)
+	applyTimeRange(session, "download_completed_at", filter.CompletedAtStart, filter.CompletedAtEnd)
+
 	total, err := session.Count(new(table.Magnets))
 	if err != nil {
 		log.Errorf("查询磁力链接总数异常：%s", err.Error())
 		return nil, 0, err
 	}
 
-	// 分页查询
 	var list []table.Magnets
-	err = session.OrderBy("created_at DESC").Limit(pageSize, (pageNum-1)*pageSize).Find(&list)
+	err = session.OrderBy("created_at DESC").Limit(filter.PageSize, (filter.PageNum-1)*filter.PageSize).Find(&list)
 	if err != nil {
 		log.Errorf("查询磁力链接列表异常：%s", err.Error())
 		return nil, 0, err
 	}
 
 	return list, total, nil
+}
+
+func applyTimeRange(session *xorm.Session, column string, start string, end string) {
+	if start != "" {
+		session.And(column+" >= ?", start)
+	}
+	if end != "" {
+		session.And(column+" <= ?", end)
+	}
+}
+
+func CountAll() (int64, error) {
+	total, err := db.Instance().Count(new(table.Magnets))
+	if err != nil {
+		log.Errorf("统计磁力链接总数异常：%s", err.Error())
+		return 0, err
+	}
+	return total, nil
+}
+
+func CountCreatedSince(since time.Time) (int64, error) {
+	total, err := db.Instance().
+		Where("created_at >= ?", since).
+		Count(new(table.Magnets))
+	if err != nil {
+		log.Errorf("统计新增磁力链接数量异常：%s", err.Error())
+		return 0, err
+	}
+	return total, nil
+}
+
+func CountByStatus() (map[uint8]int64, error) {
+	type statusCount struct {
+		Status uint8 `xorm:"status"`
+		Total  int64 `xorm:"total"`
+	}
+
+	var rows []statusCount
+	err := db.Instance().
+		Table(new(table.Magnets)).
+		Select("status, COUNT(*) AS total").
+		GroupBy("status").
+		Find(&rows)
+	if err != nil {
+		log.Errorf("按状态统计磁力链接异常：%s", err.Error())
+		return nil, err
+	}
+
+	result := make(map[uint8]int64, len(rows))
+	for _, row := range rows {
+		result[row.Status] = row.Total
+	}
+	return result, nil
 }
 
 // Update 更新磁力链接

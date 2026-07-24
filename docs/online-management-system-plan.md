@@ -564,40 +564,40 @@
 
 #### 后端
 
-- [ ] 新增 `internal/api/dashboard` 模块。
-- [ ] 实现 `GET /api/v1/dashboard/summary`，返回总资源数、各状态数量、今日采集数、失败数。
-- [ ] 新增磁力状态 options 接口：`GET /api/v1/magnets/statusOptions`。
-- [ ] 将磁力状态枚举统一为后端实际 0-4 状态。
-- [ ] 增强 `magnets/list` 查询条件，支持来源、是否有优选链接、创建时间、最后提交时间、完成时间。
-- [ ] 实现 `POST /api/v1/crawler/submit/javdb`，替代管理端直接调用 `/quick-api/download/submit/javdb`。
-- [ ] 实现 `POST /api/v1/crawler/submit/javdbPage`，替代管理端直接调用 `/quick-api/download/submit/javdb_page`。
-- [ ] 实现 `POST /api/v1/download/submit`，支持按磁力资源 ID 手动提交下载。
-- [ ] 实现 `POST /api/v1/download/retry`，支持失败资源重试下载。
-- [ ] 为手动提交和重试下载补充参数校验、状态校验、错误返回。
-- [ ] 为 `magnets` 表补充常用索引迁移：`number`、`status`、`origin`、`followed_by`、`created_at`。
+- [x] 新增 `internal/api/dashboard` 模块。
+- [x] 实现 `GET /api/v1/dashboard/summary`，返回总资源数、各状态数量、今日采集数、失败数。
+- [x] 新增磁力状态 options 接口：`GET /api/v1/magnets/statusOptions`。
+- [x] 将磁力状态枚举统一为后端实际 0-4 状态。
+- [x] 增强 `magnets/list` 查询条件，支持来源、是否有优选链接、创建时间、最后提交时间、完成时间。
+- [x] 实现 `POST /api/v1/crawler/submit/javdb`，替代管理端直接调用 `/quick-api/download/submit/javdb`。
+- [x] 实现 `POST /api/v1/crawler/submit/javdbPage`，替代管理端直接调用 `/quick-api/download/submit/javdb_page`。
+- [x] 实现 `POST /api/v1/download/submit`，支持按磁力资源 ID 手动提交下载。
+- [x] 实现 `POST /api/v1/download/retry`，支持失败资源重试下载。
+- [x] 为手动提交和重试下载补充参数校验、状态校验、错误返回。
+- [x] 为 `magnets` 表补充常用索引迁移：`number`、`status`、`origin`、`followed_by`、`created_at`。
 
 #### 前端
 
-- [ ] 新增首页 Dashboard 页面并接入 `dashboard/summary`。
-- [ ] 更新磁力资源页面状态筛选，使用后端 0-4 状态。
-- [ ] 更新磁力资源表格状态标签文案和颜色。
-- [ ] 在磁力列表增加任务 ID、重试次数、最后提交时间、完成时间、错误提示字段。
-- [ ] 在磁力列表增加“提交下载”操作。
-- [ ] 在失败资源上增加“重试下载”操作。
-- [ ] 新增快速提交页面，支持提交 JavDB 详情页 URL。
-- [ ] 新增 JavDB 列表页提交入口。
-- [ ] 对新增、编辑、删除、提交、重试操作统一增加 loading 和错误提示。
-- [ ] 校准登录态失效跳转逻辑，确保 401 和业务认证错误都能回登录页。
+- [x] 新增首页 Dashboard 页面并接入 `dashboard/summary`。
+- [x] 更新磁力资源页面状态筛选，使用后端 0-4 状态。
+- [x] 更新磁力资源表格状态标签文案和颜色。
+- [x] 在磁力列表增加任务 ID、重试次数、最后提交时间、完成时间、错误提示字段。
+- [x] 在磁力列表增加“提交下载”操作。
+- [x] 在失败资源上增加“重试下载”操作。
+- [x] 新增快速提交页面，支持提交 JavDB 详情页 URL。
+- [x] 新增 JavDB 列表页提交入口。
+- [x] 对新增、编辑、删除、提交、重试操作统一增加 loading 和错误提示。
+- [x] 校准登录态失效跳转逻辑，确保 401 和业务认证错误都能回登录页。
 
 #### 验收
 
-- [ ] 登录后可进入后台。
-- [ ] 首页能看到基础统计。
-- [ ] 磁力列表状态显示与后端一致。
-- [ ] 可手动新增、编辑、删除磁力资源。
-- [ ] 可在后台提交 JavDB 采集任务。
-- [ ] 可对待下载资源手动提交下载。
-- [ ] 可对失败资源一键重试。
+- [x] 登录后可进入后台。
+- [x] 首页能看到基础统计。
+- [x] 磁力列表状态显示与后端一致。
+- [x] 可手动新增、编辑、删除磁力资源。
+- [x] 可在后台提交 JavDB 采集任务。
+- [x] 可对待下载资源手动提交下载。
+- [x] 可对失败资源一键重试。
 
 ### P2：资源生命周期闭环
 

@@ -14,10 +14,20 @@ import (
 
 // ListRequest 磁力链接列表查询请求
 type ListRequest struct {
-	PageNum  int    `json:"page_num,omitempty"`
-	PageSize int    `json:"page_size,omitempty"`
-	Keyword  string `json:"keyword,omitempty"`
-	Status   *uint8 `json:"status,omitempty"`
+	PageNum              int    `json:"page_num,omitempty"`
+	PageSize             int    `json:"page_size,omitempty"`
+	Keyword              string `json:"keyword,omitempty"`
+	Status               *uint8 `json:"status,omitempty"`
+	Origin               string `json:"origin,omitempty"`
+	HasOptimalLink       *bool  `json:"has_optimal_link,omitempty"`
+	CreatedAtStart       string `json:"created_at_start,omitempty"`
+	CreatedAtEnd         string `json:"created_at_end,omitempty"`
+	LastSubmitAtStart    string `json:"last_submit_at_start,omitempty"`
+	LastSubmitAtEnd      string `json:"last_submit_at_end,omitempty"`
+	CompletedAtStart     string `json:"completed_at_start,omitempty"`
+	CompletedAtEnd       string `json:"completed_at_end,omitempty"`
+	DownloadCompletedAt  string `json:"download_completed_at,omitempty"`
+	DownloadCompletedEnd string `json:"download_completed_end,omitempty"`
 }
 
 // ListResponse 磁力链接列表响应
@@ -42,7 +52,20 @@ func List(w http.ResponseWriter, r *http.Request) {
 		p.PageSize = 10
 	}
 
-	list, total, err := magnet_repo.PageList(p.PageNum, p.PageSize, p.Keyword, p.Status)
+	list, total, err := magnet_repo.PageListByFilter(magnet_repo.PageFilter{
+		PageNum:           p.PageNum,
+		PageSize:          p.PageSize,
+		Keyword:           p.Keyword,
+		Status:            p.Status,
+		Origin:            p.Origin,
+		HasOptimalLink:    p.HasOptimalLink,
+		CreatedAtStart:    p.CreatedAtStart,
+		CreatedAtEnd:      p.CreatedAtEnd,
+		LastSubmitAtStart: p.LastSubmitAtStart,
+		LastSubmitAtEnd:   p.LastSubmitAtEnd,
+		CompletedAtStart:  firstNonEmpty(p.CompletedAtStart, p.DownloadCompletedAt),
+		CompletedAtEnd:    firstNonEmpty(p.CompletedAtEnd, p.DownloadCompletedEnd),
+	})
 	if err != nil {
 		respond.Error(w, err)
 		return
@@ -52,6 +75,20 @@ func List(w http.ResponseWriter, r *http.Request) {
 		List:  list,
 		Total: total,
 	})
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+// StatusOptions 获取磁力资源状态选项
+func StatusOptions(w http.ResponseWriter, r *http.Request) {
+	respond.Ok(w, table.MagnetStatusOptions())
 }
 
 // Detail 获取磁力链接详情

@@ -13,6 +13,21 @@ const (
 	MagnetStatusFailed uint8 = 4
 )
 
+type MagnetStatusOption struct {
+	Label string `json:"label"`
+	Value uint8  `json:"value"`
+}
+
+func MagnetStatusOptions() []MagnetStatusOption {
+	return []MagnetStatusOption{
+		{Label: "已采集", Value: MagnetStatusCollected},
+		{Label: "提交中", Value: MagnetStatusSubmitting},
+		{Label: "下载中", Value: MagnetStatusDownloading},
+		{Label: "已完成", Value: MagnetStatusCompleted},
+		{Label: "失败", Value: MagnetStatusFailed},
+	}
+}
+
 func CanSubmitDownloadStatus(status uint8) bool {
 	return status == MagnetStatusCollected || status == MagnetStatusFailed
 }
