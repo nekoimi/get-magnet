@@ -110,11 +110,17 @@ jobs:
           mkdir -p "${build_context}"
           git archive --format=tar HEAD | tar -xf - -C "${build_context}"
           mkdir -p "${build_context}/ui/get-magnet-ui" "${build_context}/ui/aria-ng"
-          cp -a ui/get-magnet-ui/. "${build_context}/ui/get-magnet-ui/"
-          cp -a ui/aria-ng/. "${build_context}/ui/aria-ng/"
+          git -C ui/get-magnet-ui archive --format=tar HEAD | tar -xf - -C "${build_context}/ui/get-magnet-ui"
+          git -C ui/aria-ng archive --format=tar HEAD | tar -xf - -C "${build_context}/ui/aria-ng"
 
           test -f "${build_context}/ui/get-magnet-ui/pnpm-lock.yaml"
           test -f "${build_context}/ui/aria-ng/package.json"
+          ls -l \
+            "${build_context}/Dockerfile" \
+            "${build_context}/ui/get-magnet-ui/package.json" \
+            "${build_context}/ui/get-magnet-ui/pnpm-lock.yaml" \
+            "${build_context}/ui/aria-ng/package.json" \
+            "${build_context}/ui/aria-ng/package-lock.json"
           echo "path=${build_context}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up QEMU
