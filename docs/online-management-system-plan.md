@@ -603,39 +603,39 @@
 
 #### 后端
 
-- [ ] 扩展 `GET /api/v1/magnets/detail`，返回状态文案、链接统计、播放 URL、后处理信息。
-- [ ] 新增 `POST /api/v1/magnets/markStatus`，支持手动标记状态。
-- [ ] 新增 `POST /api/v1/magnets/rebuildSTRM`，支持单资源重新生成 STRM。
-- [ ] 新增 `POST /api/v1/magnets/rebuildSTRMBatch`，支持批量重新生成 STRM。
-- [ ] 新增 `GET /api/v1/download/queue`，按状态返回下载队列。
-- [ ] 新增 `POST /api/v1/download/runSchedulerOnce`，支持手动运行一轮下载调度。
-- [ ] 新增 `GET /api/v1/download/scheduler`，返回调度器配置和运行状态。
-- [ ] 新增 `GET /api/v1/cloud-driver/health`，聚合网盘中间服务健康检查。
-- [ ] 新增 `GET /api/v1/cloud-driver/tasks/{taskID}`，查询网盘离线任务详情。
-- [ ] 设计并新增 `magnet_events` 表。
-- [ ] 在采集、编辑、提交下载、重试、失败、完成、生成 STRM 时写入 `magnet_events`。
+- [x] 扩展 `GET /api/v1/magnets/detail`，返回状态文案、链接统计、播放 URL、后处理信息。
+- [x] 新增 `POST /api/v1/magnets/markStatus`，支持手动标记状态。
+- [x] 新增 `POST /api/v1/magnets/rebuildSTRM`，支持单资源重新生成 STRM。
+- [x] 新增 `POST /api/v1/magnets/rebuildSTRMBatch`，支持批量重新生成 STRM。
+- [x] 新增 `GET /api/v1/download/queue`，按状态返回下载队列。
+- [x] 新增 `POST /api/v1/download/runSchedulerOnce`，支持手动运行一轮下载调度。
+- [x] 新增 `GET /api/v1/download/scheduler`，返回调度器配置和运行状态。
+- [x] 新增 `GET /api/v1/cloud-driver/health`，聚合网盘中间服务健康检查。
+- [x] 新增 `GET /api/v1/cloud-driver/tasks/{taskID}`，查询网盘离线任务详情。
+- [x] 设计并新增 `magnet_events` 表。
+- [x] 在采集、编辑、提交下载、重试、失败、完成、生成 STRM 时写入 `magnet_events`。
 
 #### 前端
 
-- [ ] 新增资源详情抽屉或详情页。
-- [ ] 详情中展示基础信息、全部磁力链接、下载信息、后处理信息、播放信息。
-- [ ] 详情中展示资源事件时间线。
-- [ ] 新增下载队列页面，按待提交、提交中、下载中、完成、失败分 tab。
-- [ ] 下载队列支持批量提交、批量重试。
-- [ ] 新增网盘任务详情弹窗，展示状态、文件列表、warnings、错误信息。
-- [ ] 在完成资源上增加“打开播放地址”操作。
-- [ ] 在完成资源上增加“重新生成 STRM”操作。
-- [ ] 对 `download_error` 使用弹窗或抽屉展示完整内容。
-- [ ] 增加复制链接、复制任务 ID、复制 STRM 路径等快捷操作。
+- [x] 新增资源详情抽屉或详情页。
+- [x] 详情中展示基础信息、全部磁力链接、下载信息、后处理信息、播放信息。
+- [x] 详情中展示资源事件时间线。
+- [x] 新增下载队列页面，按待提交、提交中、下载中、完成、失败分 tab。
+- [x] 下载队列支持批量提交、批量重试。
+- [x] 新增网盘任务详情弹窗，展示状态、文件列表、warnings、错误信息。
+- [x] 在完成资源上增加“打开播放地址”操作。
+- [x] 在完成资源上增加“重新生成 STRM”操作。
+- [x] 对 `download_error` 使用弹窗或抽屉展示完整内容。
+- [x] 增加复制链接、复制任务 ID、复制 STRM 路径等快捷操作。
 
 #### 验收
 
-- [ ] 单条资源能完整展示从采集到下载完成的生命周期。
-- [ ] 下载失败原因在后台可见。
-- [ ] 下载队列能按状态查看和批量处理。
-- [ ] 网盘任务能通过后台查询。
-- [ ] 完成资源能打开播放地址。
-- [ ] STRM 信息可见并能重新生成。
+- [x] 单条资源能完整展示从采集到下载完成的生命周期。
+- [x] 下载失败原因在后台可见。
+- [x] 下载队列能按状态查看和批量处理。
+- [x] 网盘任务能通过后台查询。
+- [x] 完成资源能打开播放地址。
+- [x] STRM 信息可见并能重新生成。
 
 ### P3：配置与运维在线化
 

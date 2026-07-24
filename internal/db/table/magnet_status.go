@@ -28,6 +28,15 @@ func MagnetStatusOptions() []MagnetStatusOption {
 	}
 }
 
+func MagnetStatusLabel(status uint8) string {
+	for _, option := range MagnetStatusOptions() {
+		if option.Value == status {
+			return option.Label
+		}
+	}
+	return "未知"
+}
+
 func CanSubmitDownloadStatus(status uint8) bool {
 	return status == MagnetStatusCollected || status == MagnetStatusFailed
 }

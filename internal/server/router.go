@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/internal/api/auth"
+	"github.com/nekoimi/get-magnet/internal/api/cloud_driver"
 	"github.com/nekoimi/get-magnet/internal/api/crawler"
 	"github.com/nekoimi/get-magnet/internal/api/dashboard"
 	"github.com/nekoimi/get-magnet/internal/api/download"
@@ -18,6 +19,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/downloader"
+	download_scheduler "github.com/nekoimi/get-magnet/internal/downloader/scheduler"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,6 +30,7 @@ const aria2JsonApi = "/api/aria2/jsonrpc"
 func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
 	downloadService := bean.FromContext[downloader.DownloadService](ctx)
+	downloadScheduler := bean.PtrFromContext[download_scheduler.DownloadScheduler](ctx)
 
 	r.Use(middleware.CORSMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
@@ -59,17 +62,25 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			// 修改当前用户密码
 			v1Api.HandleFunc("/me/changePwd", user.ChangePassword)
 			// 提交下载连接
+			v1Api.HandleFunc("/download/queue", download.Queue).Methods("GET")
 			v1Api.HandleFunc("/download/submit", download.Submit(downloadService)).Methods("POST")
 			v1Api.HandleFunc("/download/retry", download.Retry(downloadService)).Methods("POST")
+			v1Api.HandleFunc("/download/runSchedulerOnce", download.RunSchedulerOnce(downloadScheduler)).Methods("POST")
+			v1Api.HandleFunc("/download/scheduler", download.Scheduler(downloadScheduler)).Methods("GET")
+			v1Api.HandleFunc("/cloud-driver/health", cloud_driver.Health(cfg)).Methods("GET")
+			v1Api.HandleFunc("/cloud-driver/tasks/{taskID}", cloud_driver.Task(cfg)).Methods("GET")
 			v1Api.HandleFunc("/crawler/submit/javdb", crawlerapi.SubmitJavDB).Methods("POST")
 			v1Api.HandleFunc("/crawler/submit/javdbPage", crawlerapi.SubmitJavDBPage).Methods("POST")
 			// 磁力链接管理
 			v1Api.HandleFunc("/magnets/list", magnets.List).Methods("GET", "POST")
 			v1Api.HandleFunc("/magnets/statusOptions", magnets.StatusOptions).Methods("GET")
-			v1Api.HandleFunc("/magnets/detail", magnets.Detail).Methods("GET")
+			v1Api.HandleFunc("/magnets/detail", magnets.Detail(cfg)).Methods("GET")
 			v1Api.HandleFunc("/magnets/create", magnets.Create).Methods("POST")
 			v1Api.HandleFunc("/magnets/update", magnets.Update).Methods("POST")
 			v1Api.HandleFunc("/magnets/delete", magnets.Delete).Methods("POST")
+			v1Api.HandleFunc("/magnets/markStatus", magnets.MarkStatus).Methods("POST")
+			v1Api.HandleFunc("/magnets/rebuildSTRM", magnets.RebuildSTRM(cfg)).Methods("POST")
+			v1Api.HandleFunc("/magnets/rebuildSTRMBatch", magnets.RebuildSTRMBatch(cfg)).Methods("POST")
 		}
 	}
 

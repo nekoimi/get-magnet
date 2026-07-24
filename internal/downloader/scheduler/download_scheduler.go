@@ -26,6 +26,14 @@ type DownloadScheduler struct {
 	cancel          context.CancelFunc
 }
 
+type Snapshot struct {
+	Enabled    bool   `json:"enabled"`
+	SubmitCron string `json:"submit_cron"`
+	BatchSize  int    `json:"batch_size"`
+	MaxRetry   int    `json:"max_retry"`
+	Running    bool   `json:"running"`
+}
+
 func NewDownloadScheduler() *DownloadScheduler {
 	return &DownloadScheduler{}
 }
@@ -139,4 +147,22 @@ func (s *DownloadScheduler) maxRetry() int {
 		return defaultMaxRetry
 	}
 	return s.cfg.MaxRetry
+}
+
+func (s *DownloadScheduler) Snapshot() Snapshot {
+	enabled := true
+	submitCron := defaultSubmitCron
+	if s.cfg != nil {
+		enabled = s.cfg.Enabled
+		if s.cfg.SubmitCron != "" {
+			submitCron = s.cfg.SubmitCron
+		}
+	}
+	return Snapshot{
+		Enabled:    enabled,
+		SubmitCron: submitCron,
+		BatchSize:  s.batchSize(),
+		MaxRetry:   s.maxRetry(),
+		Running:    s.running.Load(),
+	}
 }

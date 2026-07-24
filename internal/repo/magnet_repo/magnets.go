@@ -8,6 +8,7 @@ import (
 
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/get-magnet/internal/repo/magnet_event_repo"
 	log "github.com/sirupsen/logrus"
 	"xorm.io/xorm"
 )
@@ -33,6 +34,7 @@ func Save(m *table.Magnets) {
 		log.Errorf("保存资源异常：%s", err.Error())
 		return
 	}
+	magnet_event_repo.Record(m.Id, "created", "资源已采集/创建", "")
 }
 
 func ExistsByPath(rowURLPath string) bool {
@@ -94,6 +96,7 @@ func MarkPostProcessDone(id int64) error {
 		log.Errorf("更新资源下载后处理状态异常：%s", err.Error())
 		return err
 	}
+	magnet_event_repo.Record(id, "post_process_done", "下载后处理已完成", "")
 	return nil
 }
 
@@ -110,6 +113,7 @@ func MarkPostProcessDoneWithPlayInfo(id int64, playFileID, playFilePath string, 
 		log.Errorf("更新资源下载后处理播放信息异常：%s", err.Error())
 		return err
 	}
+	magnet_event_repo.Record(id, "post_process_done", "下载后处理已完成并写入播放信息", strmPath)
 	return nil
 }
 
@@ -178,6 +182,9 @@ func MarkDownloadSubmitting(id int64, maxRetry int) (bool, error) {
 		log.Errorf("领取下载资源异常：%d - %s", id, err.Error())
 		return false, err
 	}
+	if affected > 0 {
+		magnet_event_repo.Record(id, "download_submitting", "调度器领取资源并准备提交下载", "")
+	}
 	return affected > 0, nil
 }
 
@@ -199,6 +206,9 @@ func MarkDownloadSubmittingManual(id int64) (bool, error) {
 		log.Errorf("手动领取下载资源异常：%d - %s", id, err.Error())
 		return false, err
 	}
+	if affected > 0 {
+		magnet_event_repo.Record(id, "download_submitting_manual", "手动提交下载", "")
+	}
 	return affected > 0, nil
 }
 
@@ -218,6 +228,7 @@ func MarkDownloadSubmitted(id int64, followedBy string) error {
 		log.Errorf("标记资源已提交下载异常：%d - %s", id, err.Error())
 		return err
 	}
+	magnet_event_repo.Record(id, "download_submitted", "资源已提交到下载服务", followedBy)
 	return nil
 }
 
@@ -235,6 +246,7 @@ func MarkDownloadSubmitFailed(id int64, submitErr error) error {
 		log.Errorf("标记资源提交下载失败异常：%d - %s", id, err.Error())
 		return err
 	}
+	magnet_event_repo.Record(id, "download_failed", "提交下载失败", truncateDownloadError(message))
 	return nil
 }
 
@@ -246,12 +258,18 @@ func MarkDownloadCompletedByFollowed(followedBy string) error {
 		DownloadError:       "",
 		DownloadCompletedAt: &now,
 	}
-	if _, err := db.Instance().
+	affected, err := db.Instance().
 		Where("followed_by = ?", followedBy).
 		Cols("status", "post_process_done", "download_error", "download_completed_at").
-		Update(m); err != nil {
+		Update(m)
+	if err != nil {
 		log.Errorf("标记资源下载完成异常：%s - %s", followedBy, err.Error())
 		return err
+	}
+	if affected > 0 {
+		if magnet, exists := GetByFollowed(followedBy); exists {
+			magnet_event_repo.Record(magnet.Id, "download_completed", "资源下载完成", followedBy)
+		}
 	}
 	return nil
 }
@@ -268,6 +286,9 @@ func MarkDownloadFailedByFollowed(followedBy string, reason string) error {
 	); err != nil {
 		log.Errorf("标记资源下载失败异常：%s - %s", followedBy, err.Error())
 		return err
+	}
+	if magnet, exists := GetByFollowed(followedBy); exists {
+		magnet_event_repo.Record(magnet.Id, "download_failed", "下载任务失败", truncateDownloadError(reason))
 	}
 	return nil
 }
@@ -422,6 +443,22 @@ func Update(m *table.Magnets) error {
 		log.Errorf("更新磁力链接异常：%s", err.Error())
 		return err
 	}
+	magnet_event_repo.Record(m.Id, "updated", "资源信息已更新", "")
+	return nil
+}
+
+func MarkStatus(id int64, status uint8, message string) error {
+	m := &table.Magnets{
+		Status: status,
+	}
+	if _, err := db.Instance().ID(id).Cols("status").Update(m); err != nil {
+		log.Errorf("手动标记资源状态异常：%d - %s", id, err.Error())
+		return err
+	}
+	if message == "" {
+		message = "手动标记状态"
+	}
+	magnet_event_repo.Record(id, "status_marked", message, fmt.Sprintf("%d", status))
 	return nil
 }
 

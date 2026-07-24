@@ -1,12 +1,15 @@
 package download
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/downloader"
+	download_scheduler "github.com/nekoimi/get-magnet/internal/downloader/scheduler"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
@@ -33,6 +36,18 @@ type SubmitDownloadResponse struct {
 	Failed  int                  `json:"failed"`
 }
 
+type QueueRequest struct {
+	Status   *uint8 `json:"status,omitempty"`
+	PageNum  int    `json:"page_num,omitempty"`
+	PageSize int    `json:"page_size,omitempty"`
+}
+
+type QueueResponse struct {
+	List          []table.Magnets            `json:"list"`
+	Total         int64                      `json:"total"`
+	StatusOptions []table.MagnetStatusOption `json:"status_options"`
+}
+
 func Submit(downloadService downloader.DownloadService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		submitDownload(w, r, downloadService)
@@ -42,6 +57,75 @@ func Submit(downloadService downloader.DownloadService) http.HandlerFunc {
 func Retry(downloadService downloader.DownloadService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		submitDownload(w, r, downloadService)
+	}
+}
+
+func Queue(w http.ResponseWriter, r *http.Request) {
+	p := parseQueueRequest(r)
+	if p.PageNum <= 0 {
+		p.PageNum = 1
+	}
+	if p.PageSize <= 0 {
+		p.PageSize = 20
+	}
+	list, total, err := magnet_repo.PageListByFilter(magnet_repo.PageFilter{
+		PageNum:  p.PageNum,
+		PageSize: p.PageSize,
+		Status:   p.Status,
+	})
+	if err != nil {
+		respond.Error(w, err)
+		return
+	}
+	respond.Ok(w, QueueResponse{
+		List:          list,
+		Total:         total,
+		StatusOptions: table.MagnetStatusOptions(),
+	})
+}
+
+func parseQueueRequest(r *http.Request) QueueRequest {
+	query := r.URL.Query()
+	req := QueueRequest{}
+	if rawStatus := query.Get("status"); rawStatus != "" {
+		if status, err := strconv.ParseUint(rawStatus, 10, 8); err == nil {
+			value := uint8(status)
+			req.Status = &value
+		}
+	}
+	if pageNum, err := strconv.Atoi(query.Get("page_num")); err == nil {
+		req.PageNum = pageNum
+	}
+	if pageNum, err := strconv.Atoi(query.Get("pageNum")); err == nil && req.PageNum <= 0 {
+		req.PageNum = pageNum
+	}
+	if pageSize, err := strconv.Atoi(query.Get("page_size")); err == nil {
+		req.PageSize = pageSize
+	}
+	if pageSize, err := strconv.Atoi(query.Get("pageSize")); err == nil && req.PageSize <= 0 {
+		req.PageSize = pageSize
+	}
+	return req
+}
+
+func RunSchedulerOnce(scheduler *download_scheduler.DownloadScheduler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if scheduler == nil {
+			respond.Error(w, fmt.Errorf("下载调度器未初始化"))
+			return
+		}
+		scheduler.RunOnce(context.Background())
+		respond.Ok(w, scheduler.Snapshot())
+	}
+}
+
+func Scheduler(scheduler *download_scheduler.DownloadScheduler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if scheduler == nil {
+			respond.Error(w, fmt.Errorf("下载调度器未初始化"))
+			return
+		}
+		respond.Ok(w, scheduler.Snapshot())
 	}
 }
 
