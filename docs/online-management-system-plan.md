@@ -55,7 +55,7 @@
 - 自动化调度：在线触发采集、提交下载、重试失败任务、查看任务状态和错误原因。
 - 系统运维：配置爬虫、下载器、网盘中间服务、STRM、数据库和应用运行参数，查看健康状态和关键日志。
 
-第一阶段以单管理员自用系统为目标，不引入复杂 RBAC。后续如果需要多人协作，再扩展角色、权限、审计和数据隔离。
+第一阶段以单管理员自用系统为目标，不引入复杂 RBAC。当前已确认只做单管理，后续如果需要多人协作，再扩展角色、权限、审计和数据隔离。
 
 ## 信息架构
 
@@ -250,7 +250,7 @@
 
 ### 系统设置
 
-目标是把环境变量和 YAML 配置中的关键项用后台可读、部分可写的方式管理。
+目标是把环境变量和 YAML 配置中的关键项在后台只读展示，方便线上排查配置是否符合预期。
 
 配置分组：
 
@@ -264,13 +264,12 @@
 实现建议：
 
 - 第一阶段只读展示运行时配置，避免在线修改配置却无法生效。
-- 第二阶段支持写入 `config` 表，部分配置动态生效。
-- 第三阶段支持配置版本、变更记录、回滚。
+- 当前阶段环境变量和配置项只在后台展示，不支持后台直接修改。
+- 后续如确实需要在线变更，再评估写入 `config` 表、动态生效、配置版本、变更记录和回滚。
 
 后端需要补齐：
 
 - `GET /api/v1/settings`
-- `POST /api/v1/settings/update`
 - `POST /api/v1/settings/testCloudDriver`
 - `POST /api/v1/settings/testAria2`
 - `POST /api/v1/settings/testDrissionRod`
@@ -455,15 +454,15 @@
 - 批量操作统一使用 `ids: []`。
 - 状态枚举由后端提供 options，前端不硬编码文案。
 - 高风险操作必须记录操作日志。
-- `/quick-api` 保留给脚本调用，但管理端不直接依赖它。
+- `/quick-api` 保留为调试 API，在管理端不完善时可手动使用；当前继续免鉴权，但管理端不直接依赖它。
 
 ## 权限策略
 
-第一阶段采用单管理员模型：
+第一阶段采用单管理员模型，当前不需要 RBAC：
 
 - 登录后可访问全部管理功能。
 - `/api/auth/login`、`/api/play`、`/healthz` 保持免鉴权。
-- `/quick-api` 是否继续免鉴权需要按部署场景决定。如果暴露公网，建议增加 token 或迁移到鉴权 API。
+- `/quick-api` 当前作为调试 API 继续免鉴权；公网暴露时再评估 token 或网络隔离。
 
 第二阶段再扩展：
 
@@ -473,7 +472,7 @@
 
 ## 部署与在线化要求
 
-- Docker 镜像内置后端静态 UI 文件，或通过 Nginx 独立托管前端。
+- 线上管理端由后端直接托管静态 UI 文件；开发环境可以前后端分开运行。
 - Compose 中使用 `/healthz` 探测 get-magnet。
 - PostgreSQL 使用 `pg_isready`。
 - cloud-driver 使用 `/health`。
@@ -548,3 +547,178 @@
 - 操作审计。
 - 角色权限。
 - 日志查看。
+
+## 阶段 TODO
+
+### P0：基础整理
+
+- [x] 确认管理后台第一阶段只支持单管理员模型，不做 RBAC。
+- [x] 确认线上管理端入口路径：线上由后端托管静态 UI 文件，开发环境前后端分开运行。
+- [x] 确认 `/quick-api` 作为调试 API 继续免鉴权，管理端完善前可手动使用。
+- [x] 统一 API 响应约定，继续使用现有 `respond.Ok`、`respond.Error`。
+- [x] 确认前端不需要的菜单可以隐藏，模板代码仅作为实现参考。
+- [x] 新增前端业务 API 目录：`dashboard`、`crawler`、`download`、`settings`、`ops`。
+- [x] 确认环境变量和配置项目前只做后台展示，不在后台直接更改。
+
+### P1：可用后台
+
+#### 后端
+
+- [ ] 新增 `internal/api/dashboard` 模块。
+- [ ] 实现 `GET /api/v1/dashboard/summary`，返回总资源数、各状态数量、今日采集数、失败数。
+- [ ] 新增磁力状态 options 接口：`GET /api/v1/magnets/statusOptions`。
+- [ ] 将磁力状态枚举统一为后端实际 0-4 状态。
+- [ ] 增强 `magnets/list` 查询条件，支持来源、是否有优选链接、创建时间、最后提交时间、完成时间。
+- [ ] 实现 `POST /api/v1/crawler/submit/javdb`，替代管理端直接调用 `/quick-api/download/submit/javdb`。
+- [ ] 实现 `POST /api/v1/crawler/submit/javdbPage`，替代管理端直接调用 `/quick-api/download/submit/javdb_page`。
+- [ ] 实现 `POST /api/v1/download/submit`，支持按磁力资源 ID 手动提交下载。
+- [ ] 实现 `POST /api/v1/download/retry`，支持失败资源重试下载。
+- [ ] 为手动提交和重试下载补充参数校验、状态校验、错误返回。
+- [ ] 为 `magnets` 表补充常用索引迁移：`number`、`status`、`origin`、`followed_by`、`created_at`。
+
+#### 前端
+
+- [ ] 新增首页 Dashboard 页面并接入 `dashboard/summary`。
+- [ ] 更新磁力资源页面状态筛选，使用后端 0-4 状态。
+- [ ] 更新磁力资源表格状态标签文案和颜色。
+- [ ] 在磁力列表增加任务 ID、重试次数、最后提交时间、完成时间、错误提示字段。
+- [ ] 在磁力列表增加“提交下载”操作。
+- [ ] 在失败资源上增加“重试下载”操作。
+- [ ] 新增快速提交页面，支持提交 JavDB 详情页 URL。
+- [ ] 新增 JavDB 列表页提交入口。
+- [ ] 对新增、编辑、删除、提交、重试操作统一增加 loading 和错误提示。
+- [ ] 校准登录态失效跳转逻辑，确保 401 和业务认证错误都能回登录页。
+
+#### 验收
+
+- [ ] 登录后可进入后台。
+- [ ] 首页能看到基础统计。
+- [ ] 磁力列表状态显示与后端一致。
+- [ ] 可手动新增、编辑、删除磁力资源。
+- [ ] 可在后台提交 JavDB 采集任务。
+- [ ] 可对待下载资源手动提交下载。
+- [ ] 可对失败资源一键重试。
+
+### P2：资源生命周期闭环
+
+#### 后端
+
+- [ ] 扩展 `GET /api/v1/magnets/detail`，返回状态文案、链接统计、播放 URL、后处理信息。
+- [ ] 新增 `POST /api/v1/magnets/markStatus`，支持手动标记状态。
+- [ ] 新增 `POST /api/v1/magnets/rebuildSTRM`，支持单资源重新生成 STRM。
+- [ ] 新增 `POST /api/v1/magnets/rebuildSTRMBatch`，支持批量重新生成 STRM。
+- [ ] 新增 `GET /api/v1/download/queue`，按状态返回下载队列。
+- [ ] 新增 `POST /api/v1/download/runSchedulerOnce`，支持手动运行一轮下载调度。
+- [ ] 新增 `GET /api/v1/download/scheduler`，返回调度器配置和运行状态。
+- [ ] 新增 `GET /api/v1/cloud-driver/health`，聚合网盘中间服务健康检查。
+- [ ] 新增 `GET /api/v1/cloud-driver/tasks/{taskID}`，查询网盘离线任务详情。
+- [ ] 设计并新增 `magnet_events` 表。
+- [ ] 在采集、编辑、提交下载、重试、失败、完成、生成 STRM 时写入 `magnet_events`。
+
+#### 前端
+
+- [ ] 新增资源详情抽屉或详情页。
+- [ ] 详情中展示基础信息、全部磁力链接、下载信息、后处理信息、播放信息。
+- [ ] 详情中展示资源事件时间线。
+- [ ] 新增下载队列页面，按待提交、提交中、下载中、完成、失败分 tab。
+- [ ] 下载队列支持批量提交、批量重试。
+- [ ] 新增网盘任务详情弹窗，展示状态、文件列表、warnings、错误信息。
+- [ ] 在完成资源上增加“打开播放地址”操作。
+- [ ] 在完成资源上增加“重新生成 STRM”操作。
+- [ ] 对 `download_error` 使用弹窗或抽屉展示完整内容。
+- [ ] 增加复制链接、复制任务 ID、复制 STRM 路径等快捷操作。
+
+#### 验收
+
+- [ ] 单条资源能完整展示从采集到下载完成的生命周期。
+- [ ] 下载失败原因在后台可见。
+- [ ] 下载队列能按状态查看和批量处理。
+- [ ] 网盘任务能通过后台查询。
+- [ ] 完成资源能打开播放地址。
+- [ ] STRM 信息可见并能重新生成。
+
+### P3：配置与运维在线化
+
+#### 后端
+
+- [ ] 新增 `internal/api/settings` 模块。
+- [ ] 实现 `GET /api/v1/settings`，只读返回运行时配置。
+- [ ] 实现 `POST /api/v1/settings/testCloudDriver`。
+- [ ] 实现 `POST /api/v1/settings/testAria2`。
+- [ ] 实现 `POST /api/v1/settings/testDrissionRod`。
+- [ ] 新增 `internal/api/ops` 模块。
+- [ ] 实现 `GET /api/v1/ops/health`，聚合应用、数据库、cloud-driver、DrissionRod、aria2 状态。
+- [ ] 实现 `GET /api/v1/ops/jobs`，返回 cron 任务列表和最近执行结果。
+- [ ] 实现 `GET /api/v1/ops/version`，返回版本、commit、启动时间、运行时长。
+- [ ] 设计 `job_runs` 表，用于记录调度任务执行结果。
+- [ ] 在 `CronScheduler` 中记录最近执行时间、耗时、状态、错误信息。
+- [ ] 评估日志查询 API 的安全边界，只允许读取 `LogDir` 下的日志文件。
+
+#### 前端
+
+- [ ] 新增系统设置页面，分组展示应用、下载、网盘、STRM、爬虫、aria2 配置。
+- [ ] 新增连接测试按钮：cloud-driver、aria2、DrissionRod。
+- [ ] 新增运维健康页面，展示依赖服务状态。
+- [ ] 新增调度任务页面，展示任务名、cron、最近执行时间、最近结果。
+- [ ] 新增版本信息展示。
+- [ ] 对配置中的敏感字段做脱敏展示，例如 `jwt_secret`、`aria2.secret`。
+
+#### 部署
+
+- [ ] 为 get-magnet compose 服务加入 `/healthz` healthcheck。
+- [ ] 为 PostgreSQL compose 服务加入 `pg_isready` healthcheck。
+- [ ] 为 cloud-driver compose 服务加入 `/health` healthcheck。
+- [ ] 明确 `APP_EXTERNAL_BASE_URL` 的线上配置方式。
+- [ ] 明确前端静态资源构建和部署路径。
+- [ ] 检查 Docker 镜像内是否具备健康检查命令，确认使用 `wget` 或安装 `curl`。
+
+#### 验收
+
+- [ ] 后台能看到运行时配置。
+- [ ] 后台能测试外部依赖连通性。
+- [ ] 后台能看到应用和依赖健康状态。
+- [ ] 调度任务状态可见。
+- [ ] Compose 中服务健康状态正确。
+
+### P4：多人协作与审计
+
+#### 后端
+
+- [ ] 扩展 `admin` 表，增加启用状态、最后登录时间、备注字段。
+- [ ] 新增管理员列表接口：`GET /api/v1/admins/list`。
+- [ ] 新增管理员创建接口：`POST /api/v1/admins/create`。
+- [ ] 新增管理员更新接口：`POST /api/v1/admins/update`。
+- [ ] 新增管理员禁用接口：`POST /api/v1/admins/disable`。
+- [ ] 设计角色模型：`admin`、`operator`、`viewer`。
+- [ ] 设计并新增 `operation_logs` 表。
+- [ ] 在关键写操作中记录操作日志。
+- [ ] 新增登录日志记录。
+- [ ] 新增审计列表接口：`GET /api/v1/audit/list`。
+
+#### 前端
+
+- [ ] 新增管理员管理页面。
+- [ ] 新增角色选择和权限展示。
+- [ ] 新增操作审计页面。
+- [ ] 新增登录日志页面。
+- [ ] 根据角色隐藏不可用菜单和操作按钮。
+
+#### 验收
+
+- [ ] 可新增、禁用、更新管理员。
+- [ ] 不同角色看到的菜单和操作不同。
+- [ ] 关键操作可在审计日志中追踪。
+- [ ] 登录记录可查。
+
+### 技术债清理
+
+- [ ] 移除或隐藏模板演示页面和无业务意义路由。
+- [ ] 统一前端接口命名风格，避免 `pageNum` 与 `page_num` 混用。
+- [ ] 为前端业务实体补充 TypeScript 类型定义。
+- [ ] 统一时间格式展示。
+- [ ] 统一错误提示和空状态展示。
+- [ ] 后端补充 API 单元测试或 handler 级测试。
+- [ ] 后端补充下载状态转换测试。
+- [ ] 后端补充配置解析和默认值测试。
+- [ ] 更新 README 的在线管理系统说明。
+- [ ] 更新 Docker Compose 示例。
