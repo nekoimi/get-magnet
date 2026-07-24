@@ -32,6 +32,15 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      - name: Prepare submodules
+        shell: bash
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive
+          test -f ui/get-magnet-ui/package.json
+          test -f ui/get-magnet-ui/pnpm-lock.yaml
+          test -f ui/aria-ng/package.json
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
@@ -64,6 +73,13 @@ jobs:
           VITE_API_URL: /
         run: pnpm build
 
+      - name: Build AriaNg
+        working-directory: ui/aria-ng
+        run: |
+          npm ci
+          npm run build
+          test -f dist/index.html
+
   image:
     name: Build and publish application image
     needs: test
@@ -79,6 +95,15 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+
+      - name: Prepare Docker build context
+        shell: bash
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive
+          test -f ui/get-magnet-ui/package.json
+          test -f ui/get-magnet-ui/pnpm-lock.yaml
+          test -f ui/aria-ng/package.json
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

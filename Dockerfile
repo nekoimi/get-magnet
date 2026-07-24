@@ -16,6 +16,15 @@ ENV VITE_PUBLIC_PATH=${VITE_PUBLIC_PATH}
 ENV VITE_API_URL=${VITE_API_URL}
 RUN pnpm build
 
+FROM node:22-alpine AS ariang-builder
+
+WORKDIR /build/ui/aria-ng
+COPY ui/aria-ng/package.json ui/aria-ng/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+COPY ui/aria-ng/ ./
+RUN npm run build
+
 FROM golang:1.25-alpine AS go-builder
 
 ENV CGO_ENABLED=0
@@ -48,7 +57,7 @@ RUN apk add --no-cache ca-certificates tzdata \
 
 COPY --from=go-builder /out/get-magnet /usr/bin/get-magnet
 COPY --from=ui-builder /build/ui/get-magnet-ui/dist/ /workspace/ui/
-COPY ui/aria-ng/ /workspace/ui/aria-ng/
+COPY --from=ariang-builder /build/ui/aria-ng/dist/ /workspace/ui/aria-ng/
 
 ENV TZ=Asia/Shanghai \
     LOG_DIR=/workspace/logs
