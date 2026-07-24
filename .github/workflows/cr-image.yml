@@ -97,6 +97,7 @@ jobs:
           submodules: recursive
 
       - name: Prepare Docker build context
+        id: build-context
         shell: bash
         run: |
           git submodule sync --recursive
@@ -104,6 +105,17 @@ jobs:
           test -f ui/get-magnet-ui/package.json
           test -f ui/get-magnet-ui/pnpm-lock.yaml
           test -f ui/aria-ng/package.json
+
+          build_context="${RUNNER_TEMP}/get-magnet-context-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "${build_context}"
+          git archive --format=tar HEAD | tar -xf - -C "${build_context}"
+          mkdir -p "${build_context}/ui/get-magnet-ui" "${build_context}/ui/aria-ng"
+          cp -a ui/get-magnet-ui/. "${build_context}/ui/get-magnet-ui/"
+          cp -a ui/aria-ng/. "${build_context}/ui/aria-ng/"
+
+          test -f "${build_context}/ui/get-magnet-ui/pnpm-lock.yaml"
+          test -f "${build_context}/ui/aria-ng/package.json"
+          echo "path=${build_context}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -136,8 +148,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v7
         with:
-          context: .
-          file: ./Dockerfile
+          context: ${{ steps.build-context.outputs.path }}
+          file: ${{ steps.build-context.outputs.path }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
