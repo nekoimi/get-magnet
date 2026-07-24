@@ -10,11 +10,37 @@
 
 ## 管理端静态资源
 
-根目录 `Dockerfile` 使用独立 Node 构建阶段执行 `pnpm build`，并将产物复制到镜像内的 `/workspace/ui`。Go 后端在 `/` 提供这些静态资源，因此线上无需单独部署前端服务。
+根目录 `Dockerfile` 生成一个同时包含 Go 后端和管理端的镜像：
+
+1. `ui-builder` 使用 Node 22 和 pnpm 构建 `ui/get-magnet-ui`。
+2. `go-builder` 使用 Go 1.25 构建静态后端二进制，并注入版本与 Git commit。
+3. 最终 Alpine 镜像将管理端产物复制到 `/workspace/ui`，将 AriaNg 复制到 `/workspace/ui/aria-ng`。
+4. Go 后端在 `/` 提供管理端静态资源，在 `/ui/aria-ng/` 提供 AriaNg，因此线上无需单独部署前端服务。
+
+生产构建固定使用同源地址：
+
+- `VITE_PUBLIC_PATH=/`
+- `VITE_API_URL=/`
 
 镜像内保留 BusyBox `wget`，容器健康检查请求 `http://127.0.0.1:8093/healthz`。
 
 根目录的 `docker-compose.example.yaml` 提供 PostgreSQL 与 get-magnet 示例，并分别使用 `pg_isready` 与 `/healthz` 进行健康检查。
+
+## GitHub Actions 镜像构建
+
+`.github/workflows/cr-image.yml` 在以下场景运行：
+
+- 推送到 `main`、`master` 或 `feature/**` 分支。
+- 推送 `v*` 标签。
+- Pull Request 和手动触发。
+
+工作流 checkout 时使用 `submodules: recursive`，这是构建管理端和 AriaNg 的必要条件。测试任务先执行全量 Go 测试和前端生产构建；镜像任务随后使用 Buildx 构建 `linux/amd64`、`linux/arm64`，非 Pull Request 构建发布至：
+
+```text
+ghcr.io/<owner>/<repository>
+```
+
+标签构建会生成语义化版本标签和 `latest`，分支构建会生成分支标签及 `sha-*` 标签。
 
 ## 日志查询安全边界
 

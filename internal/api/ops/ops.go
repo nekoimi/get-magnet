@@ -18,6 +18,11 @@ import (
 
 var startedAt = time.Now()
 
+var (
+	BuildVersion = "dev"
+	BuildCommit  = ""
+)
+
 type ServiceHealth struct {
 	OK        bool   `json:"ok"`
 	Message   string `json:"message,omitempty"`
@@ -60,8 +65,11 @@ func Jobs(scheduler job.CronScheduler) http.HandlerFunc {
 }
 
 func Version(w http.ResponseWriter, _ *http.Request) {
-	version := "dev"
-	commit := os.Getenv("GIT_COMMIT")
+	version := BuildVersion
+	commit := BuildCommit
+	if value := os.Getenv("GIT_COMMIT"); value != "" {
+		commit = value
+	}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		if info.Main.Version != "" && info.Main.Version != "(devel)" {
 			version = info.Main.Version
