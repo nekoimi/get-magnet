@@ -6,7 +6,7 @@ on:
     branches:
       - main
       - master
-      - feature/**
+#      - feature/**
     tags:
       - "v*"
     paths-ignore:
