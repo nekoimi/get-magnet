@@ -42,23 +42,23 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 	r.Use(middleware.CORSMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
 	r.Use(middleware.LoggingMiddleware)
-	r.Use(middleware.AuthMiddleware(cfg))
 
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}).Methods("GET")
 
-	// aria2 jsonrpc 代理
-	r.HandleFunc(aria2JsonApi, proxy.ReverseAria2())
-	// 接口
+	// 无需认证的接口必须在受保护的 /api 子路由之前注册。
+	r.HandleFunc("/api/auth/login", auth.Login)
+	r.HandleFunc("/api/play/{number}", play.Play(cfg)).Methods("GET")
+
+	// 需要认证的接口
 	apiRoute := r.PathPrefix("/api").Subrouter()
+	apiRoute.Use(middleware.AuthMiddleware)
 	{
-		// 登录
-		apiRoute.HandleFunc("/auth/login", auth.Login)
+		// aria2 jsonrpc 代理
+		apiRoute.HandleFunc("/aria2/jsonrpc", proxy.ReverseAria2())
 		// 登出
 		apiRoute.HandleFunc("/auth/logout", auth.Logout)
-		// 视频播放地址
-		apiRoute.HandleFunc("/play/{number}", play.Play(cfg)).Methods("GET")
 
 		v1Api := apiRoute.PathPrefix("/v1").Subrouter()
 		{
