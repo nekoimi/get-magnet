@@ -1,6 +1,6 @@
 module github.com/nekoimi/get-magnet
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/PuerkitoBio/goquery v1.13.0
@@ -14,7 +14,7 @@ require (
 	github.com/siku2/arigo v0.2.1-0.20250426130944-80d0332f34e9
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/viper v1.21.0
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
