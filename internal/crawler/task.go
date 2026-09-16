@@ -11,6 +11,7 @@ type TaskHandler func(t CrawlerTask) ([]CrawlerTask, []MagnetEntry, error)
 type TaskDispatcher interface {
 	Submit(t CrawlerTask)
 	Chan() <-chan CrawlerTask
+	Len() int
 }
 
 type CrawlerTask interface {

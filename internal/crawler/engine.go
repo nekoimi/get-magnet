@@ -10,7 +10,6 @@ import (
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/downloader"
 	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
@@ -30,12 +29,17 @@ type Engine struct {
 	workers []*Worker
 	// 任务队列
 	taskDispatcher TaskDispatcher
-	// 下载器
-	downloadService downloader.DownloadService
 	// crawler管理器
 	crawlerManager *Manager
 	// cancel
 	cancel context.CancelFunc
+}
+
+type EngineSnapshot struct {
+	WorkerCount int              `json:"worker_count"`
+	Running     int              `json:"running"`
+	QueueLength int              `json:"queue_length"`
+	Workers     []WorkerSnapshot `json:"workers"`
 }
 
 func NewCrawlerEngine() *Engine {
@@ -52,7 +56,6 @@ func (e *Engine) Name() string {
 func (e *Engine) Start(parent context.Context) error {
 	cfg := bean.PtrFromContext[config.Config](parent)
 	e.cfg = cfg.Crawler
-	e.downloadService = bean.FromContext[downloader.DownloadService](parent)
 	e.crawlerManager = bean.PtrFromContext[Manager](parent)
 
 	var subCtx context.Context
@@ -101,22 +104,13 @@ func (e *Engine) Success(w *Worker, tasks []CrawlerTask, outputs []MagnetEntry) 
 			Links:       output.Links,
 			RawURLHost:  output.RawURLHost,
 			RawURLPath:  output.RawURLPath,
-			Status:      1,
+			Status:      table.MagnetStatusCollected,
 			Actress0:    output.Actress0,
-			FollowedBy:  "unknow",
+			FollowedBy:  "",
 		}
 
-		// 提交下载
-		log.Debugf("提交下载：%s -> %s", output.Origin, output.OptimalLink)
-		id, err := e.downloadService.Download(output.Origin, output.OptimalLink)
-		if err != nil {
-			log.Errorf("提交下载任务异常: %s", err.Error())
-			magnet_repo.Save(m)
-		} else {
-			m.Status = 0
-			m.FollowedBy = id
-			magnet_repo.Save(m)
-		}
+		log.Debugf("保存采集资源，等待后台下载调度：%s -> %s", output.Origin, output.OptimalLink)
+		magnet_repo.Save(m)
 	}
 }
 
@@ -145,4 +139,22 @@ func (e *Engine) Stop(ctx context.Context) error {
 	wait.Wait()
 	log.Infoln("stop engine...")
 	return nil
+}
+
+func (e *Engine) Snapshot() EngineSnapshot {
+	e.workerLock.RLock()
+	defer e.workerLock.RUnlock()
+	result := EngineSnapshot{
+		WorkerCount: len(e.workers),
+		QueueLength: e.taskDispatcher.Len(),
+		Workers:     make([]WorkerSnapshot, 0, len(e.workers)),
+	}
+	for _, worker := range e.workers {
+		item := worker.Snapshot()
+		if item.Running {
+			result.Running++
+		}
+		result.Workers = append(result.Workers, item)
+	}
+	return result
 }

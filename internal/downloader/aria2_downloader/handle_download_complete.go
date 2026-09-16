@@ -65,6 +65,10 @@ func handleDownloadComplete(status arigo.Status, origin string, moveToDir string
 
 	if err := magnet_repo.MarkPostProcessDone(m.Id); err != nil {
 		log.Errorf("任务[%s]下载完成 - 标记后处理完成失败：%s", friendly(status), err.Error())
+		return
+	}
+	if err := magnet_repo.MarkDownloadCompletedByFollowed(status.GID); err != nil {
+		log.Errorf("任务[%s]下载完成 - 标记下载完成失败：%s", friendly(status), err.Error())
 	}
 }
 

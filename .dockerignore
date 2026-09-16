@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+.agents
+.codex
+logs
+deploy
+tests
+**/node_modules
+**/dist
+ui/get-magnet-ui/.git
+ui/aria-ng/.git
+*.log

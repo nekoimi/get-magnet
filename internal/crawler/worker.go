@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -27,18 +28,20 @@ type Worker struct {
 	// 任务队列
 	taskDispatcher TaskDispatcher
 	// 是否正在运行
-	running bool
+	running atomic.Bool
+	current atomic.Value
 }
 
 // NewWorker 创建一个新的任务执行worker
 func NewWorker(ctx context.Context, id int, taskDispatcher TaskDispatcher, resultHandler ResultHandler) *Worker {
-	return &Worker{
+	w := &Worker{
 		ctx:            ctx,
 		id:             id,
 		resultHandler:  resultHandler,
 		taskDispatcher: taskDispatcher,
-		running:        false,
 	}
+	w.current.Store("")
+	return w
 }
 
 func (w *Worker) Id() int {
@@ -69,9 +72,11 @@ func (w *Worker) Run() {
 
 // do 执行任务
 func (w *Worker) do(t CrawlerTask) {
-	w.running = true
+	w.running.Store(true)
+	w.current.Store(t.RawUrl())
 	defer func() {
-		w.running = false
+		w.running.Store(false)
+		w.current.Store("")
 	}()
 
 	handler := t.Handler()
@@ -87,12 +92,23 @@ func (w *Worker) do(t CrawlerTask) {
 
 // Close 停止任务执行worker
 func (w *Worker) Close() error {
-	for w.running {
+	for w.running.Load() {
 		log.Debugf("等待Worker执行完毕: %s", w)
 		time.Sleep(3 * time.Second)
 	}
 	log.Debugf("停止Worker: %s", w)
 	return nil
+}
+
+type WorkerSnapshot struct {
+	ID         int    `json:"id"`
+	Running    bool   `json:"running"`
+	CurrentURL string `json:"current_url,omitempty"`
+}
+
+func (w *Worker) Snapshot() WorkerSnapshot {
+	current, _ := w.current.Load().(string)
+	return WorkerSnapshot{ID: w.id, Running: w.running.Load(), CurrentURL: current}
 }
 
 func (w *Worker) String() string {

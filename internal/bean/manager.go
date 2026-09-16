@@ -2,14 +2,12 @@ package bean
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/config"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,9 +37,6 @@ func (m *LifecycleManager) Register(lifecycle Lifecycle) {
 }
 
 func (m *LifecycleManager) StartAndServe() {
-	c := PtrFromContext[config.Config](m.ctx)
-	fmt.Println(c)
-
 	for _, lifecycle := range m.lifecycles {
 		go func(life Lifecycle, ctx context.Context) {
 			defer func() {

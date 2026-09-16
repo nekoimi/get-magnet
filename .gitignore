@@ -20,3 +20,7 @@ output
 deploy
 tests/logs
 local
+
+# Config files (keep examples)
+config/*.yaml
+!config/*.yaml.example

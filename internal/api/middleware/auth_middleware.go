@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
-	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
@@ -14,62 +12,33 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var allowedApiSet = make(map[string]struct{})
-
-func init() {
-	allowedApis := []string{
-		"/ui/aria-ng",
-		"/api/auth/login",
-		"/api/play",
-		"/quick-api",
-	}
-
-	for _, allowedApi := range allowedApis {
-		allowedApiSet[allowedApi] = struct{}{}
-	}
-}
-
-func AuthMiddleware() mux.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			uri := r.RequestURI
-			for path := range allowedApiSet {
-				if uri == path || strings.HasPrefix(uri, path) {
-					next.ServeHTTP(w, r)
-					return
-				}
-			}
-
-			token := r.Header.Get("Authorization")
-			if token == "" {
-				if c, err := r.Cookie("token"); err == nil {
-					token = c.Value
-				} else {
-					log.Debugf("获取请求cookie异常: %s", err.Error())
-				}
-			}
-
-			if token == "" {
-				respond.Error(w, error_ext.AuthenticationError)
-				return
-			}
-
-			if sub, err := jwt.ParseToken(token); err != nil {
-				if errors.Is(err, jwt.TokenExpireError) {
-					respond.Error(w, error_ext.AuthenticationExpirseError)
-				} else {
-					respond.Error(w, err)
-				}
-				return
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := r.Header.Get("Authorization")
+		if token == "" {
+			if c, err := r.Cookie("token"); err == nil {
+				token = c.Value
 			} else {
-				// 将用户信息放到Context传递下去
-
-				authCtx := context.WithValue(r.Context(), request.ContextJwtUser, sub)
-				r = r.WithContext(authCtx)
+				log.Debugf("获取请求cookie异常: %s", err.Error())
 			}
+		}
 
-			// next
-			next.ServeHTTP(w, r)
-		})
-	}
+		if token == "" {
+			respond.Error(w, error_ext.AuthenticationError)
+			return
+		}
+
+		sub, err := jwt.ParseToken(token)
+		if err != nil {
+			if errors.Is(err, jwt.TokenExpireError) {
+				respond.Error(w, error_ext.AuthenticationExpirseError)
+			} else {
+				respond.Error(w, error_ext.AuthenticationError)
+			}
+			return
+		}
+
+		authCtx := context.WithValue(r.Context(), request.ContextJwtUser, sub)
+		next.ServeHTTP(w, r.WithContext(authCtx))
+	})
 }

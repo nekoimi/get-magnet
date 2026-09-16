@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/job"
@@ -15,6 +16,12 @@ type Manager struct {
 	crawlers []Crawler
 	// 定时任务调度
 	cronScheduler job.CronScheduler
+}
+
+type ProviderSnapshot struct {
+	Name     string `json:"name"`
+	CronSpec string `json:"cron"`
+	Enabled  bool   `json:"enabled"`
 }
 
 func NewCrawlerManager(ctx context.Context) *Manager {
@@ -42,6 +49,39 @@ func (m *Manager) RunAll() {
 			c.Run()
 		}(crawler)
 	}
+}
+
+func (m *Manager) Run(name string) error {
+	if name == "" {
+		m.RunAll()
+		return nil
+	}
+	for _, provider := range m.crawlers {
+		if provider.Name() == name {
+			go safeRun(provider)
+			return nil
+		}
+	}
+	return fmt.Errorf("采集源不存在: %s", name)
+}
+
+func (m *Manager) Providers() []ProviderSnapshot {
+	result := make([]ProviderSnapshot, 0, len(m.crawlers))
+	for _, provider := range m.crawlers {
+		result = append(result, ProviderSnapshot{
+			Name: provider.Name(), CronSpec: provider.CronSpec(), Enabled: true,
+		})
+	}
+	return result
+}
+
+func safeRun(provider Crawler) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			log.Errorf("执行Crawler[%s] panic: %v", provider.Name(), recovered)
+		}
+	}()
+	provider.Run()
 }
 
 func (m *Manager) ScheduleAll() {

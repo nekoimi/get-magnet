@@ -1,36 +1,74 @@
-FROM golang:1.25-alpine AS builder
+# syntax=docker/dockerfile:1.7
+
+FROM node:22-alpine AS ui-builder
+
+WORKDIR /build/ui/get-magnet-ui
+RUN corepack enable
+
+COPY ui/get-magnet-ui/package.json ui/get-magnet-ui/pnpm-lock.yaml ui/get-magnet-ui/pnpm-workspace.yaml ./
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+COPY ui/get-magnet-ui/ ./
+ARG VITE_PUBLIC_PATH=/
+ARG VITE_API_URL=/
+ENV VITE_PUBLIC_PATH=${VITE_PUBLIC_PATH}
+ENV VITE_API_URL=${VITE_API_URL}
+RUN pnpm build
+
+FROM node:22-alpine AS ariang-builder
+
+WORKDIR /build/ui/aria-ng
+COPY ui/aria-ng/package.json ui/aria-ng/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+COPY ui/aria-ng/ ./
+RUN npm run build
+
+FROM golang:1.25-alpine AS go-builder
 
 ENV CGO_ENABLED=0
-
 WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+
 COPY . .
-RUN go install cmd
-RUN go build --ldflags "-extldflags -static" -o get-magnet cmd/main.go
+ARG VERSION=dev
+ARG COMMIT=unknown
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath \
+      -ldflags="-s -w -extldflags=-static -X github.com/nekoimi/get-magnet/internal/api/ops.BuildVersion=${VERSION} -X github.com/nekoimi/get-magnet/internal/api/ops.BuildCommit=${COMMIT}" \
+      -o /out/get-magnet ./cmd/main.go
 
-# FROM ghcr.io/nekoimi/get-magnet-runtime:latest
-FROM alpine:latest
+FROM alpine:3.22
 
-LABEL maintainer="nekoimi <nekoimime@gmail.com>"
+LABEL org.opencontainers.image.title="get-magnet" \
+      org.opencontainers.image.description="Magnet crawler and download management system" \
+      org.opencontainers.image.source="https://github.com/nekoimi/get-magnet"
 
-COPY --from=builder /build/get-magnet   /usr/bin/get-magnet
+RUN apk add --no-cache ca-certificates tzdata \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && addgroup -g 1000 appuser \
+    && adduser -u 1000 -G appuser -s /bin/sh -D appuser \
+    && mkdir -p /workspace/logs /workspace/ui \
+    && chown -R appuser:appuser /workspace
 
-ENV LOG_PATH=/workspace/logs
+COPY --from=go-builder /out/get-magnet /usr/bin/get-magnet
+COPY --from=ui-builder /build/ui/get-magnet-ui/dist/ /workspace/ui/
+COPY --from=ariang-builder /build/ui/aria-ng/dist/ /workspace/ui/aria-ng/
 
-RUN apk add --no-cache tzdata \
-    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+ENV TZ=Asia/Shanghai \
+    LOG_DIR=/workspace/logs
 
 WORKDIR /workspace
-
-# 添加用户
-RUN addgroup -g 1000 appuser && \
-    adduser -u 1000 -G appuser -s /bin/sh -D appuser && \
-    chown -R appuser:appuser /workspace
-
-# Run as non-privileged
 USER appuser
 
-VOLUME /workspace/logs
-
+VOLUME ["/workspace/logs"]
 EXPOSE 8093
 
-ENTRYPOINT ["get-magnet"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD wget -q --spider http://127.0.0.1:8093/healthz || exit 1
+
+ENTRYPOINT ["/usr/bin/get-magnet"]

@@ -12,6 +12,7 @@ type Queue[T any] struct {
 	items    []T
 	mux      *sync.Mutex
 	capacity int
+	notify   chan struct{}
 }
 
 // NewQueue 创建一个新队列
@@ -21,23 +22,23 @@ func NewQueue[T any](name string, capacity int) *Queue[T] {
 	q.items = make([]T, 0)
 	q.mux = &sync.Mutex{}
 	q.capacity = capacity
+	q.notify = make(chan struct{}, 1)
 	return q
 }
 
 // Push 添加元素到队尾
 func (q *Queue[T]) Push(item T) {
-	q.mux.Lock()
-	defer q.mux.Unlock()
-
-	// 检查容量限制
-	if q.capacity >= 0 {
-		for len(q.items) >= q.capacity {
-			// 等待一会儿 继续检查容量
-			<-time.After(1 * time.Second)
+	for {
+		q.mux.Lock()
+		if q.capacity < 0 || len(q.items) < q.capacity {
+			q.items = append(q.items, item)
+			q.mux.Unlock()
+			q.signal()
+			return
 		}
+		q.mux.Unlock()
+		<-time.After(10 * time.Millisecond)
 	}
-
-	q.items = append(q.items, item)
 }
 
 // Pop 从队头获取一个元素, 返回元素和元素存在状态
@@ -53,34 +54,26 @@ func (q *Queue[T]) Pop() (T, bool) {
 
 	item := q.items[0]
 	q.items = q.items[1:]
+	q.signal()
 	return item, true
 }
 
 // PopWaitTimeout 从队头获取一个元素，如果队列为空，则阻塞等待一定的超时时间
 func (q *Queue[T]) PopWaitTimeout(timeout time.Duration) (T, bool) {
-	q.mux.Lock()
-	timeoutCh := time.After(timeout)
-	checkTicker := time.NewTicker(1 * time.Second)
-	defer func() {
-		checkTicker.Stop()
-		q.mux.Unlock()
-	}()
-
 	var empty T
-
-	for len(q.items) == 0 {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		if item, ok := q.Pop(); ok {
+			log.Debugf("[%s] queue-size: %d", q.name, q.Len())
+			return item, true
+		}
 		select {
-		case <-checkTicker.C:
-			// 继续检查元素
-		case <-timeoutCh:
+		case <-q.notify:
+		case <-timer.C:
 			return empty, false
 		}
 	}
-
-	item := q.items[0]
-	q.items = q.items[1:]
-	log.Debugf("[%s] queue-size: %d", q.name, len(q.items))
-	return item, true
 }
 
 // Len 获取队列中元素的数量
@@ -94,4 +87,11 @@ func (q *Queue[T]) Len() int {
 // IsEmpty 判断队列是否为空
 func (q *Queue[T]) IsEmpty() bool {
 	return q.Len() == 0
+}
+
+func (q *Queue[T]) signal() {
+	select {
+	case q.notify <- struct{}{}:
+	default:
+	}
 }

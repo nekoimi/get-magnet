@@ -10,6 +10,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader/tracker"
 	"github.com/nekoimi/get-magnet/internal/job"
 	"github.com/nekoimi/get-magnet/internal/pkg/apptools"
+	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
 )
@@ -97,6 +98,9 @@ func (d *Aria2Downloader) Start(parent context.Context) error {
 					}(callback)
 				}
 			case arigo.ErrorEvent:
+				if err := magnet_repo.MarkDownloadFailedByFollowed(e.Id(), e.taskStatus.ErrorMessage); err != nil {
+					log.Errorf("标记aria2下载失败状态异常: %s - %s", e.Id(), err.Error())
+				}
 				// 处理其他回调
 				for _, callback := range d.onError {
 					go func(call downloader.DownloadCallback) {

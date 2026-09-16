@@ -9,7 +9,8 @@ import (
 	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/downloader"
-	"github.com/nekoimi/get-magnet/internal/downloader/aria2_downloader"
+	"github.com/nekoimi/get-magnet/internal/downloader/cloud_downloader"
+	download_scheduler "github.com/nekoimi/get-magnet/internal/downloader/scheduler"
 	"github.com/nekoimi/get-magnet/internal/drission_rod"
 	"github.com/nekoimi/get-magnet/internal/job"
 	"github.com/nekoimi/get-magnet/internal/server"
@@ -26,7 +27,9 @@ func BeanLifecycle() *bean.LifecycleManager {
 	// drission_rod
 	bean.MustRegisterPtr[drission_rod.DrissionRod](ctx, drission_rod.NewDrissionRod())
 	// 下载器
-	bean.MustRegister[downloader.DownloadService](ctx, aria2_downloader.NewAria2DownloadService())
+	bean.MustRegister[downloader.DownloadService](ctx, cloud_downloader.NewCloudDownloadService())
+	// 下载调度
+	bean.MustRegisterPtr[download_scheduler.DownloadScheduler](ctx, download_scheduler.NewDownloadScheduler())
 	// 任务管理器
 	crawlerManager := crawler.NewCrawlerManager(ctx)
 	crawlerManager.Register(javdb.NewJavDBCrawler())
