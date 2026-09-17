@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 COPY ui/aria-ng/ ./
 RUN npm run build
 
-FROM golang:1.25-alpine AS go-builder
+FROM golang:1.26-alpine AS go-builder
 
 ENV CGO_ENABLED=0
 WORKDIR /build

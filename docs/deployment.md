@@ -14,7 +14,7 @@
 
 1. `ui-builder` 使用 Node 22 和 pnpm 构建 `ui/get-magnet-ui`。
 2. `ariang-builder` 使用 Node 22 和 npm 构建 `ui/aria-ng`。
-3. `go-builder` 使用 Go 1.25 构建静态后端二进制，并注入版本与 Git commit。
+3. `go-builder` 使用 Go 1.26 构建静态后端二进制，并注入版本与 Git commit。
 4. 最终 Alpine 镜像将管理端产物复制到 `/workspace/ui`，将 AriaNg 产物复制到 `/workspace/ui/aria-ng`。
 5. Go 后端在 `/` 提供管理端静态资源，在 `/ui/aria-ng/` 提供 AriaNg；后台“下载管理 / Aria2 控制台”通过 iframe 加载该地址，因此线上无需单独部署前端服务。
 

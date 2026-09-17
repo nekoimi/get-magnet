@@ -23,7 +23,7 @@
 
 ## 技术栈
 
-### 后端（Go 1.24）
+### 后端（Go 1.26）
 
 - **Web 框架**: [gorilla/mux](https://github.com/gorilla/mux)
 - **ORM**: [xorm](https://xorm.io/)
@@ -49,7 +49,7 @@
 
 ### 环境要求
 
-- Go 1.24+
+- Go 1.26+
 - Node.js 16+ / pnpm
 - PostgreSQL 12+
 - aria2 (可选，用于下载功能)
