@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func Initialize(logLevel string, logDir string) {
+func Initialize(logLevel string, logDir string, rotation RotationConfig) {
 	level, err := log.ParseLevel(logLevel)
 	if err != nil {
 		panic(err)
@@ -31,7 +31,7 @@ func Initialize(logLevel string, logDir string) {
 		CallerPrettyfier:  friendlyCaller,
 		DisableHTMLEscape: true,
 	}
-	log.AddHook(newRotateHook(logDir, jsonFormatter))
+	log.AddHook(newRotateHook(logDir, jsonFormatter, rotation))
 }
 
 func friendlyCaller(frame *runtime.Frame) (function string, file string) {

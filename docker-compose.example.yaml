@@ -25,6 +25,10 @@ services:
     environment:
       TZ: Asia/Shanghai
       PORT: 8093
+      LOG_ROTATION_MAX_SIZE_MB: ${LOG_ROTATION_MAX_SIZE_MB:-20}
+      LOG_ROTATION_MAX_BACKUPS: ${LOG_ROTATION_MAX_BACKUPS:-7}
+      LOG_ROTATION_MAX_AGE_DAYS: ${LOG_ROTATION_MAX_AGE_DAYS:-7}
+      LOG_ROTATION_COMPRESS: ${LOG_ROTATION_COMPRESS:-true}
       DB_DSN: postgres://${POSTGRES_USER:-get_magnet}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-get_magnet}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       QUICK_API_TOKEN: ${QUICK_API_TOKEN:-}

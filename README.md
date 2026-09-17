@@ -120,6 +120,10 @@ docker run -d \
 | `PORT` | HTTP 服务端口 | `8093` |
 | `LOG_LEVEL` | 日志级别 (debug/info/warning/error) | `debug` |
 | `LOG_DIR` | 日志目录 | `logs` |
+| `LOG_ROTATION_MAX_SIZE_MB` | 单个日志文件大小上限（MB） | `20` |
+| `LOG_ROTATION_MAX_BACKUPS` | 每个日志级别保留的历史文件数，`0` 表示不限制 | `7` |
+| `LOG_ROTATION_MAX_AGE_DAYS` | 历史日志保留天数，`0` 表示不限制 | `7` |
+| `LOG_ROTATION_COMPRESS` | 压缩因大小触发轮转的历史日志 | `true` |
 | `JWT_SECRET` | JWT 密钥 | `abc123456` |
 | `APP_EXTERNAL_BASE_URL` | 外部访问根地址，用于生成 STRM 播放 URL | - |
 | `QUICK_API_TOKEN` | 可选的 `/quick-api` 访问令牌 | - |
