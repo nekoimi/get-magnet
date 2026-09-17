@@ -34,6 +34,7 @@ func TestLoadDefaultsAndEnvironmentOverrides(t *testing.T) {
 	t.Setenv("CONFIG_FILE", configPath)
 	t.Setenv("DOWNLOAD_BATCH_SIZE", "33")
 	t.Setenv("CRAWLER_WORKER_NUM", "7")
+	t.Setenv("LOG_ROTATION_MAX_SIZE_MB", "12")
 	cfg := Load()
 	if cfg.Port != 8093 {
 		t.Fatalf("default port = %d; want 8093", cfg.Port)
@@ -43,5 +44,8 @@ func TestLoadDefaultsAndEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.Crawler == nil || cfg.Crawler.WorkerNum != 7 {
 		t.Fatalf("unexpected crawler config: %+v", cfg.Crawler)
+	}
+	if cfg.LogRotation.MaxSizeMB != 12 || cfg.LogRotation.MaxBackups != 7 || cfg.LogRotation.MaxAgeDays != 7 || !cfg.LogRotation.Compress {
+		t.Fatalf("unexpected log rotation config: %+v", cfg.LogRotation)
 	}
 }

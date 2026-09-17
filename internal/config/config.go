@@ -19,6 +19,8 @@ type Config struct {
 	LogLevel string `json:"log_level,omitempty" mapstructure:"log_level"`
 	// 日志文件夹
 	LogDir string `json:"log_dir,omitempty" mapstructure:"log_dir"`
+	// 日志轮转配置
+	LogRotation LogRotationConfig `json:"log_rotation" mapstructure:"log_rotation"`
 	// Jwt secret
 	JwtSecret string `json:"jwt_secret,omitempty" mapstructure:"jwt_secret"`
 	// arai2下载配置
@@ -35,6 +37,17 @@ type Config struct {
 	DB *DBConfig `json:"db,omitempty" mapstructure:"db"`
 	// 调试 API 配置
 	QuickAPI *QuickAPIConfig `json:"quick_api,omitempty" mapstructure:"quick_api"`
+}
+
+type LogRotationConfig struct {
+	// 单个日志文件的最大大小，单位 MB
+	MaxSizeMB int `json:"max_size_mb" mapstructure:"max_size_mb"`
+	// 每个日志级别最多保留的历史文件数，0 表示不限制
+	MaxBackups int `json:"max_backups" mapstructure:"max_backups"`
+	// 历史日志最多保留天数，0 表示不限制
+	MaxAgeDays int `json:"max_age_days" mapstructure:"max_age_days"`
+	// 是否压缩因大小触发轮转的历史日志
+	Compress bool `json:"compress" mapstructure:"compress"`
 }
 
 type AppConfig struct {
@@ -117,6 +130,10 @@ func Load() *Config {
 	v.SetDefault("port", 8093)
 	v.SetDefault("log_level", "debug")
 	v.SetDefault("log_dir", "logs")
+	v.SetDefault("log_rotation.max_size_mb", 20)
+	v.SetDefault("log_rotation.max_backups", 7)
+	v.SetDefault("log_rotation.max_age_days", 7)
+	v.SetDefault("log_rotation.compress", true)
 	v.SetDefault("jwt_secret", "abc123456")
 	v.SetDefault("strm.enabled", false)
 	v.SetDefault("strm.overwrite", true)
@@ -135,6 +152,10 @@ func Load() *Config {
 	loadYamlFile(v)
 
 	v.BindEnv("aria2.jsonrpc")
+	v.BindEnv("log_rotation.max_size_mb")
+	v.BindEnv("log_rotation.max_backups")
+	v.BindEnv("log_rotation.max_age_days")
+	v.BindEnv("log_rotation.compress")
 	v.BindEnv("aria2.secret")
 	v.BindEnv("aria2.move_to.javdb_dir")
 	v.BindEnv("app.external_base_url")
@@ -167,7 +188,12 @@ func Load() *Config {
 		panic(err)
 	}
 
-	logger.Initialize(cfg.LogLevel, cfg.LogDir)
+	logger.Initialize(cfg.LogLevel, cfg.LogDir, logger.RotationConfig{
+		MaxSizeMB:  cfg.LogRotation.MaxSizeMB,
+		MaxBackups: cfg.LogRotation.MaxBackups,
+		MaxAgeDays: cfg.LogRotation.MaxAgeDays,
+		Compress:   cfg.LogRotation.Compress,
+	})
 	log.Infof("配置信息：\n%s", cfg)
 
 	return cfg
