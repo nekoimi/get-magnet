@@ -16,6 +16,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/api/settings"
 	"github.com/nekoimi/get-magnet/internal/api/ui"
 	"github.com/nekoimi/get-magnet/internal/api/user"
+	"github.com/nekoimi/get-magnet/internal/api/workflows"
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
 	crawlercore "github.com/nekoimi/get-magnet/internal/crawler"
@@ -80,6 +81,18 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 
 		v2Api := apiRoute.PathPrefix("/v2").Subrouter()
 		{
+			v2Api.HandleFunc("/workflows/list", workflows.List).Methods("GET", "POST")
+			v2Api.HandleFunc("/workflows/detail", workflows.Detail).Methods("GET", "POST")
+			v2Api.HandleFunc("/workflows/create", workflows.Create).Methods("POST")
+			v2Api.HandleFunc("/workflows/versions/create", workflows.CreateVersion).Methods("POST")
+			v2Api.HandleFunc("/workflows/versions/validate", workflows.Validate).Methods("POST")
+			v2Api.HandleFunc("/workflows/versions/publish", workflows.Publish).Methods("POST")
+			v2Api.HandleFunc("/workflows/versions/rollback", workflows.Rollback).Methods("POST")
+			v2Api.HandleFunc("/workflows/stop", workflows.Stop).Methods("POST")
+			v2Api.HandleFunc("/workflows/versions/diff", workflows.Diff).Methods("POST")
+			v2Api.HandleFunc("/workflows/test-extract", workflows.TestExtract).Methods("POST")
+			v2Api.HandleFunc("/documents/replay", workflows.Replay).Methods("POST")
+			v2Api.HandleFunc("/documents/replay-diff", workflows.ReplayDiff).Methods("POST")
 			v2Api.HandleFunc("/resources/list", resources.List).Methods("GET", "POST")
 			v2Api.HandleFunc("/resources/detail", resources.Detail).Methods("GET")
 			v2Api.HandleFunc("/resources/statusOptions", resources.StatusOptions).Methods("GET")
