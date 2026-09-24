@@ -11,6 +11,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/drission_rod"
 	"github.com/nekoimi/get-magnet/internal/job"
 	"github.com/nekoimi/get-magnet/internal/server"
+	workflowexec "github.com/nekoimi/get-magnet/internal/workflow"
 )
 
 func BeanLifecycle() *bean.LifecycleManager {
@@ -30,6 +31,8 @@ func BeanLifecycle() *bean.LifecycleManager {
 	bean.MustRegisterPtr[crawler.Manager](ctx, crawlerManager)
 	// 任务处理引擎
 	bean.MustRegisterPtr[crawler.Engine](ctx, crawler.NewCrawlerEngine())
+	// 通用声明式工作流执行器与旧 provider worker 分离，按 task_type=workflow 领取任务。
+	bean.MustRegister[bean.Lifecycle](ctx, workflowexec.NewWorker())
 	// http服务
 	bean.MustRegisterPtr[server.Server](ctx, server.NewHttpServer())
 	return bean.LifecycleFromContext(ctx)

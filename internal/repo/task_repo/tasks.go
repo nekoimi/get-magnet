@@ -90,6 +90,16 @@ func CreateTask(runID, parentTaskID int64, stepName, taskType, input string, max
 
 // ClaimNext atomically claims one queued or expired task and creates its attempt.
 func ClaimNext(workerID string, lease time.Duration) (*Claim, bool, error) {
+	return claimNext(workerID, lease, "")
+}
+
+// ClaimNextType atomically claims one task of the requested type. Workflow
+// execution uses this typed variant so it cannot consume legacy browser tasks.
+func ClaimNextType(workerID string, lease time.Duration, taskType string) (*Claim, bool, error) {
+	return claimNext(workerID, lease, strings.TrimSpace(taskType))
+}
+
+func claimNext(workerID string, lease time.Duration, taskType string) (*Claim, bool, error) {
 	if db.Instance() == nil {
 		return nil, false, errors.New("database is not initialized")
 	}
@@ -102,13 +112,19 @@ func ClaimNext(workerID string, lease time.Duration) (*Claim, bool, error) {
 		return nil, false, err
 	}
 	var task table.CrawlTask
-	has, err := s.Where("(status = ? AND (next_retry_at IS NULL OR next_retry_at <= NOW())) OR (status = ? AND lease_until < NOW())", TaskQueued, TaskRunning).Asc("created_at").Limit(1).Get(&task)
+	condition := "((status = ? AND (next_retry_at IS NULL OR next_retry_at <= NOW())) OR (status = ? AND lease_until < NOW()))"
+	args := []any{TaskQueued, TaskRunning}
+	if taskType != "" {
+		condition = condition + " AND task_type = ?"
+		args = append(args, taskType)
+	}
+	has, err := s.Where(condition, args...).Asc("created_at").Limit(1).Get(&task)
 	if err != nil || !has {
 		_ = s.Rollback()
 		return nil, false, err
 	}
 	until := time.Now().Add(lease)
-	result, err := s.ID(task.Id).Cols("status", "attempt_count", "lease_owner", "lease_until", "updated_at").Where("(status = ? AND (next_retry_at IS NULL OR next_retry_at <= NOW())) OR (status = ? AND lease_until < NOW())", TaskQueued, TaskRunning).Update(&table.CrawlTask{Status: TaskRunning, AttemptCount: task.AttemptCount + 1, LeaseOwner: workerID, LeaseUntil: &until, UpdatedAt: time.Now()})
+	result, err := s.ID(task.Id).Cols("status", "attempt_count", "lease_owner", "lease_until", "updated_at").Where(condition, args...).Update(&table.CrawlTask{Status: TaskRunning, AttemptCount: task.AttemptCount + 1, LeaseOwner: workerID, LeaseUntil: &until, UpdatedAt: time.Now()})
 	if err != nil || result == 0 {
 		_ = s.Rollback()
 		return nil, false, err
@@ -121,6 +137,9 @@ func ClaimNext(workerID string, lease time.Duration) (*Claim, bool, error) {
 	if err := s.Commit(); err != nil {
 		return nil, false, err
 	}
+	// A run becomes running when its first durable task is claimed. This keeps
+	// queued runs meaningful even when execution is performed asynchronously.
+	_, _ = db.Instance().ID(task.RunId).Cols("status", "started_at").Where("status = ?", RunQueued).Update(&table.WorkflowRun{Status: RunRunning, StartedAt: ptrTime(time.Now())})
 	task.Status = TaskRunning
 	task.AttemptCount++
 	task.LeaseOwner = workerID
@@ -349,6 +368,24 @@ func ListAttempts(taskID int64, limit int) ([]table.TaskAttempt, error) {
 	rows := make([]table.TaskAttempt, 0)
 	err := db.Instance().Where("task_id = ?", taskID).Desc("attempt_no").Limit(limit).Find(&rows)
 	return rows, err
+}
+
+// UpdateRunSummary stores a compact, JSON-encoded execution result without
+// changing the run state. It is intentionally separate from Complete/Fail so
+// a worker can expose extracted values before the final task transition.
+func UpdateRunSummary(runID int64, summary string) error {
+	if db.Instance() == nil {
+		return errors.New("database is not initialized")
+	}
+	if runID <= 0 {
+		return errors.New("run id is required")
+	}
+	return updateRunSummary(runID, fallbackJSON(summary))
+}
+
+func updateRunSummary(runID int64, summary string) error {
+	_, err := db.Instance().ID(runID).Cols("summary").Update(&table.WorkflowRun{Summary: summary})
+	return err
 }
 
 func ensureWorkflow(sourceCode, sourceName string) (int64, int64, error) {

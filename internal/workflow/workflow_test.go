@@ -35,3 +35,13 @@ func TestExtractCSSXPathAndJSONPath(t *testing.T) {
 		t.Fatalf("unexpected JSON extraction: %#v, %v", jsonResult, err)
 	}
 }
+
+func TestWorkflowWorkerFieldFormat(t *testing.T) {
+	fields, err := fieldRules([]any{map[string]any{"name": "id", "selector": "$.id"}})
+	if err != nil || len(fields) != 1 || !usesJSONPath(fields) {
+		t.Fatalf("unexpected worker field rules: %#v, %v", fields, err)
+	}
+	if usesJSONPath([]FieldRule{{Name: "title", Selector: "article h1"}}) {
+		t.Fatal("CSS selector should not select JSON output")
+	}
+}
