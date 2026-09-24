@@ -83,6 +83,10 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/resources/detail", resources.Detail).Methods("GET")
 			v2Api.HandleFunc("/resources/statusOptions", resources.StatusOptions).Methods("GET")
 			v2Api.HandleFunc("/resources/sourceOptions", resources.SourceOptions).Methods("GET")
+			v2Api.HandleFunc("/resources/create", resources.Create).Methods("POST")
+			v2Api.HandleFunc("/resources/update", resources.Update).Methods("POST")
+			v2Api.HandleFunc("/resources/delete", resources.Delete).Methods("POST")
+			v2Api.HandleFunc("/resources/markStatus", resources.MarkStatus).Methods("POST")
 		}
 	}
 

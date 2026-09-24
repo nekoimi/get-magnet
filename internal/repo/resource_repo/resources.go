@@ -136,6 +136,150 @@ func ListSources() ([]table.Source, error) {
 	return sources, err
 }
 
+func GetSource(id int64) (*table.Source, bool) {
+	source := new(table.Source)
+	has, err := db.Instance().ID(id).Get(source)
+	if err != nil || !has {
+		return nil, false
+	}
+	return source, true
+}
+
+// ResolveSourceID returns an existing source id or creates a stable source
+// entry for a user/provider supplied code.
+func ResolveSourceID(sourceID *int64, sourceCode, sourceName string) (int64, error) {
+	if sourceID != nil && *sourceID > 0 {
+		var source table.Source
+		has, err := db.Instance().ID(*sourceID).Get(&source)
+		if err != nil {
+			return 0, err
+		}
+		if !has {
+			return 0, errors.New("source not found")
+		}
+		return *sourceID, nil
+	}
+	return ensureSource(normalizeSourceCode(sourceCode), sourceName)
+}
+
+func Update(resource *table.Resource, links []LinkInput) error {
+	if resource == nil || resource.Id <= 0 {
+		return errors.New("resource id is required")
+	}
+	if !table.IsValidResourceStatus(table.ResourceStatus(resource.Status)) {
+		return errors.New("invalid resource status")
+	}
+	current, exists := GetByID(resource.Id)
+	if !exists {
+		return errors.New("resource not found")
+	}
+	if !table.CanTransitionResourceStatus(table.ResourceStatus(current.Status), table.ResourceStatus(resource.Status)) {
+		return fmt.Errorf("invalid resource status transition: %s -> %s", current.Status, resource.Status)
+	}
+	if strings.TrimSpace(resource.CanonicalKey) == "" {
+		return errors.New("canonical key is required")
+	}
+	resource.CanonicalKey = fitCanonicalKey(normalizeCanonicalKey(resource.CanonicalKey))
+	if strings.TrimSpace(resource.Attributes) == "" {
+		resource.Attributes = "{}"
+	}
+	resource.UpdatedAt = time.Now()
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return err
+	}
+	if _, err := s.ID(resource.Id).Cols("resource_type", "source_id", "source_url", "canonical_key", "title", "status", "attributes", "updated_at").Update(resource); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if links != nil {
+		if _, err := s.Where("resource_id = ?", resource.Id).Delete(new(table.ResourceLink)); err != nil {
+			_ = s.Rollback()
+			return err
+		}
+		if err := insertLinks(s, resource.Id, links); err != nil {
+			_ = s.Rollback()
+			return err
+		}
+	}
+	if err := s.Commit(); err != nil {
+		return err
+	}
+	return RecordEvent(resource.Id, "updated", "资源已更新", "{}")
+}
+
+type LinkInput struct {
+	Link      string `json:"link"`
+	Name      string `json:"name,omitempty"`
+	Priority  int    `json:"priority,omitempty"`
+	IsOptimal bool   `json:"is_optimal,omitempty"`
+}
+
+func Delete(id int64) error {
+	if id <= 0 {
+		return errors.New("resource id is required")
+	}
+	_, err := db.Instance().ID(id).Delete(new(table.Resource))
+	return err
+}
+
+func ReplaceLinks(resourceID int64, links []LinkInput) error {
+	if resourceID <= 0 {
+		return errors.New("resource id is required")
+	}
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return err
+	}
+	if _, err := s.Where("resource_id = ?", resourceID).Delete(new(table.ResourceLink)); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if err := insertLinks(s, resourceID, links); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if err := s.Commit(); err != nil {
+		return err
+	}
+	return RecordEvent(resourceID, "links_updated", "资源链接已更新", "{}")
+}
+
+func BatchDelete(ids []int64) error {
+	clean := make([]int64, 0, len(ids))
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id > 0 {
+			if _, ok := seen[id]; !ok {
+				seen[id] = struct{}{}
+				clean = append(clean, id)
+			}
+		}
+	}
+	if len(clean) == 0 {
+		return errors.New("resource ids are required")
+	}
+	_, err := db.Instance().In("id", clean).Delete(new(table.Resource))
+	return err
+}
+
+func MarkStatus(id int64, status, message string) error {
+	resource, exists := GetByID(id)
+	if !exists {
+		return errors.New("resource not found")
+	}
+	to := table.ResourceStatus(status)
+	if !table.CanTransitionResourceStatus(table.ResourceStatus(resource.Status), to) {
+		return fmt.Errorf("invalid resource status transition: %s -> %s", resource.Status, status)
+	}
+	if _, err := db.Instance().ID(id).Cols("status", "updated_at").Update(&table.Resource{Status: status, UpdatedAt: time.Now()}); err != nil {
+		return err
+	}
+	return RecordEvent(id, "status_changed", message, fmt.Sprintf(`{"from":%q,"to":%q}`, resource.Status, status))
+}
+
 func ensureSource(code, origin string) (int64, error) {
 	name := strings.TrimSpace(origin)
 	if name == "" {
@@ -292,6 +436,28 @@ func appendLinks(resourceID int64, links []string, optimalLink string) error {
  ON CONFLICT (resource_id, link_type, link) DO UPDATE SET is_optimal = resource_links.is_optimal OR EXCLUDED.is_optimal`,
 			resourceID, linkType(link), link, priority, link == strings.TrimSpace(optimalLink))
 		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func insertLinks(s *xorm.Session, resourceID int64, links []LinkInput) error {
+	seen := make(map[string]struct{}, len(links))
+	for i, input := range links {
+		link := strings.TrimSpace(input.Link)
+		if link == "" {
+			continue
+		}
+		if _, ok := seen[link]; ok {
+			continue
+		}
+		seen[link] = struct{}{}
+		priority := input.Priority
+		if priority == 0 {
+			priority = i
+		}
+		if _, err := s.Insert(&table.ResourceLink{ResourceId: resourceID, LinkType: linkType(link), Link: link, Name: input.Name, Priority: priority, IsOptimal: input.IsOptimal, Metadata: "{}", CreatedAt: time.Now()}); err != nil {
 			return err
 		}
 	}
