@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/nekoimi/get-magnet/internal/repo/task_repo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,8 +30,10 @@ type Worker struct {
 	// 任务队列
 	taskDispatcher TaskDispatcher
 	// 是否正在运行
-	running atomic.Bool
-	current atomic.Value
+	running     atomic.Bool
+	current     atomic.Value
+	taskMu      sync.RWMutex
+	currentTask CrawlerTask
 }
 
 // NewWorker 创建一个新的任务执行worker
@@ -77,7 +81,21 @@ func (w *Worker) do(t CrawlerTask) {
 	defer func() {
 		w.running.Store(false)
 		w.current.Store("")
+		w.taskMu.Lock()
+		w.currentTask = nil
+		w.taskMu.Unlock()
 	}()
+	w.taskMu.Lock()
+	w.currentTask = t
+	w.taskMu.Unlock()
+	if entry, ok := t.(*TaskEntry); ok && entry.taskID > 0 {
+		if attempt, err := task_repo.StartAttempt(entry.taskID, w.String(), task_repo.TaskInput(entry.RawURL, entry.Origin)); err == nil {
+			entry.SetAttempt(attempt.Id)
+		} else {
+			log.Warnf("创建任务尝试记录失败：%s", err.Error())
+			return
+		}
+	}
 
 	handler := t.Handler()
 	tasks, outputs, err := handler(t)
@@ -88,6 +106,12 @@ func (w *Worker) do(t CrawlerTask) {
 	}
 	w.resultHandler.Success(w, tasks, outputs)
 	log.Debugf("[%s] handle task done: %s", w, t.RawUrl())
+}
+
+func (w *Worker) CurrentTask() CrawlerTask {
+	w.taskMu.RLock()
+	defer w.taskMu.RUnlock()
+	return w.currentTask
 }
 
 // Close 停止任务执行worker

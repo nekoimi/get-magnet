@@ -12,6 +12,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/api/middleware"
 	"github.com/nekoimi/get-magnet/internal/api/ops"
 	"github.com/nekoimi/get-magnet/internal/api/resources"
+	"github.com/nekoimi/get-magnet/internal/api/runs"
 	"github.com/nekoimi/get-magnet/internal/api/settings"
 	"github.com/nekoimi/get-magnet/internal/api/ui"
 	"github.com/nekoimi/get-magnet/internal/api/user"
@@ -87,6 +88,13 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/resources/update", resources.Update).Methods("POST")
 			v2Api.HandleFunc("/resources/delete", resources.Delete).Methods("POST")
 			v2Api.HandleFunc("/resources/markStatus", resources.MarkStatus).Methods("POST")
+			v2Api.HandleFunc("/runs/list", runs.List).Methods("GET", "POST")
+			v2Api.HandleFunc("/runs/detail", runs.Detail).Methods("GET", "POST")
+			v2Api.HandleFunc("/runs/cancel", runs.CancelRun).Methods("POST")
+			v2Api.HandleFunc("/tasks/list", runs.Tasks).Methods("GET", "POST")
+			v2Api.HandleFunc("/tasks/attempts", runs.Attempts).Methods("GET", "POST")
+			v2Api.HandleFunc("/tasks/cancel", runs.CancelTask).Methods("POST")
+			v2Api.HandleFunc("/tasks/retry", runs.RetryTask).Methods("POST")
 		}
 	}
 

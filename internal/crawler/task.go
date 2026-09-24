@@ -34,7 +34,19 @@ type TaskEntry struct {
 	ErrorCount int
 	handle     TaskHandler
 	downloader download.Downloader
+	runID      int64
+	taskID     int64
+	attemptID  int64
+	parentID   int64
 }
+
+func (t *TaskEntry) RunID() int64     { return t.runID }
+func (t *TaskEntry) TaskID() int64    { return t.taskID }
+func (t *TaskEntry) AttemptID() int64 { return t.attemptID }
+func (t *TaskEntry) SetPersistence(runID, taskID, parentID int64) {
+	t.runID, t.taskID, t.parentID = runID, taskID, parentID
+}
+func (t *TaskEntry) SetAttempt(id int64) { t.attemptID = id }
 
 // MagnetEntry 任务结果信息
 type MagnetEntry struct {

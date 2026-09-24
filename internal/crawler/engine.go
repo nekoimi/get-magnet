@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
+	"github.com/nekoimi/get-magnet/internal/repo/task_repo"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
 )
@@ -55,6 +57,11 @@ func (e *Engine) Start(parent context.Context) error {
 	cfg := bean.PtrFromContext[config.Config](parent)
 	e.cfg = cfg.Crawler
 	e.crawlerManager = bean.PtrFromContext[Manager](parent)
+	if recovered, err := task_repo.RecoverExpiredLeases(); err != nil {
+		log.Warnf("恢复过期采集任务租约失败：%s", err.Error())
+	} else if recovered > 0 {
+		log.Infof("恢复过期采集任务租约：%d", recovered)
+	}
 
 	var subCtx context.Context
 	subCtx, e.cancel = context.WithCancel(parent)
@@ -84,12 +91,20 @@ func (e *Engine) Start(parent context.Context) error {
 }
 
 func (e *Engine) Submit(t CrawlerTask) {
+	e.persistTask(t, 0, 0)
 	log.Debugf("提交task：%s", t.RawUrl())
 	e.taskDispatcher.Submit(t)
 }
 
 func (e *Engine) Success(w *Worker, tasks []CrawlerTask, outputs []MagnetEntry) {
+	parentID, runID := int64(0), int64(0)
+	var parent *TaskEntry
+	if current, ok := w.CurrentTask().(*TaskEntry); ok {
+		parent = current
+		parentID, runID = parent.taskID, parent.runID
+	}
 	for _, t := range tasks {
+		e.persistTask(t, runID, parentID)
 		e.Submit(t)
 	}
 
@@ -102,9 +117,25 @@ func (e *Engine) Success(w *Worker, tasks []CrawlerTask, outputs []MagnetEntry) 
 		}
 		log.Debugf("保存采集资源：%s -> %s (id=%d, status=%s)", output.Origin, output.OptimalLink, resource.Id, resource.Status)
 	}
+	if parent != nil && parent.taskID > 0 && parent.attemptID > 0 {
+		_ = task_repo.Complete(parent.taskID, parent.attemptID, fmt.Sprintf(`{"outputs":%d,"children":%d}`, len(outputs), len(tasks)))
+	}
 }
 
 func (e *Engine) Error(w *Worker, t CrawlerTask, err error) {
+	if entry, ok := t.(*TaskEntry); ok && entry.taskID > 0 && entry.attemptID > 0 {
+		retry, persistErr := task_repo.Fail(entry.taskID, entry.attemptID, err, entry.ErrorNum() < MaxTaskErrorNum)
+		if persistErr != nil {
+			log.Errorf("持久化任务失败状态异常：%s", persistErr.Error())
+		}
+		if !retry {
+			log.Errorf("任务进入死信：%s - %s", t.RawUrl(), err.Error())
+			return
+		}
+		t.IncrErrorNum()
+		time.AfterFunc(taskRetryDelay(t.ErrorNum()), func() { e.Submit(t) })
+		return
+	}
 	if t.ErrorNum() >= MaxTaskErrorNum {
 		log.Errorf("任务出错次数太多: %s - %s", t.RawUrl(), err.Error())
 		return
@@ -114,6 +145,37 @@ func (e *Engine) Error(w *Worker, t CrawlerTask, err error) {
 	log.Errorf("任务处理异常：%s - %s", t.RawUrl(), err.Error())
 
 	e.Submit(t)
+}
+
+func (e *Engine) persistTask(t CrawlerTask, runID, parentID int64) {
+	entry, ok := t.(*TaskEntry)
+	if !ok || entry.taskID > 0 || task_repo.DatabaseUnavailable() {
+		return
+	}
+	if runID <= 0 {
+		run, err := task_repo.CreateRun(entry.Origin, entry.Origin, "event", task_repo.TaskInput(entry.RawURL, entry.Origin))
+		if err != nil {
+			log.Warnf("创建持久化运行记录失败：%s", err.Error())
+			return
+		}
+		runID = run.Id
+	}
+	task, err := task_repo.CreateTask(runID, parentID, task_repo.TaskStep(entry.RawURL), "browser", task_repo.TaskInput(entry.RawURL, entry.Origin), MaxTaskErrorNum)
+	if err != nil {
+		log.Warnf("创建持久化采集任务失败：%s", err.Error())
+		return
+	}
+	entry.SetPersistence(runID, task.Id, parentID)
+}
+
+func taskRetryDelay(attempt int) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	if attempt > 6 {
+		attempt = 6
+	}
+	return time.Duration(1<<attempt) * time.Second
 }
 
 func (e *Engine) Stop(ctx context.Context) error {
