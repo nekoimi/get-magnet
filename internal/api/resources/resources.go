@@ -7,10 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nekoimi/get-magnet/internal/api/middleware"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
+	"github.com/nekoimi/get-magnet/internal/repo/audit_repo"
 	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
 )
 
@@ -161,6 +163,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	_ = audit_repo.Record(middleware.RequestID(r.Context()), "resource.created", "resource", &resource.Id, map[string]any{"resource_type": resource.ResourceType})
 	respond.Ok(w, resource)
 }
 
@@ -184,6 +187,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, err)
 		return
 	}
+	_ = audit_repo.Record(middleware.RequestID(r.Context()), "resource.updated", "resource", &resource.Id, map[string]any{"status": resource.Status, "title_changed": current.Title != resource.Title, "attributes_changed": current.Attributes != resource.Attributes, "links_changed": input.Links != nil})
 	respond.Ok(w, resource)
 }
 
@@ -201,6 +205,11 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, err)
 		return
 	}
+	for _, id := range ids {
+		if id > 0 {
+			_ = audit_repo.Record(middleware.RequestID(r.Context()), "resource.deleted", "resource", &id, nil)
+		}
+	}
 	respond.Ok(w, nil)
 }
 
@@ -214,6 +223,7 @@ func MarkStatus(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, err)
 		return
 	}
+	_ = audit_repo.Record(middleware.RequestID(r.Context()), "resource.status_changed", "resource", &input.Id, map[string]any{"status": input.Status, "message": input.Message})
 	respond.Ok(w, nil)
 }
 
