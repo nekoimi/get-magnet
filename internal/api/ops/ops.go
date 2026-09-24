@@ -11,7 +11,6 @@ import (
 	"github.com/nekoimi/get-magnet/internal/api/settings"
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/downloader/cloud_downloader"
 	"github.com/nekoimi/get-magnet/internal/job"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
 )
@@ -34,11 +33,7 @@ func Health(cfg *config.Config) http.HandlerFunc {
 		checks := map[string]func(context.Context) error{
 			"application": func(context.Context) error { return nil },
 			"database":    func(context.Context) error { return db.Instance().Ping() },
-			"cloud_driver": func(ctx context.Context) error {
-				return cloud_downloader.CheckHealth(ctx, cfg.CloudDriver)
-			},
 			"drission_rod": func(ctx context.Context) error { return settings.CheckDrissionRod(ctx, cfg.Crawler) },
-			"aria2":        func(context.Context) error { return settings.CheckAria2(cfg.Aria2) },
 		}
 		result := make(map[string]ServiceHealth, len(checks))
 		allOK := true

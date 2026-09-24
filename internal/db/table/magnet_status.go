@@ -1,17 +1,72 @@
 package table
 
 const (
-	// MagnetStatusCollected 已采集，待提交下载。
+	// MagnetStatusCollected is the legacy magnets status retained until the v2
+	// resource migration is complete.
 	MagnetStatusCollected uint8 = 0
-	// MagnetStatusSubmitting 正在提交下载，用于防止重复领取。
-	MagnetStatusSubmitting uint8 = 1
-	// MagnetStatusDownloading 已提交外部下载任务。
+	// Legacy download statuses remain for isolated compatibility packages.
+	MagnetStatusSubmitting  uint8 = 1
 	MagnetStatusDownloading uint8 = 2
-	// MagnetStatusCompleted 下载完成且后处理完成。
-	MagnetStatusCompleted uint8 = 3
-	// MagnetStatusFailed 下载提交失败或外部下载失败。
-	MagnetStatusFailed uint8 = 4
+	MagnetStatusCompleted   uint8 = 3
+	MagnetStatusFailed      uint8 = 4
 )
+
+// ResourceStatus is the v2 resource lifecycle. It is intentionally separate
+// from the legacy uint8 status on table.Magnets until database migration.
+type ResourceStatus string
+
+const (
+	ResourceStatusDiscovered ResourceStatus = "discovered"
+	ResourceStatusCollected  ResourceStatus = "collected"
+	ResourceStatusValidated  ResourceStatus = "validated"
+	ResourceStatusInvalid    ResourceStatus = "invalid"
+	ResourceStatusDuplicate  ResourceStatus = "duplicate"
+	ResourceStatusArchived   ResourceStatus = "archived"
+)
+
+func ResourceStatusOptions() []map[string]string {
+	return []map[string]string{
+		{"label": "已发现", "value": string(ResourceStatusDiscovered)},
+		{"label": "已采集", "value": string(ResourceStatusCollected)},
+		{"label": "已校验", "value": string(ResourceStatusValidated)},
+		{"label": "无效", "value": string(ResourceStatusInvalid)},
+		{"label": "重复", "value": string(ResourceStatusDuplicate)},
+		{"label": "已归档", "value": string(ResourceStatusArchived)},
+	}
+}
+
+func IsValidResourceStatus(status ResourceStatus) bool {
+	switch status {
+	case ResourceStatusDiscovered, ResourceStatusCollected, ResourceStatusValidated,
+		ResourceStatusInvalid, ResourceStatusDuplicate, ResourceStatusArchived:
+		return true
+	default:
+		return false
+	}
+}
+
+func CanTransitionResourceStatus(from, to ResourceStatus) bool {
+	if !IsValidResourceStatus(from) || !IsValidResourceStatus(to) {
+		return false
+	}
+	if from == to || to == ResourceStatusArchived {
+		return true
+	}
+	switch from {
+	case ResourceStatusDiscovered:
+		return to == ResourceStatusCollected || to == ResourceStatusInvalid || to == ResourceStatusDuplicate
+	case ResourceStatusCollected:
+		return to == ResourceStatusValidated || to == ResourceStatusInvalid || to == ResourceStatusDuplicate
+	case ResourceStatusValidated:
+		return to == ResourceStatusInvalid || to == ResourceStatusDuplicate
+	case ResourceStatusInvalid, ResourceStatusDuplicate:
+		return to == ResourceStatusCollected || to == ResourceStatusValidated
+	case ResourceStatusArchived:
+		return false
+	default:
+		return false
+	}
+}
 
 type MagnetStatusOption struct {
 	Label string `json:"label"`

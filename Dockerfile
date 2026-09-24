@@ -16,15 +16,6 @@ ENV VITE_PUBLIC_PATH=${VITE_PUBLIC_PATH}
 ENV VITE_API_URL=${VITE_API_URL}
 RUN pnpm build
 
-FROM node:22-alpine AS ariang-builder
-
-WORKDIR /build/ui/aria-ng
-COPY ui/aria-ng/package.json ui/aria-ng/package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci
-
-COPY ui/aria-ng/ ./
-RUN npm run build
-
 FROM golang:1.26-alpine AS go-builder
 
 ENV CGO_ENABLED=0
@@ -45,7 +36,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM alpine:3.22
 
 LABEL org.opencontainers.image.title="get-magnet" \
-      org.opencontainers.image.description="Magnet crawler and download management system" \
+      org.opencontainers.image.description="Resource collection control plane" \
       org.opencontainers.image.source="https://github.com/nekoimi/get-magnet"
 
 RUN apk add --no-cache ca-certificates tzdata \
@@ -57,8 +48,6 @@ RUN apk add --no-cache ca-certificates tzdata \
 
 COPY --from=go-builder /out/get-magnet /usr/bin/get-magnet
 COPY --from=ui-builder /build/ui/get-magnet-ui/dist/ /workspace/ui/
-COPY --from=ariang-builder /build/ui/aria-ng/dist/ /workspace/ui/aria-ng/
-
 ENV TZ=Asia/Shanghai \
     LOG_DIR=/workspace/logs
 

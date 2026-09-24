@@ -2,15 +2,13 @@ package crawler
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
+	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
 )
@@ -96,21 +94,13 @@ func (e *Engine) Success(w *Worker, tasks []CrawlerTask, outputs []MagnetEntry) 
 	}
 
 	for _, output := range outputs {
-		m := &table.Magnets{
-			Origin:      output.Origin,
-			Title:       output.Title,
-			Number:      strings.ToUpper(output.Number),
-			OptimalLink: output.OptimalLink,
-			Links:       output.Links,
-			RawURLHost:  output.RawURLHost,
-			RawURLPath:  output.RawURLPath,
-			Status:      table.MagnetStatusCollected,
-			Actress0:    output.Actress0,
-			FollowedBy:  "",
+		resource, err := resource_repo.SaveCollected(output.Origin, output.Title, output.Number, output.Actress0,
+			output.RawURLHost, output.RawURLPath, output.Links, output.OptimalLink)
+		if err != nil {
+			log.Errorf("保存采集资源异常：%s -> %s: %s", output.Origin, output.OptimalLink, err.Error())
+			continue
 		}
-
-		log.Debugf("保存采集资源，等待后台下载调度：%s -> %s", output.Origin, output.OptimalLink)
-		magnet_repo.Save(m)
+		log.Debugf("保存采集资源：%s -> %s (id=%d, status=%s)", output.Origin, output.OptimalLink, resource.Id, resource.Status)
 	}
 }
 

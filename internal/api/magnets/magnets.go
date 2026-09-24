@@ -1,16 +1,12 @@
 package magnets
 
 import (
-	"context"
 	"net/http"
-	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/downloader/cloud_downloader"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
@@ -47,28 +43,8 @@ type DetailResponse struct {
 	Magnet        *table.Magnets             `json:"magnet"`
 	StatusLabel   string                     `json:"status_label"`
 	LinkCount     int                        `json:"link_count"`
-	HasPlayInfo   bool                       `json:"has_play_info"`
-	PlayURL       string                     `json:"play_url,omitempty"`
-	PostProcess   DetailPostProcess          `json:"post_process"`
-	Download      DetailDownload             `json:"download"`
 	Events        []table.MagnetEvent        `json:"events"`
 	StatusOptions []table.MagnetStatusOption `json:"status_options"`
-}
-
-type DetailPostProcess struct {
-	Done         bool   `json:"done"`
-	PlayFileID   string `json:"play_file_id,omitempty"`
-	PlayFilePath string `json:"play_file_path,omitempty"`
-	PlayFileSize int64  `json:"play_file_size,omitempty"`
-	STRMPath     string `json:"strm_path,omitempty"`
-}
-
-type DetailDownload struct {
-	TaskID       string     `json:"task_id,omitempty"`
-	Error        string     `json:"error,omitempty"`
-	RetryCount   int        `json:"retry_count"`
-	LastSubmitAt *time.Time `json:"last_submit_at,omitempty"`
-	CompletedAt  *time.Time `json:"completed_at,omitempty"`
 }
 
 // List 获取磁力链接列表
@@ -158,51 +134,13 @@ func Detail(cfg *config.Config) http.HandlerFunc {
 		}
 
 		respond.Ok(w, DetailResponse{
-			Magnet:      m,
-			StatusLabel: table.MagnetStatusLabel(m.Status),
-			LinkCount:   len(m.Links),
-			HasPlayInfo: m.PlayFileID != "" || m.PlayFilePath != "",
-			PlayURL:     buildPlayURL(cfg, m),
-			PostProcess: DetailPostProcess{
-				Done:         m.PostProcessDone,
-				PlayFileID:   m.PlayFileID,
-				PlayFilePath: m.PlayFilePath,
-				PlayFileSize: m.PlayFileSize,
-				STRMPath:     m.STRMPath,
-			},
-			Download: DetailDownload{
-				TaskID:       m.FollowedBy,
-				Error:        m.DownloadError,
-				RetryCount:   m.DownloadRetryCount,
-				LastSubmitAt: m.LastSubmitAt,
-				CompletedAt:  m.DownloadCompletedAt,
-			},
+			Magnet:        m,
+			StatusLabel:   table.MagnetStatusLabel(m.Status),
+			LinkCount:     len(m.Links),
 			Events:        events,
 			StatusOptions: table.MagnetStatusOptions(),
 		})
 	}
-}
-
-func buildPlayURL(cfg *config.Config, m *table.Magnets) string {
-	if m == nil || m.Number == "" || (m.PlayFileID == "" && m.PlayFilePath == "") {
-		return ""
-	}
-	base := ""
-	if cfg != nil && cfg.App != nil {
-		base = strings.TrimRight(cfg.App.ExternalBaseURL, "/")
-	}
-	playURL := base + "/api/play/" + url.PathEscape(strings.ToUpper(m.Number))
-	params := url.Values{}
-	if m.PlayFileID != "" {
-		params.Set("file_id", m.PlayFileID)
-	}
-	if m.PlayFilePath != "" {
-		params.Set("path", m.PlayFilePath)
-	}
-	if encoded := params.Encode(); encoded != "" {
-		playURL += "?" + encoded
-	}
-	return playURL
 }
 
 // CreateRequest 创建磁力链接请求
@@ -345,11 +283,6 @@ type MarkStatusRequest struct {
 	Message string `json:"message,omitempty"`
 }
 
-type RebuildSTRMRequest struct {
-	Id  int64   `json:"id,omitempty"`
-	Ids []int64 `json:"ids,omitempty"`
-}
-
 // Delete 删除磁力链接
 func Delete(w http.ResponseWriter, r *http.Request) {
 	p := new(DeleteRequest)
@@ -394,41 +327,6 @@ func MarkStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respond.Ok(w, nil)
-}
-
-func RebuildSTRM(cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		p := new(RebuildSTRMRequest)
-		if err := request.Parse(r, p); err != nil {
-			respond.Error(w, err)
-			return
-		}
-		ids := normalizeIDs(p.Id, p.Ids)
-		if len(ids) == 0 {
-			respond.Error(w, error_ext.ValidateError)
-			return
-		}
-		results := make([]cloud_downloader.RebuildSTRMResult, 0, len(ids))
-		for _, id := range ids {
-			m, exists := magnet_repo.GetById(id)
-			if !exists {
-				respond.Error(w, error_ext.DataNotFoundError)
-				return
-			}
-			result, err := cloud_downloader.RebuildSTRM(context.Background(), cfg.App, cfg.CloudDriver, cfg.STRM, m)
-			if err != nil {
-				respond.Error(w, err)
-				return
-			}
-			results = append(results, result)
-			magnet_event_repo.Record(id, "strm_rebuilt", "STRM 文件已重新生成", strings.Join(result.Paths, "\n"))
-		}
-		respond.Ok(w, results)
-	}
-}
-
-func RebuildSTRMBatch(cfg *config.Config) http.HandlerFunc {
-	return RebuildSTRM(cfg)
 }
 
 func isKnownStatus(status uint8) bool {

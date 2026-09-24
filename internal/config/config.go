@@ -23,13 +23,14 @@ type Config struct {
 	LogRotation LogRotationConfig `json:"log_rotation" mapstructure:"log_rotation"`
 	// Jwt secret
 	JwtSecret string `json:"jwt_secret,omitempty" mapstructure:"jwt_secret"`
-	// arai2下载配置
+	// Aria2Config is retained for the deprecated downloader package only.
+	// It is not loaded or exposed by the v2 control plane.
 	Aria2 *Aria2Config `json:"aria2,omitempty" mapstructure:"aria2"`
-	// 网盘驱动中间服务配置
+	// CloudDriverConfig is retained for the future delivery plugin only.
 	CloudDriver *CloudDriverConfig `json:"cloud_driver,omitempty" mapstructure:"cloud_driver"`
-	// strm 文件配置
+	// STRMConfig is retained for the future delivery plugin only.
 	STRM *STRMConfig `json:"strm,omitempty" mapstructure:"strm"`
-	// 下载调度配置
+	// DownloadConfig is retained for the future delivery plugin only.
 	Download *DownloadConfig `json:"download,omitempty" mapstructure:"download"`
 	// 采集配置
 	Crawler *CrawlerConfig `json:"crawler,omitempty" mapstructure:"crawler"`
@@ -135,43 +136,16 @@ func Load() *Config {
 	v.SetDefault("log_rotation.max_age_days", 7)
 	v.SetDefault("log_rotation.compress", true)
 	v.SetDefault("jwt_secret", "abc123456")
-	v.SetDefault("strm.enabled", false)
-	v.SetDefault("strm.overwrite", true)
-	v.SetDefault("cloud_driver.platform", "115")
-	v.SetDefault("cloud_driver.save_root", "/get-magnet")
-	v.SetDefault("cloud_driver.timeout", 30)
-	v.SetDefault("cloud_driver.poll_cron", "*/10 * * * *")
-	v.SetDefault("download.enabled", true)
-	v.SetDefault("download.submit_cron", "*/5 * * * *")
-	v.SetDefault("download.batch_size", 20)
-	v.SetDefault("download.max_retry", 5)
 	v.SetDefault("crawler.exec_on_startup", false)
 	v.SetDefault("crawler.worker_num", 4)
 
 	// 加载 YAML 配置文件
 	loadYamlFile(v)
 
-	v.BindEnv("aria2.jsonrpc")
 	v.BindEnv("log_rotation.max_size_mb")
 	v.BindEnv("log_rotation.max_backups")
 	v.BindEnv("log_rotation.max_age_days")
 	v.BindEnv("log_rotation.compress")
-	v.BindEnv("aria2.secret")
-	v.BindEnv("aria2.move_to.javdb_dir")
-	v.BindEnv("app.external_base_url")
-	v.BindEnv("cloud_driver.base_url")
-	v.BindEnv("cloud_driver.platform")
-	v.BindEnv("cloud_driver.profile_id")
-	v.BindEnv("cloud_driver.save_root")
-	v.BindEnv("cloud_driver.timeout")
-	v.BindEnv("cloud_driver.poll_cron")
-	v.BindEnv("strm.enabled")
-	v.BindEnv("strm.root_dir")
-	v.BindEnv("strm.overwrite")
-	v.BindEnv("download.enabled")
-	v.BindEnv("download.submit_cron")
-	v.BindEnv("download.batch_size")
-	v.BindEnv("download.max_retry")
 	v.BindEnv("crawler.exec_on_startup")
 	v.BindEnv("crawler.worker_num")
 	v.BindEnv("crawler.drission_rod_grpc_ip")
@@ -234,11 +208,11 @@ func (c *Config) Redacted() *Config {
 	}
 	safe := *c
 	safe.JwtSecret = maskSecret(c.JwtSecret)
-	if c.Aria2 != nil {
-		aria2 := *c.Aria2
-		aria2.Secret = maskSecret(c.Aria2.Secret)
-		safe.Aria2 = &aria2
-	}
+	// Delivery configuration is intentionally hidden from the v2 control plane.
+	safe.Aria2 = nil
+	safe.CloudDriver = nil
+	safe.STRM = nil
+	safe.Download = nil
 	if c.DB != nil {
 		database := *c.DB
 		database.Dsn = maskDSN(c.DB.Dsn)

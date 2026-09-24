@@ -12,34 +12,6 @@ log_rotation:
 
 jwt_secret: dev-secret-not-for-production
 
-app:
-  external_base_url: "http://localhost:8093"
-
-aria2:
-  jsonrpc: "http://localhost:6800/jsonrpc"
-  secret: "123456"
-  move_to:
-    javdb_dir: "/tmp/javdb"
-
-cloud_driver:
-  base_url: "http://localhost:8080"
-  platform: "115"
-  profile_id: ""
-  save_root: "/get-magnet"
-  timeout: 30
-  poll_cron: "*/10 * * * *"
-
-strm:
-  enabled: false
-  root_dir: "/tmp/get-magnet-strm"
-  overwrite: true
-
-download:
-  enabled: true
-  submit_cron: "*/5 * * * *"
-  batch_size: 20
-  max_retry: 5
-
 crawler:
   exec_on_startup: false
   worker_num: 2

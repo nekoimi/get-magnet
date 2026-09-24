@@ -6,35 +6,26 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/nekoimi/get-magnet/internal/api/auth"
-	"github.com/nekoimi/get-magnet/internal/api/cloud_driver"
 	"github.com/nekoimi/get-magnet/internal/api/crawler"
 	"github.com/nekoimi/get-magnet/internal/api/dashboard"
-	"github.com/nekoimi/get-magnet/internal/api/download"
 	"github.com/nekoimi/get-magnet/internal/api/magnets"
 	"github.com/nekoimi/get-magnet/internal/api/middleware"
 	"github.com/nekoimi/get-magnet/internal/api/ops"
-	"github.com/nekoimi/get-magnet/internal/api/play"
-	"github.com/nekoimi/get-magnet/internal/api/proxy"
+	"github.com/nekoimi/get-magnet/internal/api/resources"
 	"github.com/nekoimi/get-magnet/internal/api/settings"
 	"github.com/nekoimi/get-magnet/internal/api/ui"
 	"github.com/nekoimi/get-magnet/internal/api/user"
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/config"
 	crawlercore "github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/downloader"
-	download_scheduler "github.com/nekoimi/get-magnet/internal/downloader/scheduler"
 	"github.com/nekoimi/get-magnet/internal/job"
 	log "github.com/sirupsen/logrus"
 )
 
 const uiDir = "/workspace/ui"
-const uiAriaNgDir = "/workspace/ui/aria-ng"
-const aria2JsonApi = "/api/aria2/jsonrpc"
 
 func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
-	downloadService := bean.FromContext[downloader.DownloadService](ctx)
-	downloadScheduler := bean.PtrFromContext[download_scheduler.DownloadScheduler](ctx)
 	cronScheduler := bean.FromContext[job.CronScheduler](ctx)
 	crawlerEngine := bean.PtrFromContext[crawlercore.Engine](ctx)
 	crawlerManager := bean.PtrFromContext[crawlercore.Manager](ctx)
@@ -49,14 +40,11 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 
 	// 无需认证的接口必须在受保护的 /api 子路由之前注册。
 	r.HandleFunc("/api/auth/login", auth.Login)
-	r.HandleFunc("/api/play/{number}", play.Play(cfg)).Methods("GET")
 
 	// 需要认证的接口
 	apiRoute := r.PathPrefix("/api").Subrouter()
 	apiRoute.Use(middleware.AuthMiddleware)
 	{
-		// aria2 jsonrpc 代理
-		apiRoute.HandleFunc("/aria2/jsonrpc", proxy.ReverseAria2())
 		// 登出
 		apiRoute.HandleFunc("/auth/logout", auth.Logout)
 
@@ -64,8 +52,6 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 		{
 			v1Api.HandleFunc("/dashboard/summary", dashboard.Summary).Methods("GET")
 			v1Api.HandleFunc("/settings", settings.List(cfg)).Methods("GET")
-			v1Api.HandleFunc("/settings/testCloudDriver", settings.TestCloudDriver(cfg)).Methods("POST")
-			v1Api.HandleFunc("/settings/testAria2", settings.TestAria2(cfg)).Methods("POST")
 			v1Api.HandleFunc("/settings/testDrissionRod", settings.TestDrissionRod(cfg)).Methods("POST")
 			v1Api.HandleFunc("/ops/health", ops.Health(cfg)).Methods("GET")
 			v1Api.HandleFunc("/ops/jobs", ops.Jobs(cronScheduler)).Methods("GET")
@@ -75,14 +61,6 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v1Api.HandleFunc("/me", user.Me)
 			// 修改当前用户密码
 			v1Api.HandleFunc("/me/changePwd", user.ChangePassword)
-			// 提交下载连接
-			v1Api.HandleFunc("/download/queue", download.Queue).Methods("GET")
-			v1Api.HandleFunc("/download/submit", download.Submit(downloadService)).Methods("POST")
-			v1Api.HandleFunc("/download/retry", download.Retry(downloadService)).Methods("POST")
-			v1Api.HandleFunc("/download/runSchedulerOnce", download.RunSchedulerOnce(downloadScheduler)).Methods("POST")
-			v1Api.HandleFunc("/download/scheduler", download.Scheduler(downloadScheduler)).Methods("GET")
-			v1Api.HandleFunc("/cloud-driver/health", cloud_driver.Health(cfg)).Methods("GET")
-			v1Api.HandleFunc("/cloud-driver/tasks/{taskID}", cloud_driver.Task(cfg)).Methods("GET")
 			v1Api.HandleFunc("/crawler/submit/javdb", crawlerapi.SubmitJavDB).Methods("POST")
 			v1Api.HandleFunc("/crawler/submit/javdbPage", crawlerapi.SubmitJavDBPage).Methods("POST")
 			v1Api.HandleFunc("/crawler/status", crawlerapi.Status(crawlerEngine)).Methods("GET")
@@ -97,18 +75,18 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v1Api.HandleFunc("/magnets/update", magnets.Update).Methods("POST")
 			v1Api.HandleFunc("/magnets/delete", magnets.Delete).Methods("POST")
 			v1Api.HandleFunc("/magnets/markStatus", magnets.MarkStatus).Methods("POST")
-			v1Api.HandleFunc("/magnets/rebuildSTRM", magnets.RebuildSTRM(cfg)).Methods("POST")
-			v1Api.HandleFunc("/magnets/rebuildSTRMBatch", magnets.RebuildSTRMBatch(cfg)).Methods("POST")
+		}
+
+		v2Api := apiRoute.PathPrefix("/v2").Subrouter()
+		{
+			v2Api.HandleFunc("/resources/list", resources.List).Methods("GET", "POST")
+			v2Api.HandleFunc("/resources/detail", resources.Detail).Methods("GET")
+			v2Api.HandleFunc("/resources/statusOptions", resources.StatusOptions).Methods("GET")
+			v2Api.HandleFunc("/resources/sourceOptions", resources.SourceOptions).Methods("GET")
 		}
 	}
 
-	// 扩展接口
-	r.HandleFunc("/quick-api/download/submit/javdb", download.SubmitJavDB)
-	r.HandleFunc("/quick-api/download/submit/javdb_page", download.SubmitJavDBPage)
-	//r.HandleFunc("/quick-api/download/submit/fc2", download.SubmitFC2)
-
 	// 静态资源
-	r.PathPrefix("/ui/aria-ng/").Handler(ui.Aria2WebUI(uiAriaNgDir))
 	r.PathPrefix("/").Handler(ui.AdminUI(uiDir))
 
 	debugRoute(r)

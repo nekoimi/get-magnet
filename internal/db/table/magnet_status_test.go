@@ -27,6 +27,18 @@ func TestMagnetStatusLabelsAndSubmitTransitions(t *testing.T) {
 	}
 }
 
+func TestResourceStatusTransitions(t *testing.T) {
+	if !IsValidResourceStatus(ResourceStatusValidated) || IsValidResourceStatus("downloading") {
+		t.Fatal("unexpected resource status validity")
+	}
+	if !CanTransitionResourceStatus(ResourceStatusDiscovered, ResourceStatusCollected) {
+		t.Fatal("discovered should transition to collected")
+	}
+	if CanTransitionResourceStatus(ResourceStatusArchived, ResourceStatusCollected) {
+		t.Fatal("archived should be terminal")
+	}
+}
+
 func TestMagnetOptionsHaveUniqueValues(t *testing.T) {
 	statuses := map[uint8]bool{}
 	for _, option := range MagnetStatusOptions() {

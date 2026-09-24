@@ -8,7 +8,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/crawler/download"
 	"github.com/nekoimi/get-magnet/internal/pkg/util"
-	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
+	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -58,7 +58,7 @@ func (p *Parser) parseList(t crawler.CrawlerTask) (tasks []crawler.CrawlerTask, 
 				continue
 			}
 
-			if magnet_repo.ExistsByPath(u.RequestURI()) {
+			if exists, _ := resource_repo.ExistsBySourceURL(taskEntry.Origin, joinUrl); exists {
 				log.Debugf("请求地址已经处理过了：%s", u.RequestURI())
 				continue
 			}
@@ -114,7 +114,7 @@ func (p *Parser) parsePage(t crawler.CrawlerTask) (tasks []crawler.CrawlerTask, 
 		title = strings.TrimSpace(title)
 		// Number
 		var number = s.Find(".movie-panel-info>div.first-block>span.value").Text()
-		if magnet_repo.ExistsByNumber(number) {
+		if exists, _ := resource_repo.ExistsByCanonicalKey(taskEntry.Origin, number); exists {
 			// 已经存在了
 			log.Debugf("处理详情任务 number已经存在：%s -> %s", rawUrl, number)
 			return

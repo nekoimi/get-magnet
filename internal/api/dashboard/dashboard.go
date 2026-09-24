@@ -6,11 +6,11 @@ import (
 
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
-	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
+	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
 )
 
 type StatusCount struct {
-	Status uint8  `json:"status"`
+	Status string `json:"status"`
 	Name   string `json:"name"`
 	Count  int64  `json:"count"`
 }
@@ -19,36 +19,32 @@ type SummaryResponse struct {
 	Total        int64         `json:"total"`
 	TodayCreated int64         `json:"today_created"`
 	StatusCounts []StatusCount `json:"status_counts"`
-	PendingCount int64         `json:"pending_count"`
-	Downloading  int64         `json:"downloading"`
-	Completed    int64         `json:"completed"`
-	Failed       int64         `json:"failed"`
 	GeneratedAt  time.Time     `json:"generated_at"`
 }
 
 func Summary(w http.ResponseWriter, r *http.Request) {
-	counts, err := magnet_repo.CountByStatus()
+	counts, err := resource_repo.CountByStatus()
 	if err != nil {
 		respond.Error(w, err)
 		return
 	}
-	total, err := magnet_repo.CountAll()
+	total, err := resource_repo.CountAll()
 	if err != nil {
 		respond.Error(w, err)
 		return
 	}
-	todayCreated, err := magnet_repo.CountCreatedSince(startOfDay(time.Now()))
+	todayCreated, err := resource_repo.CountCreatedSince(startOfDay(time.Now()))
 	if err != nil {
 		respond.Error(w, err)
 		return
 	}
 
-	statusCounts := make([]StatusCount, 0, len(table.MagnetStatusOptions()))
-	for _, opt := range table.MagnetStatusOptions() {
+	statusCounts := make([]StatusCount, 0, len(table.ResourceStatusOptions()))
+	for _, opt := range table.ResourceStatusOptions() {
 		statusCounts = append(statusCounts, StatusCount{
-			Status: opt.Value,
-			Name:   opt.Label,
-			Count:  counts[opt.Value],
+			Status: opt["value"],
+			Name:   opt["label"],
+			Count:  counts[opt["value"]],
 		})
 	}
 
@@ -56,10 +52,6 @@ func Summary(w http.ResponseWriter, r *http.Request) {
 		Total:        total,
 		TodayCreated: todayCreated,
 		StatusCounts: statusCounts,
-		PendingCount: counts[table.MagnetStatusCollected],
-		Downloading:  counts[table.MagnetStatusDownloading],
-		Completed:    counts[table.MagnetStatusCompleted],
-		Failed:       counts[table.MagnetStatusFailed],
 		GeneratedAt:  time.Now(),
 	})
 }

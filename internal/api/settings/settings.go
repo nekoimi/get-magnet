@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/downloader/cloud_downloader"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
-	"github.com/siku2/arigo"
 )
 
 type TestResult struct {
@@ -25,16 +22,6 @@ func List(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		respond.Ok(w, cfg.Redacted())
 	}
-}
-
-func TestCloudDriver(cfg *config.Config) http.HandlerFunc {
-	return testHandler(func(ctx context.Context) error {
-		return cloud_downloader.CheckHealth(ctx, cfg.CloudDriver)
-	})
-}
-
-func TestAria2(cfg *config.Config) http.HandlerFunc {
-	return testHandler(func(_ context.Context) error { return CheckAria2(cfg.Aria2) })
 }
 
 func TestDrissionRod(cfg *config.Config) http.HandlerFunc {
@@ -55,21 +42,8 @@ func testHandler(check func(context.Context) error) http.HandlerFunc {
 	}
 }
 
-func CheckAria2(cfg *config.Aria2Config) error {
-	if cfg == nil || strings.TrimSpace(cfg.JsonRpc) == "" {
-		return fmt.Errorf("aria2.jsonrpc 未配置")
-	}
-	client, err := arigo.Dial(cfg.JsonRpc, cfg.Secret)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-	_, err = client.GetVersion()
-	return err
-}
-
 func CheckDrissionRod(ctx context.Context, cfg *config.CrawlerConfig) error {
-	if cfg == nil || strings.TrimSpace(cfg.DrissionRodGrpcIp) == "" || cfg.DrissionRodGrpcPort <= 0 {
+	if cfg == nil || cfg.DrissionRodGrpcIp == "" || cfg.DrissionRodGrpcPort <= 0 {
 		return fmt.Errorf("DrissionRod gRPC 地址未配置")
 	}
 	dialer := net.Dialer{Timeout: 5 * time.Second}
