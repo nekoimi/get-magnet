@@ -159,6 +159,9 @@ func ResolveSourceID(sourceID *int64, sourceCode, sourceName string) (int64, err
 		}
 		return *sourceID, nil
 	}
+	if strings.TrimSpace(sourceName) == "" {
+		sourceName = sourceCode
+	}
 	return ensureSource(normalizeSourceCode(sourceCode), sourceName)
 }
 
