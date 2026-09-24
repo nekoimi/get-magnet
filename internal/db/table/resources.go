@@ -110,6 +110,20 @@ type Document struct {
 
 func (Document) TableName() string { return "documents" }
 
+type DocumentAsset struct {
+	Id          int64     `json:"id"`
+	DocumentId  int64     `xorm:"document_id" json:"document_id"`
+	AssetType   string    `xorm:"asset_type" json:"asset_type"`
+	ContentType string    `xorm:"content_type" json:"content_type"`
+	Content     []byte    `xorm:"blob" json:"content,omitempty"`
+	ContentHash string    `xorm:"content_hash" json:"content_hash"`
+	ContentSize int64     `xorm:"content_size" json:"content_size"`
+	Metadata    string    `xorm:"jsonb" json:"metadata"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (DocumentAsset) TableName() string { return "document_assets" }
+
 type AuditLog struct {
 	Id           int64     `json:"id"`
 	RequestID    string    `xorm:"request_id" json:"request_id"`

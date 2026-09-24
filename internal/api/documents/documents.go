@@ -58,5 +58,10 @@ func Detail(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, error_ext.DataNotFoundError)
 		return
 	}
-	respond.Ok(w, document)
+	assets := make([]table.DocumentAsset, 0)
+	if err := db.Instance().Where("document_id = ?", id).Cols("id", "document_id", "asset_type", "content_type", "content", "content_hash", "content_size", "metadata", "created_at").Find(&assets); err != nil {
+		respond.Error(w, err)
+		return
+	}
+	respond.Ok(w, map[string]any{"document": document, "assets": assets})
 }
