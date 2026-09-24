@@ -15,8 +15,64 @@ message FetchResponse {
   string error = 3;
 }
 
+message BrowserAction {
+  string type = 1;
+  string selector = 2;
+  string value = 3;
+  string script = 4;
+  int32 timeout_ms = 5;
+}
+
+message BrowserJobRequest {
+  string protocol_version = 1;
+  string request_id = 2;
+  string url = 3;
+  string profile = 4;
+  string recipe = 5;
+  int32 timeout_ms = 6;
+  repeated BrowserAction actions = 7;
+  repeated string outputs = 8;
+  map<string, string> headers = 9;
+  bool close_page = 10;
+}
+
+message BrowserCookie {
+  string name = 1;
+  string value = 2;
+  string domain = 3;
+  string path = 4;
+}
+
+message BrowserJobResponse {
+  bool success = 1;
+  string protocol_version = 2;
+  string request_id = 3;
+  string error_code = 4;
+  string error = 5;
+  string html = 6;
+  string text = 7;
+  string json = 8;
+  bytes screenshot = 9;
+  repeated BrowserCookie cookies = 10;
+  int64 duration_ms = 11;
+}
+
+message BrowserHealthRequest {
+  string protocol_version = 1;
+  string request_id = 2;
+}
+
+message BrowserHealthResponse {
+  bool ready = 1;
+  string protocol_version = 2;
+  string request_id = 3;
+  string message = 4;
+}
+
 service PageFetchService {
   rpc Fetch(FetchRequest) returns (FetchResponse);
   rpc FetchJavDB(FetchRequest) returns (FetchResponse);
   rpc FetchSehuatang(FetchRequest) returns (FetchResponse);
+  rpc Execute(BrowserJobRequest) returns (BrowserJobResponse);
+  rpc Health(BrowserHealthRequest) returns (BrowserHealthResponse);
 }

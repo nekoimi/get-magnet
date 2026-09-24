@@ -22,6 +22,8 @@ const (
 	PageFetchService_Fetch_FullMethodName          = "/grpc.PageFetchService/Fetch"
 	PageFetchService_FetchJavDB_FullMethodName     = "/grpc.PageFetchService/FetchJavDB"
 	PageFetchService_FetchSehuatang_FullMethodName = "/grpc.PageFetchService/FetchSehuatang"
+	PageFetchService_Execute_FullMethodName        = "/grpc.PageFetchService/Execute"
+	PageFetchService_Health_FullMethodName         = "/grpc.PageFetchService/Health"
 )
 
 // PageFetchServiceClient is the client API for PageFetchService service.
@@ -31,6 +33,8 @@ type PageFetchServiceClient interface {
 	Fetch(ctx context.Context, in *FetchRequest, opts ...grpc.CallOption) (*FetchResponse, error)
 	FetchJavDB(ctx context.Context, in *FetchRequest, opts ...grpc.CallOption) (*FetchResponse, error)
 	FetchSehuatang(ctx context.Context, in *FetchRequest, opts ...grpc.CallOption) (*FetchResponse, error)
+	Execute(ctx context.Context, in *BrowserJobRequest, opts ...grpc.CallOption) (*BrowserJobResponse, error)
+	Health(ctx context.Context, in *BrowserHealthRequest, opts ...grpc.CallOption) (*BrowserHealthResponse, error)
 }
 
 type pageFetchServiceClient struct {
@@ -71,6 +75,26 @@ func (c *pageFetchServiceClient) FetchSehuatang(ctx context.Context, in *FetchRe
 	return out, nil
 }
 
+func (c *pageFetchServiceClient) Execute(ctx context.Context, in *BrowserJobRequest, opts ...grpc.CallOption) (*BrowserJobResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BrowserJobResponse)
+	err := c.cc.Invoke(ctx, PageFetchService_Execute_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pageFetchServiceClient) Health(ctx context.Context, in *BrowserHealthRequest, opts ...grpc.CallOption) (*BrowserHealthResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BrowserHealthResponse)
+	err := c.cc.Invoke(ctx, PageFetchService_Health_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PageFetchServiceServer is the server API for PageFetchService service.
 // All implementations must embed UnimplementedPageFetchServiceServer
 // for forward compatibility.
@@ -78,6 +102,8 @@ type PageFetchServiceServer interface {
 	Fetch(context.Context, *FetchRequest) (*FetchResponse, error)
 	FetchJavDB(context.Context, *FetchRequest) (*FetchResponse, error)
 	FetchSehuatang(context.Context, *FetchRequest) (*FetchResponse, error)
+	Execute(context.Context, *BrowserJobRequest) (*BrowserJobResponse, error)
+	Health(context.Context, *BrowserHealthRequest) (*BrowserHealthResponse, error)
 	mustEmbedUnimplementedPageFetchServiceServer()
 }
 
@@ -96,6 +122,12 @@ func (UnimplementedPageFetchServiceServer) FetchJavDB(context.Context, *FetchReq
 }
 func (UnimplementedPageFetchServiceServer) FetchSehuatang(context.Context, *FetchRequest) (*FetchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchSehuatang not implemented")
+}
+func (UnimplementedPageFetchServiceServer) Execute(context.Context, *BrowserJobRequest) (*BrowserJobResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Execute not implemented")
+}
+func (UnimplementedPageFetchServiceServer) Health(context.Context, *BrowserHealthRequest) (*BrowserHealthResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Health not implemented")
 }
 func (UnimplementedPageFetchServiceServer) mustEmbedUnimplementedPageFetchServiceServer() {}
 func (UnimplementedPageFetchServiceServer) testEmbeddedByValue()                          {}
@@ -172,6 +204,42 @@ func _PageFetchService_FetchSehuatang_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PageFetchService_Execute_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BrowserJobRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PageFetchServiceServer).Execute(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PageFetchService_Execute_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PageFetchServiceServer).Execute(ctx, req.(*BrowserJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PageFetchService_Health_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BrowserHealthRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PageFetchServiceServer).Health(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PageFetchService_Health_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PageFetchServiceServer).Health(ctx, req.(*BrowserHealthRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PageFetchService_ServiceDesc is the grpc.ServiceDesc for PageFetchService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +258,14 @@ var PageFetchService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FetchSehuatang",
 			Handler:    _PageFetchService_FetchSehuatang_Handler,
+		},
+		{
+			MethodName: "Execute",
+			Handler:    _PageFetchService_Execute_Handler,
+		},
+		{
+			MethodName: "Health",
+			Handler:    _PageFetchService_Health_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

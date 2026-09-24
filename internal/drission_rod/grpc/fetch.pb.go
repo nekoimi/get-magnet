@@ -133,6 +133,510 @@ func (x *FetchResponse) GetError() string {
 	return ""
 }
 
+type BrowserAction struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Selector      string                 `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Script        string                 `protobuf:"bytes,4,opt,name=script,proto3" json:"script,omitempty"`
+	TimeoutMs     int32                  `protobuf:"varint,5,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BrowserAction) Reset() {
+	*x = BrowserAction{}
+	mi := &file_fetch_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BrowserAction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BrowserAction) ProtoMessage() {}
+
+func (x *BrowserAction) ProtoReflect() protoreflect.Message {
+	mi := &file_fetch_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BrowserAction.ProtoReflect.Descriptor instead.
+func (*BrowserAction) Descriptor() ([]byte, []int) {
+	return file_fetch_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BrowserAction) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *BrowserAction) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *BrowserAction) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *BrowserAction) GetScript() string {
+	if x != nil {
+		return x.Script
+	}
+	return ""
+}
+
+func (x *BrowserAction) GetTimeoutMs() int32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+type BrowserJobRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ProtocolVersion string                 `protobuf:"bytes,1,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	RequestId       string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Url             string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	Profile         string                 `protobuf:"bytes,4,opt,name=profile,proto3" json:"profile,omitempty"`
+	Recipe          string                 `protobuf:"bytes,5,opt,name=recipe,proto3" json:"recipe,omitempty"`
+	TimeoutMs       int32                  `protobuf:"varint,6,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	Actions         []*BrowserAction       `protobuf:"bytes,7,rep,name=actions,proto3" json:"actions,omitempty"`
+	Outputs         []string               `protobuf:"bytes,8,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	Headers         map[string]string      `protobuf:"bytes,9,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ClosePage       bool                   `protobuf:"varint,10,opt,name=close_page,json=closePage,proto3" json:"close_page,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BrowserJobRequest) Reset() {
+	*x = BrowserJobRequest{}
+	mi := &file_fetch_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BrowserJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BrowserJobRequest) ProtoMessage() {}
+
+func (x *BrowserJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fetch_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BrowserJobRequest.ProtoReflect.Descriptor instead.
+func (*BrowserJobRequest) Descriptor() ([]byte, []int) {
+	return file_fetch_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *BrowserJobRequest) GetProtocolVersion() string {
+	if x != nil {
+		return x.ProtocolVersion
+	}
+	return ""
+}
+
+func (x *BrowserJobRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *BrowserJobRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *BrowserJobRequest) GetProfile() string {
+	if x != nil {
+		return x.Profile
+	}
+	return ""
+}
+
+func (x *BrowserJobRequest) GetRecipe() string {
+	if x != nil {
+		return x.Recipe
+	}
+	return ""
+}
+
+func (x *BrowserJobRequest) GetTimeoutMs() int32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+func (x *BrowserJobRequest) GetActions() []*BrowserAction {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *BrowserJobRequest) GetOutputs() []string {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
+func (x *BrowserJobRequest) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
+}
+
+func (x *BrowserJobRequest) GetClosePage() bool {
+	if x != nil {
+		return x.ClosePage
+	}
+	return false
+}
+
+type BrowserCookie struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Domain        string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
+	Path          string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BrowserCookie) Reset() {
+	*x = BrowserCookie{}
+	mi := &file_fetch_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BrowserCookie) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BrowserCookie) ProtoMessage() {}
+
+func (x *BrowserCookie) ProtoReflect() protoreflect.Message {
+	mi := &file_fetch_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BrowserCookie.ProtoReflect.Descriptor instead.
+func (*BrowserCookie) Descriptor() ([]byte, []int) {
+	return file_fetch_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *BrowserCookie) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *BrowserCookie) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *BrowserCookie) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *BrowserCookie) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type BrowserJobResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Success         bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	ProtocolVersion string                 `protobuf:"bytes,2,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	RequestId       string                 `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	ErrorCode       string                 `protobuf:"bytes,4,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	Error           string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	Html            string                 `protobuf:"bytes,6,opt,name=html,proto3" json:"html,omitempty"`
+	Text            string                 `protobuf:"bytes,7,opt,name=text,proto3" json:"text,omitempty"`
+	Json            string                 `protobuf:"bytes,8,opt,name=json,proto3" json:"json,omitempty"`
+	Screenshot      []byte                 `protobuf:"bytes,9,opt,name=screenshot,proto3" json:"screenshot,omitempty"`
+	Cookies         []*BrowserCookie       `protobuf:"bytes,10,rep,name=cookies,proto3" json:"cookies,omitempty"`
+	DurationMs      int64                  `protobuf:"varint,11,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BrowserJobResponse) Reset() {
+	*x = BrowserJobResponse{}
+	mi := &file_fetch_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BrowserJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BrowserJobResponse) ProtoMessage() {}
+
+func (x *BrowserJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_fetch_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BrowserJobResponse.ProtoReflect.Descriptor instead.
+func (*BrowserJobResponse) Descriptor() ([]byte, []int) {
+	return file_fetch_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *BrowserJobResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *BrowserJobResponse) GetProtocolVersion() string {
+	if x != nil {
+		return x.ProtocolVersion
+	}
+	return ""
+}
+
+func (x *BrowserJobResponse) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *BrowserJobResponse) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ""
+}
+
+func (x *BrowserJobResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *BrowserJobResponse) GetHtml() string {
+	if x != nil {
+		return x.Html
+	}
+	return ""
+}
+
+func (x *BrowserJobResponse) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *BrowserJobResponse) GetJson() string {
+	if x != nil {
+		return x.Json
+	}
+	return ""
+}
+
+func (x *BrowserJobResponse) GetScreenshot() []byte {
+	if x != nil {
+		return x.Screenshot
+	}
+	return nil
+}
+
+func (x *BrowserJobResponse) GetCookies() []*BrowserCookie {
+	if x != nil {
+		return x.Cookies
+	}
+	return nil
+}
+
+func (x *BrowserJobResponse) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+type BrowserHealthRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ProtocolVersion string                 `protobuf:"bytes,1,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	RequestId       string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BrowserHealthRequest) Reset() {
+	*x = BrowserHealthRequest{}
+	mi := &file_fetch_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BrowserHealthRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BrowserHealthRequest) ProtoMessage() {}
+
+func (x *BrowserHealthRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fetch_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BrowserHealthRequest.ProtoReflect.Descriptor instead.
+func (*BrowserHealthRequest) Descriptor() ([]byte, []int) {
+	return file_fetch_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *BrowserHealthRequest) GetProtocolVersion() string {
+	if x != nil {
+		return x.ProtocolVersion
+	}
+	return ""
+}
+
+func (x *BrowserHealthRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+type BrowserHealthResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Ready           bool                   `protobuf:"varint,1,opt,name=ready,proto3" json:"ready,omitempty"`
+	ProtocolVersion string                 `protobuf:"bytes,2,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	RequestId       string                 `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Message         string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BrowserHealthResponse) Reset() {
+	*x = BrowserHealthResponse{}
+	mi := &file_fetch_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BrowserHealthResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BrowserHealthResponse) ProtoMessage() {}
+
+func (x *BrowserHealthResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_fetch_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BrowserHealthResponse.ProtoReflect.Descriptor instead.
+func (*BrowserHealthResponse) Descriptor() ([]byte, []int) {
+	return file_fetch_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *BrowserHealthResponse) GetReady() bool {
+	if x != nil {
+		return x.Ready
+	}
+	return false
+}
+
+func (x *BrowserHealthResponse) GetProtocolVersion() string {
+	if x != nil {
+		return x.ProtocolVersion
+	}
+	return ""
+}
+
+func (x *BrowserHealthResponse) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *BrowserHealthResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_fetch_proto protoreflect.FileDescriptor
 
 const file_fetch_proto_rawDesc = "" +
@@ -144,12 +648,72 @@ const file_fetch_proto_rawDesc = "" +
 	"\rFetchResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x12\n" +
 	"\x04html\x18\x02 \x01(\tR\x04html\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error2\xb6\x01\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"\x8c\x01\n" +
+	"\rBrowserAction\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1a\n" +
+	"\bselector\x18\x02 \x01(\tR\bselector\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\x12\x16\n" +
+	"\x06script\x18\x04 \x01(\tR\x06script\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\x05 \x01(\x05R\ttimeoutMs\"\xa4\x03\n" +
+	"\x11BrowserJobRequest\x12)\n" +
+	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\x12\x18\n" +
+	"\aprofile\x18\x04 \x01(\tR\aprofile\x12\x16\n" +
+	"\x06recipe\x18\x05 \x01(\tR\x06recipe\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\x06 \x01(\x05R\ttimeoutMs\x12-\n" +
+	"\aactions\x18\a \x03(\v2\x13.grpc.BrowserActionR\aactions\x12\x18\n" +
+	"\aoutputs\x18\b \x03(\tR\aoutputs\x12>\n" +
+	"\aheaders\x18\t \x03(\v2$.grpc.BrowserJobRequest.HeadersEntryR\aheaders\x12\x1d\n" +
+	"\n" +
+	"close_page\x18\n" +
+	" \x01(\bR\tclosePage\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"e\n" +
+	"\rBrowserCookie\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\x12\x16\n" +
+	"\x06domain\x18\x03 \x01(\tR\x06domain\x12\x12\n" +
+	"\x04path\x18\x04 \x01(\tR\x04path\"\xd9\x02\n" +
+	"\x12BrowserJobResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12)\n" +
+	"\x10protocol_version\x18\x02 \x01(\tR\x0fprotocolVersion\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x03 \x01(\tR\trequestId\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\x04 \x01(\tR\terrorCode\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x12\x12\n" +
+	"\x04html\x18\x06 \x01(\tR\x04html\x12\x12\n" +
+	"\x04text\x18\a \x01(\tR\x04text\x12\x12\n" +
+	"\x04json\x18\b \x01(\tR\x04json\x12\x1e\n" +
+	"\n" +
+	"screenshot\x18\t \x01(\fR\n" +
+	"screenshot\x12-\n" +
+	"\acookies\x18\n" +
+	" \x03(\v2\x13.grpc.BrowserCookieR\acookies\x12\x1f\n" +
+	"\vduration_ms\x18\v \x01(\x03R\n" +
+	"durationMs\"`\n" +
+	"\x14BrowserHealthRequest\x12)\n" +
+	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\"\x91\x01\n" +
+	"\x15BrowserHealthResponse\x12\x14\n" +
+	"\x05ready\x18\x01 \x01(\bR\x05ready\x12)\n" +
+	"\x10protocol_version\x18\x02 \x01(\tR\x0fprotocolVersion\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x03 \x01(\tR\trequestId\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage2\xb7\x02\n" +
 	"\x10PageFetchService\x120\n" +
 	"\x05Fetch\x12\x12.grpc.FetchRequest\x1a\x13.grpc.FetchResponse\x125\n" +
 	"\n" +
 	"FetchJavDB\x12\x12.grpc.FetchRequest\x1a\x13.grpc.FetchResponse\x129\n" +
-	"\x0eFetchSehuatang\x12\x12.grpc.FetchRequest\x1a\x13.grpc.FetchResponseB!Z\x1finternal/drission_rod/grpc;grpcb\x06proto3"
+	"\x0eFetchSehuatang\x12\x12.grpc.FetchRequest\x1a\x13.grpc.FetchResponse\x12<\n" +
+	"\aExecute\x12\x17.grpc.BrowserJobRequest\x1a\x18.grpc.BrowserJobResponse\x12A\n" +
+	"\x06Health\x12\x1a.grpc.BrowserHealthRequest\x1a\x1b.grpc.BrowserHealthResponseB!Z\x1finternal/drission_rod/grpc;grpcb\x06proto3"
 
 var (
 	file_fetch_proto_rawDescOnce sync.Once
@@ -163,23 +727,37 @@ func file_fetch_proto_rawDescGZIP() []byte {
 	return file_fetch_proto_rawDescData
 }
 
-var file_fetch_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_fetch_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_fetch_proto_goTypes = []any{
-	(*FetchRequest)(nil),  // 0: grpc.FetchRequest
-	(*FetchResponse)(nil), // 1: grpc.FetchResponse
+	(*FetchRequest)(nil),          // 0: grpc.FetchRequest
+	(*FetchResponse)(nil),         // 1: grpc.FetchResponse
+	(*BrowserAction)(nil),         // 2: grpc.BrowserAction
+	(*BrowserJobRequest)(nil),     // 3: grpc.BrowserJobRequest
+	(*BrowserCookie)(nil),         // 4: grpc.BrowserCookie
+	(*BrowserJobResponse)(nil),    // 5: grpc.BrowserJobResponse
+	(*BrowserHealthRequest)(nil),  // 6: grpc.BrowserHealthRequest
+	(*BrowserHealthResponse)(nil), // 7: grpc.BrowserHealthResponse
+	nil,                           // 8: grpc.BrowserJobRequest.HeadersEntry
 }
 var file_fetch_proto_depIdxs = []int32{
-	0, // 0: grpc.PageFetchService.Fetch:input_type -> grpc.FetchRequest
-	0, // 1: grpc.PageFetchService.FetchJavDB:input_type -> grpc.FetchRequest
-	0, // 2: grpc.PageFetchService.FetchSehuatang:input_type -> grpc.FetchRequest
-	1, // 3: grpc.PageFetchService.Fetch:output_type -> grpc.FetchResponse
-	1, // 4: grpc.PageFetchService.FetchJavDB:output_type -> grpc.FetchResponse
-	1, // 5: grpc.PageFetchService.FetchSehuatang:output_type -> grpc.FetchResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: grpc.BrowserJobRequest.actions:type_name -> grpc.BrowserAction
+	8, // 1: grpc.BrowserJobRequest.headers:type_name -> grpc.BrowserJobRequest.HeadersEntry
+	4, // 2: grpc.BrowserJobResponse.cookies:type_name -> grpc.BrowserCookie
+	0, // 3: grpc.PageFetchService.Fetch:input_type -> grpc.FetchRequest
+	0, // 4: grpc.PageFetchService.FetchJavDB:input_type -> grpc.FetchRequest
+	0, // 5: grpc.PageFetchService.FetchSehuatang:input_type -> grpc.FetchRequest
+	3, // 6: grpc.PageFetchService.Execute:input_type -> grpc.BrowserJobRequest
+	6, // 7: grpc.PageFetchService.Health:input_type -> grpc.BrowserHealthRequest
+	1, // 8: grpc.PageFetchService.Fetch:output_type -> grpc.FetchResponse
+	1, // 9: grpc.PageFetchService.FetchJavDB:output_type -> grpc.FetchResponse
+	1, // 10: grpc.PageFetchService.FetchSehuatang:output_type -> grpc.FetchResponse
+	5, // 11: grpc.PageFetchService.Execute:output_type -> grpc.BrowserJobResponse
+	7, // 12: grpc.PageFetchService.Health:output_type -> grpc.BrowserHealthResponse
+	8, // [8:13] is the sub-list for method output_type
+	3, // [3:8] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_fetch_proto_init() }
@@ -193,7 +771,7 @@ func file_fetch_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fetch_proto_rawDesc), len(file_fetch_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
