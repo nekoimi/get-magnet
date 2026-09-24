@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/nekoimi/get-magnet/internal/api/middleware"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
+	"github.com/nekoimi/get-magnet/internal/repo/audit_repo"
 	"github.com/nekoimi/get-magnet/internal/repo/task_repo"
 )
 
@@ -91,6 +93,21 @@ func Attempts(w http.ResponseWriter, r *http.Request) {
 func CancelRun(w http.ResponseWriter, r *http.Request)  { mutateID(w, r, task_repo.CancelRun) }
 func CancelTask(w http.ResponseWriter, r *http.Request) { mutateID(w, r, task_repo.CancelTask) }
 func RetryTask(w http.ResponseWriter, r *http.Request)  { mutateID(w, r, task_repo.RetryTask) }
+
+func Rerun(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil || id <= 0 {
+		respond.Error(w, error_ext.ValidateError)
+		return
+	}
+	run, err := task_repo.RerunRun(id)
+	if err != nil {
+		respond.Error(w, err)
+		return
+	}
+	_ = audit_repo.Record(middleware.RequestID(r.Context()), "workflow.run_rerun", "workflow_run", &run.Id, map[string]any{"source_run_id": id})
+	respond.Ok(w, run)
+}
 
 func mutateID(w http.ResponseWriter, r *http.Request, action func(int64) error) {
 	id, err := parseID(r)

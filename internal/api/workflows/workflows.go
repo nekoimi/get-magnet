@@ -7,11 +7,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/nekoimi/get-magnet/internal/api/middleware"
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
 	"github.com/nekoimi/get-magnet/internal/pkg/request"
 	"github.com/nekoimi/get-magnet/internal/pkg/respond"
+	"github.com/nekoimi/get-magnet/internal/repo/audit_repo"
 	"github.com/nekoimi/get-magnet/internal/repo/workflow_repo"
 	"github.com/nekoimi/get-magnet/internal/workflow"
 )
@@ -138,6 +140,7 @@ func CreateVersion(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, err)
 		return
 	}
+	_ = audit_repo.Record(middleware.RequestID(r.Context()), "workflow.version_created", "workflow", &input.WorkflowID, map[string]any{"version_id": version.Id})
 	respond.Ok(w, version)
 }
 
@@ -156,6 +159,7 @@ func Run(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, err)
 		return
 	}
+	_ = audit_repo.Record(middleware.RequestID(r.Context()), "workflow.run_created", "workflow_run", &run.Id, map[string]any{"workflow_id": input.WorkflowID, "task_id": task.Id})
 	respond.Ok(w, map[string]any{"run_id": run.Id, "task_id": task.Id, "workflow_version_id": run.WorkflowVersionId})
 }
 

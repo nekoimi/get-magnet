@@ -136,6 +136,50 @@ func ListSources() ([]table.Source, error) {
 	return sources, err
 }
 
+func ListAllSources() ([]table.Source, error) {
+	var sources []table.Source
+	err := db.Instance().OrderBy("name ASC").Find(&sources)
+	return sources, err
+}
+
+func SaveSource(source *table.Source) error {
+	if source == nil || strings.TrimSpace(source.Code) == "" || strings.TrimSpace(source.Name) == "" {
+		return errors.New("source code and name are required")
+	}
+	source.Code = normalizeSourceCode(source.Code)
+	if source.Config == "" {
+		source.Config = "{}"
+	}
+	source.CreatedAt, source.UpdatedAt = time.Now(), time.Now()
+	if _, err := db.Instance().InsertOne(source); err != nil {
+		return err
+	}
+	return nil
+}
+
+func UpdateSource(source *table.Source) error {
+	if source == nil || source.Id <= 0 {
+		return errors.New("source id is required")
+	}
+	if strings.TrimSpace(source.Name) == "" {
+		return errors.New("source name is required")
+	}
+	if source.Config == "" {
+		source.Config = "{}"
+	}
+	source.UpdatedAt = time.Now()
+	_, err := db.Instance().ID(source.Id).Cols("name", "config", "updated_at").Update(source)
+	return err
+}
+
+func SetSourceEnabled(id int64, enabled bool) error {
+	if id <= 0 {
+		return errors.New("source id is required")
+	}
+	_, err := db.Instance().ID(id).Cols("enabled", "updated_at").Update(&table.Source{Enabled: enabled, UpdatedAt: time.Now()})
+	return err
+}
+
 func GetSource(id int64) (*table.Source, bool) {
 	source := new(table.Source)
 	has, err := db.Instance().ID(id).Get(source)

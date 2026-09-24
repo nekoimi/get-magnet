@@ -1,0 +1,62 @@
+package documents
+
+import (
+	"net/http"
+	"strconv"
+
+	"github.com/nekoimi/get-magnet/internal/db"
+	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
+	"github.com/nekoimi/get-magnet/internal/pkg/respond"
+)
+
+func List(w http.ResponseWriter, r *http.Request) {
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	size, _ := strconv.Atoi(r.URL.Query().Get("size"))
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 20
+	}
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if value := r.URL.Query().Get("document_type"); value != "" {
+		s.Where("document_type = ?", value)
+	}
+	total, err := s.Count(new(table.Document))
+	if err != nil {
+		respond.Error(w, err)
+		return
+	}
+	s = db.Instance().NewSession()
+	defer s.Close()
+	if value := r.URL.Query().Get("document_type"); value != "" {
+		s.Where("document_type = ?", value)
+	}
+	rows := make([]table.Document, 0)
+	if err := s.Cols("id", "task_id", "document_type", "content_hash", "content_size", "metadata", "created_at").Desc("created_at").Limit(size, (page-1)*size).Find(&rows); err != nil {
+		respond.Error(w, err)
+		return
+	}
+	respond.Ok(w, map[string]any{"list": rows, "total": total})
+}
+
+func Detail(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respond.Error(w, error_ext.ValidateError)
+		return
+	}
+	document := new(table.Document)
+	has, err := db.Instance().ID(id).Get(document)
+	if err != nil {
+		respond.Error(w, err)
+		return
+	}
+	if !has {
+		respond.Error(w, error_ext.DataNotFoundError)
+		return
+	}
+	respond.Ok(w, document)
+}

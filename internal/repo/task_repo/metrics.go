@@ -13,6 +13,13 @@ type MetricsSnapshot struct {
 	AttemptCount    int64            `json:"attempt_count"`
 	FailedAttempts  int64            `json:"failed_attempts"`
 	AverageDuration int64            `json:"average_duration_ms"`
+	SourceCounts    []SourceCount    `json:"source_counts"`
+}
+
+type SourceCount struct {
+	SourceID   int64  `json:"source_id"`
+	SourceName string `json:"source_name"`
+	Total      int64  `json:"total"`
 }
 
 func Metrics() (MetricsSnapshot, error) {
@@ -47,5 +54,8 @@ func Metrics() (MetricsSnapshot, error) {
 		return result, err
 	}
 	result.AttemptCount, result.FailedAttempts, result.AverageDuration = attempts.Count, attempts.Failed, attempts.Average
+	if err := db.Instance().Table(new(table.Resource)).Select("resources.source_id, sources.name AS source_name, COUNT(*) AS total").Join("INNER", "sources", "sources.id = resources.source_id").GroupBy("resources.source_id, sources.name").OrderBy("total DESC").Find(&result.SourceCounts); err != nil {
+		return result, err
+	}
 	return result, nil
 }

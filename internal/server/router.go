@@ -5,15 +5,18 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/nekoimi/get-magnet/internal/api/audit"
 	"github.com/nekoimi/get-magnet/internal/api/auth"
 	"github.com/nekoimi/get-magnet/internal/api/crawler"
 	"github.com/nekoimi/get-magnet/internal/api/dashboard"
+	"github.com/nekoimi/get-magnet/internal/api/documents"
 	"github.com/nekoimi/get-magnet/internal/api/magnets"
 	"github.com/nekoimi/get-magnet/internal/api/middleware"
 	"github.com/nekoimi/get-magnet/internal/api/ops"
 	"github.com/nekoimi/get-magnet/internal/api/resources"
 	"github.com/nekoimi/get-magnet/internal/api/runs"
 	"github.com/nekoimi/get-magnet/internal/api/settings"
+	"github.com/nekoimi/get-magnet/internal/api/sources"
 	"github.com/nekoimi/get-magnet/internal/api/ui"
 	"github.com/nekoimi/get-magnet/internal/api/user"
 	"github.com/nekoimi/get-magnet/internal/api/workflows"
@@ -92,6 +95,13 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/workflows/versions/rollback", workflows.Rollback).Methods("POST")
 			v2Api.HandleFunc("/workflows/stop", workflows.Stop).Methods("POST")
 			v2Api.HandleFunc("/workflows/run", workflows.Run).Methods("POST")
+			v2Api.HandleFunc("/sources/list", sources.List).Methods("GET")
+			v2Api.HandleFunc("/sources/create", sources.Create).Methods("POST")
+			v2Api.HandleFunc("/sources/update", sources.Update).Methods("POST")
+			v2Api.HandleFunc("/sources/toggle", sources.Toggle).Methods("POST")
+			v2Api.HandleFunc("/documents/list", documents.List).Methods("GET")
+			v2Api.HandleFunc("/documents/detail", documents.Detail).Methods("GET")
+			v2Api.HandleFunc("/audit/list", audit.List).Methods("GET")
 			v2Api.HandleFunc("/workflows/versions/diff", workflows.Diff).Methods("POST")
 			v2Api.HandleFunc("/workflows/test-extract", workflows.TestExtract).Methods("POST")
 			v2Api.HandleFunc("/documents/replay", workflows.Replay).Methods("POST")
@@ -107,6 +117,7 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/runs/list", runs.List).Methods("GET", "POST")
 			v2Api.HandleFunc("/runs/detail", runs.Detail).Methods("GET", "POST")
 			v2Api.HandleFunc("/runs/cancel", runs.CancelRun).Methods("POST")
+			v2Api.HandleFunc("/runs/rerun", runs.Rerun).Methods("POST")
 			v2Api.HandleFunc("/tasks/list", runs.Tasks).Methods("GET", "POST")
 			v2Api.HandleFunc("/tasks/attempts", runs.Attempts).Methods("GET", "POST")
 			v2Api.HandleFunc("/tasks/cancel", runs.CancelTask).Methods("POST")

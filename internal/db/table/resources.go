@@ -110,6 +110,19 @@ type Document struct {
 
 func (Document) TableName() string { return "documents" }
 
+type AuditLog struct {
+	Id           int64     `json:"id"`
+	RequestID    string    `xorm:"request_id" json:"request_id"`
+	ActorID      *int64    `xorm:"actor_id" json:"actor_id,omitempty"`
+	Action       string    `json:"action"`
+	ResourceType string    `xorm:"resource_type" json:"resource_type"`
+	ResourceID   *int64    `xorm:"resource_id" json:"resource_id,omitempty"`
+	Details      string    `xorm:"jsonb" json:"details"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+func (AuditLog) TableName() string { return "audit_logs" }
+
 type Resource struct {
 	Id           int64     `json:"id"`
 	ResourceType string    `xorm:"resource_type" json:"resource_type"`

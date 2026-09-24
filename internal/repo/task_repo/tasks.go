@@ -242,6 +242,39 @@ func RetryTask(id int64) error {
 	return err
 }
 
+func RerunRun(id int64) (*table.WorkflowRun, error) {
+	if db.Instance() == nil {
+		return nil, errors.New("database is not initialized")
+	}
+	original := new(table.WorkflowRun)
+	has, err := db.Instance().ID(id).Get(original)
+	if err != nil {
+		return nil, err
+	}
+	if !has {
+		return nil, errors.New("run not found")
+	}
+	now := time.Now()
+	run := &table.WorkflowRun{WorkflowId: original.WorkflowId, WorkflowVersionId: original.WorkflowVersionId, TriggerType: "rerun", Status: RunQueued, Input: fallbackJSON(original.Input), Summary: "{}", CreatedBy: original.CreatedBy, CreatedAt: now}
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return nil, err
+	}
+	if _, err := s.Insert(run); err != nil {
+		_ = s.Rollback()
+		return nil, err
+	}
+	if _, err := s.Insert(&table.CrawlTask{RunId: run.Id, StepName: "trigger", TaskType: "workflow", Input: fallbackJSON(original.Input), Status: TaskQueued, MaxAttempts: 5, CreatedAt: now, UpdatedAt: now}); err != nil {
+		_ = s.Rollback()
+		return nil, err
+	}
+	if err := s.Commit(); err != nil {
+		return nil, err
+	}
+	return run, nil
+}
+
 func ListRuns(filter RunFilter) ([]table.WorkflowRun, int64, error) {
 	if db.Instance() == nil {
 		return nil, 0, errors.New("database is not initialized")
