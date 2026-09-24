@@ -20,10 +20,12 @@ type Definition struct {
 }
 
 type Trigger struct {
-	Type  string `json:"type"`
-	Cron  string `json:"cron,omitempty"`
-	URL   string `json:"url,omitempty"`
-	Input string `json:"input,omitempty"`
+	Type        string `json:"type"`
+	Cron        string `json:"cron,omitempty"`
+	URL         string `json:"url,omitempty"`
+	Input       string `json:"input,omitempty"`
+	ProfileID   string `json:"profile_id,omitempty"`
+	Concurrency int    `json:"concurrency,omitempty"`
 }
 
 type Node struct {
@@ -61,6 +63,9 @@ func (d Definition) Validate() error {
 	}
 	if _, ok := triggerTypes[strings.ToLower(d.Trigger.Type)]; !ok {
 		return fmt.Errorf("unsupported trigger type: %s", d.Trigger.Type)
+	}
+	if d.Trigger.Concurrency < 0 {
+		return fmt.Errorf("trigger.concurrency must be greater than or equal to zero")
 	}
 	if len(d.Nodes) == 0 && len(d.Acquire) == 0 {
 		return fmt.Errorf("workflow nodes are required")

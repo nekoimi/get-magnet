@@ -12,6 +12,19 @@ func TestDefinitionValidation(t *testing.T) {
 	}
 }
 
+func TestDefinitionTriggerOptions(t *testing.T) {
+	definition, err := ParseDefinition(`{"trigger":{"type":"api","url":"https://example.test","profile_id":"main","concurrency":2},"nodes":[{"name":"extract","type":"extract","config":{"fields":[]}}]}`)
+	if err != nil {
+		t.Fatalf("expected trigger options to validate: %v", err)
+	}
+	if definition.Trigger.ProfileID != "main" || definition.Trigger.Concurrency != 2 {
+		t.Fatalf("trigger options were not decoded: %+v", definition.Trigger)
+	}
+	if _, err := ParseDefinition(`{"trigger":{"type":"manual","concurrency":-1},"nodes":[{"name":"extract","type":"extract","config":{"fields":[]}}]}`); err == nil {
+		t.Fatal("expected negative concurrency to fail validation")
+	}
+}
+
 func TestExtractCSSXPathAndJSONPath(t *testing.T) {
 	htmlResult, err := Extract(ExtractRequest{Content: `<article><a href="magnet:?xt=1">Title 01</a></article>`, Fields: []FieldRule{{Name: "title", Selector: "article a"}, {Name: "link", Selector: "//article/a", SelectorType: "xpath", Attribute: "href"}}})
 	if err != nil || htmlResult["title"] != "Title 01" || htmlResult["link"] != "magnet:?xt=1" {
