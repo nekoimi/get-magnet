@@ -10,6 +10,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
+	"github.com/nekoimi/get-magnet/internal/repo/task_repo"
 	"github.com/nekoimi/get-magnet/internal/workflow"
 	"xorm.io/xorm"
 )
@@ -219,6 +220,50 @@ func Stop(id int64) error {
 	}
 	_, err := db.Instance().ID(id).Cols("enabled", "updated_at").Update(&table.Workflow{Enabled: false, UpdatedAt: time.Now()})
 	return err
+}
+
+// StartRun creates a durable run and its root task. Execution is deliberately
+// decoupled from this API so a later worker can claim the same task record.
+func StartRun(workflowID int64, input string, createdBy *int64) (*table.WorkflowRun, *table.CrawlTask, error) {
+	row, has, err := Get(workflowID)
+	if err != nil || !has {
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, nil, errors.New("workflow not found")
+	}
+	if !row.Enabled || row.PublishedVersionId == nil {
+		return nil, nil, errors.New("workflow has no published version")
+	}
+	if input == "" {
+		input = "{}"
+	}
+	// Run input is an arbitrary JSON object, unlike the workflow definition.
+	var value any
+	if jsonErr := json.Unmarshal([]byte(input), &value); jsonErr != nil {
+		return nil, nil, fmt.Errorf("invalid run input: %w", jsonErr)
+	}
+	now := time.Now()
+	run := &table.WorkflowRun{WorkflowId: workflowID, WorkflowVersionId: *row.PublishedVersionId, TriggerType: "manual", Status: task_repo.RunQueued, Input: input, Summary: "{}", CreatedBy: createdBy, CreatedAt: now}
+	task := &table.CrawlTask{StepName: "trigger", TaskType: "workflow", Input: input, Status: task_repo.TaskQueued, MaxAttempts: 5, CreatedAt: now, UpdatedAt: now}
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return nil, nil, err
+	}
+	if _, err := s.Insert(run); err != nil {
+		_ = s.Rollback()
+		return nil, nil, err
+	}
+	task.RunId = run.Id
+	if _, err := s.Insert(task); err != nil {
+		_ = s.Rollback()
+		return nil, nil, err
+	}
+	if err := s.Commit(); err != nil {
+		return nil, nil, err
+	}
+	return run, task, nil
 }
 
 func DiffVersions(leftID, rightID int64) (map[string]any, error) {

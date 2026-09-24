@@ -70,7 +70,11 @@ func (d *DrissionRod) Execute(ctx context.Context, job BrowserJob) (BrowserResul
 		return BrowserResult{}, &BrowserError{Code: "INVALID_JOB", Message: "url is required"}
 	}
 	if job.RequestID == "" {
-		job.RequestID = uuid.NewString()
+		if requestID, ok := ctx.Value("request_id").(string); ok && strings.TrimSpace(requestID) != "" {
+			job.RequestID = requestID
+		} else {
+			job.RequestID = uuid.NewString()
+		}
 	}
 	if job.Timeout <= 0 {
 		job.Timeout = 60 * time.Second

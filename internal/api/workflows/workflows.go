@@ -58,6 +58,10 @@ type ReplayDiffRequest struct {
 	LeftVersion  int64 `json:"left_version_id"`
 	RightVersion int64 `json:"right_version_id"`
 }
+type RunRequest struct {
+	WorkflowID int64           `json:"workflow_id"`
+	Input      json.RawMessage `json:"input,omitempty"`
+}
 
 func List(w http.ResponseWriter, r *http.Request) {
 	input := ListRequest{}
@@ -135,6 +139,24 @@ func CreateVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respond.Ok(w, version)
+}
+
+func Run(w http.ResponseWriter, r *http.Request) {
+	input := new(RunRequest)
+	if err := request.Parse(r, input); err != nil || input.WorkflowID <= 0 {
+		respond.Error(w, error_ext.ValidateError)
+		return
+	}
+	runInput := string(input.Input)
+	if runInput == "" {
+		runInput = "{}"
+	}
+	run, task, err := workflow_repo.StartRun(input.WorkflowID, runInput, nil)
+	if err != nil {
+		respond.Error(w, err)
+		return
+	}
+	respond.Ok(w, map[string]any{"run_id": run.Id, "task_id": task.Id, "workflow_version_id": run.WorkflowVersionId})
 }
 
 func Validate(w http.ResponseWriter, r *http.Request) {

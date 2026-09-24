@@ -34,6 +34,8 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 
 	r.Use(middleware.CORSMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
+	r.Use(middleware.RequestIDMiddleware)
+	r.Use(middleware.MetricsMiddleware)
 	r.Use(middleware.LoggingMiddleware)
 
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -89,6 +91,7 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/workflows/versions/publish", workflows.Publish).Methods("POST")
 			v2Api.HandleFunc("/workflows/versions/rollback", workflows.Rollback).Methods("POST")
 			v2Api.HandleFunc("/workflows/stop", workflows.Stop).Methods("POST")
+			v2Api.HandleFunc("/workflows/run", workflows.Run).Methods("POST")
 			v2Api.HandleFunc("/workflows/versions/diff", workflows.Diff).Methods("POST")
 			v2Api.HandleFunc("/workflows/test-extract", workflows.TestExtract).Methods("POST")
 			v2Api.HandleFunc("/documents/replay", workflows.Replay).Methods("POST")
@@ -108,6 +111,7 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/tasks/attempts", runs.Attempts).Methods("GET", "POST")
 			v2Api.HandleFunc("/tasks/cancel", runs.CancelTask).Methods("POST")
 			v2Api.HandleFunc("/tasks/retry", runs.RetryTask).Methods("POST")
+			v2Api.HandleFunc("/observability/metrics", ops.Metrics(crawlerEngine)).Methods("GET")
 		}
 	}
 
