@@ -21,6 +21,7 @@ type FieldRule struct {
 	Clean        string `json:"clean,omitempty"`
 	Type         string `json:"type,omitempty"`
 	Required     bool   `json:"required,omitempty"`
+	Multiple     bool   `json:"multiple,omitempty"`
 	Default      any    `json:"default,omitempty"`
 }
 
@@ -97,10 +98,24 @@ func Extract(request ExtractRequest) (map[string]any, error) {
 }
 
 func cssValue(document *goquery.Document, rule FieldRule) (any, error) {
-	selection := document.Find(rule.Selector).First()
+	selection := document.Find(rule.Selector)
 	if selection.Length() == 0 {
 		return nil, nil
 	}
+	if rule.Multiple {
+		values := make([]any, 0, selection.Length())
+		selection.Each(func(_ int, item *goquery.Selection) {
+			if rule.Attribute != "" {
+				if value, ok := item.Attr(rule.Attribute); ok {
+					values = append(values, cleanValue(value, rule))
+				}
+				return
+			}
+			values = append(values, cleanValue(item.Text(), rule))
+		})
+		return values, nil
+	}
+	selection = selection.First()
 	if rule.Attribute != "" {
 		value, ok := selection.Attr(rule.Attribute)
 		if !ok {
@@ -112,6 +127,21 @@ func cssValue(document *goquery.Document, rule FieldRule) (any, error) {
 }
 
 func xpathValue(root *html.Node, rule FieldRule) (any, error) {
+	if rule.Multiple {
+		nodes := htmlquery.Find(root, rule.Selector)
+		values := make([]any, 0, len(nodes))
+		for _, node := range nodes {
+			if rule.Attribute != "" {
+				values = append(values, cleanValue(htmlquery.SelectAttr(node, rule.Attribute), rule))
+			} else {
+				values = append(values, cleanValue(htmlquery.InnerText(node), rule))
+			}
+		}
+		if len(values) == 0 {
+			return nil, nil
+		}
+		return values, nil
+	}
 	node := htmlquery.FindOne(root, rule.Selector)
 	if node == nil {
 		return nil, nil

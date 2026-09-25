@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -187,27 +188,53 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	}
 
 	values := map[string]any{}
+	discoveredURLs := map[string]struct{}{}
 	for _, node := range append(append([]Node{}, definition.Acquire...), definition.Nodes...) {
-		if !strings.EqualFold(node.Type, "extract") {
+		if !nodeApplies(node, claim.Task.StepName) {
 			continue
 		}
-		fields, err := fieldRules(node.Config["fields"])
-		if err != nil {
-			return fmt.Errorf("node %s: %w", node.Name, err)
-		}
-		content, contentType := result.HTML, "html"
-		if strings.EqualFold(stringValue(node.Config["content_type"]), "json") || (content == "" && result.JSON != "") || (usesJSONPath(fields) && result.JSON != "") {
-			content, contentType = result.JSON, "json"
-		}
-		if content == "" {
-			return errors.New("browser returned no extractable document")
-		}
-		extracted, err := Extract(ExtractRequest{ContentType: contentType, Content: content, Fields: fields})
-		if err != nil {
-			return err
-		}
-		for key, value := range extracted {
-			values[key] = value
+		switch strings.ToLower(strings.TrimSpace(node.Type)) {
+		case "extract":
+			extracted, err := extractNodeValues(node, result)
+			if err != nil {
+				return fmt.Errorf("node %s: %w", node.Name, err)
+			}
+			for key, value := range extracted {
+				values[key] = value
+			}
+		case "discover":
+			if claim.Task.StepName != "trigger" {
+				continue
+			}
+			extracted, err := extractNodeValues(node, result)
+			if err != nil {
+				return fmt.Errorf("node %s: %w", node.Name, err)
+			}
+			fieldName := stringValue(node.Config["url_field"])
+			if fieldName == "" {
+				fieldName = firstMapKey(extracted)
+			}
+			for _, rawURL := range stringSlice(extracted[fieldName]) {
+				childURL, err := resolveURL(pageURL, rawURL)
+				if err != nil || childURL == "" || childURL == pageURL {
+					continue
+				}
+				if _, exists := discoveredURLs[childURL]; exists {
+					continue
+				}
+				discoveredURLs[childURL] = struct{}{}
+				if _, err := task_repo.CreateTask(run.Id, claim.Task.Id, "detail", workflowTaskType, task_repo.TaskInput(childURL, ""), 5); err != nil {
+					return fmt.Errorf("create discovered task: %w", err)
+				}
+			}
+		case "transform":
+			if err := ApplyTransform(values, node.Config); err != nil {
+				return fmt.Errorf("node %s: %w", node.Name, err)
+			}
+		case "validate":
+			if err := ValidateValues(values, node.Config); err != nil {
+				return fmt.Errorf("node %s: %w", node.Name, err)
+			}
 		}
 	}
 	resourceID, err := persistResource(values, pageURL, run.WorkflowId)
@@ -237,6 +264,57 @@ func fieldRules(raw any) ([]FieldRule, error) {
 	return fields, nil
 }
 
+func extractNodeValues(node Node, result drission_rod.BrowserResult) (map[string]any, error) {
+	fields, err := fieldRules(node.Config["fields"])
+	if err != nil {
+		return nil, err
+	}
+	content, contentType := result.HTML, "html"
+	if strings.EqualFold(stringValue(node.Config["content_type"]), "json") || (content == "" && result.JSON != "") || (usesJSONPath(fields) && result.JSON != "") {
+		content, contentType = result.JSON, "json"
+	}
+	if content == "" {
+		return nil, errors.New("browser returned no extractable document")
+	}
+	return Extract(ExtractRequest{ContentType: contentType, Content: content, Fields: fields})
+}
+
+func firstMapKey(values map[string]any) string {
+	for _, preferred := range []string{"urls", "url", "links", "link"} {
+		if _, exists := values[preferred]; exists {
+			return preferred
+		}
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		return key
+	}
+	return ""
+}
+
+func resolveURL(baseURL, rawURL string) (string, error) {
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		return "", err
+	}
+	child, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || child.String() == "" {
+		return "", err
+	}
+	resolved := base.ResolveReference(child)
+	if !strings.EqualFold(resolved.Scheme, "http") && !strings.EqualFold(resolved.Scheme, "https") {
+		return "", fmt.Errorf("unsupported discovered URL scheme: %s", resolved.Scheme)
+	}
+	if resolved.Host == "" {
+		return "", errors.New("discovered URL host is empty")
+	}
+	return resolved.String(), nil
+}
+
 func usesJSONPath(fields []FieldRule) bool {
 	for _, field := range fields {
 		if strings.EqualFold(field.SelectorType, "jsonpath") || strings.EqualFold(field.SelectorType, "json_path") || strings.HasPrefix(strings.TrimSpace(field.Selector), "$") {
@@ -244,6 +322,27 @@ func usesJSONPath(fields []FieldRule) bool {
 		}
 	}
 	return false
+}
+
+func nodeApplies(node Node, step string) bool {
+	raw, ok := node.Config["run_on"]
+	if !ok || raw == nil {
+		return true
+	}
+	step = strings.ToLower(strings.TrimSpace(step))
+	switch value := raw.(type) {
+	case string:
+		return strings.EqualFold(value, step)
+	case []any:
+		for _, item := range value {
+			if strings.EqualFold(stringValue(item), step) {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
+	}
 }
 
 func saveDocument(taskID int64, pageURL string, result drission_rod.BrowserResult) (int64, error) {

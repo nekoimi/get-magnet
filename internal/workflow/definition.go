@@ -101,13 +101,40 @@ func (d Definition) Validate() error {
 }
 
 func validateNode(node Node) error {
-	if strings.EqualFold(node.Type, "extract") {
+	if runOn, ok := node.Config["run_on"]; ok && runOn != nil {
+		switch value := runOn.(type) {
+		case string:
+			if strings.TrimSpace(value) == "" {
+				return fmt.Errorf("run_on must not be empty")
+			}
+		case []any:
+			if len(value) == 0 {
+				return fmt.Errorf("run_on must not be empty")
+			}
+		default:
+			return fmt.Errorf("run_on must be a string or array")
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(node.Type)) {
+	case "extract":
 		fields, ok := node.Config["fields"]
 		if !ok || fields == nil {
 			return fmt.Errorf("extract.fields is required")
 		}
 		if _, ok := fields.([]any); !ok {
 			return fmt.Errorf("extract.fields must be an array")
+		}
+	case "discover", "validate":
+		if fields, ok := node.Config["fields"]; ok && fields != nil {
+			if _, ok := fields.([]any); !ok {
+				return fmt.Errorf("%s.fields must be an array", strings.ToLower(node.Type))
+			}
+		}
+	case "transform":
+		if operations, ok := node.Config["operations"]; ok && operations != nil {
+			if _, ok := operations.([]any); !ok {
+				return fmt.Errorf("transform.operations must be an array")
+			}
 		}
 	}
 	return nil
