@@ -13,6 +13,7 @@ import (
 
 	"github.com/nekoimi/get-magnet/internal/config"
 	"github.com/nekoimi/get-magnet/internal/plugin"
+	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
 )
 
 const (
@@ -82,6 +83,108 @@ func (p *CloudDriver) Handle(ctx context.Context, task plugin.Task) (any, string
 		return nil, "", errors.New("cloud-driver returned empty task_id")
 	}
 	return map[string]any{"task_id": response.TaskID, "provider_task_id": response.ProviderTaskID, "status": response.Status}, response.TaskID, nil
+}
+
+type cloudTask struct {
+	TaskID         string      `json:"task_id"`
+	ProviderTaskID string      `json:"provider_task_id,omitempty"`
+	Status         string      `json:"status"`
+	Name           string      `json:"name,omitempty"`
+	Progress       float64     `json:"progress,omitempty"`
+	SavePath       string      `json:"save_path,omitempty"`
+	SaveDir        *cloudFile  `json:"save_dir,omitempty"`
+	ErrorCode      string      `json:"error_code,omitempty"`
+	ErrorMessage   string      `json:"error_message,omitempty"`
+	Files          []cloudFile `json:"files,omitempty"`
+	Warnings       []string    `json:"warnings,omitempty"`
+}
+
+type cloudFile struct {
+	ID           string         `json:"id,omitempty"`
+	FileID       string         `json:"file_id,omitempty"`
+	ParentID     string         `json:"parent_id,omitempty"`
+	Name         string         `json:"name,omitempty"`
+	Path         string         `json:"path,omitempty"`
+	RelativePath string         `json:"relative_path,omitempty"`
+	IsDir        bool           `json:"is_dir,omitempty"`
+	Size         int64          `json:"size,omitempty"`
+	Extra        map[string]any `json:"extra,omitempty"`
+}
+
+// Poll reads the cloud-driver task state. Provider business failures are
+// permanent; transport failures remain retryable by the plugin worker.
+func (p *CloudDriver) Poll(ctx context.Context, task plugin.Task, externalID string) (any, bool, error) {
+	if strings.TrimSpace(externalID) == "" {
+		return nil, false, errors.New("cloud-driver task id is required")
+	}
+	var response cloudTask
+	if err := p.do(ctx, http.MethodGet, p.driverPath("/offline/tasks/")+url.PathEscape(externalID), nil, &response); err != nil {
+		return nil, false, err
+	}
+	if response.TaskID == "" {
+		response.TaskID = externalID
+	}
+	output := cloudTaskOutput(response)
+	status := strings.ToLower(strings.TrimSpace(response.Status))
+	if isCloudFailureStatus(status) {
+		message := response.ErrorMessage
+		if message == "" {
+			message = "cloud-driver task failed"
+		}
+		if response.ErrorCode != "" {
+			message = response.ErrorCode + ": " + message
+		}
+		return output, true, &plugin.PermanentError{Err: errors.New(message)}
+	}
+	return output, isCloudCompleteStatus(status), nil
+}
+
+// OnComplete writes the final cloud artifact metadata to the generic resource
+// attributes and event stream. It deliberately does not change resource.status.
+func (p *CloudDriver) OnComplete(_ context.Context, task plugin.Task, output any) error {
+	data, ok := output.(map[string]any)
+	if !ok {
+		encoded, err := json.Marshal(output)
+		if err != nil {
+			return err
+		}
+		data = map[string]any{}
+		if err := json.Unmarshal(encoded, &data); err != nil {
+			return err
+		}
+	}
+	delivery := map[string]any{"provider": CloudCode, "status": "completed"}
+	for _, key := range []string{"task_id", "provider_task_id", "progress", "save_path", "save_dir", "files", "warnings"} {
+		if value, exists := data[key]; exists && value != nil {
+			delivery[key] = value
+		}
+	}
+	return resource_repo.MergeAttributes(task.ResourceID, map[string]any{"delivery": delivery}, "delivery.completed", "云盘离线任务已完成")
+}
+
+func cloudTaskOutput(task cloudTask) map[string]any {
+	encoded, _ := json.Marshal(task)
+	output := map[string]any{}
+	_ = json.Unmarshal(encoded, &output)
+	return output
+}
+
+func isCloudCompleteStatus(status string) bool {
+	switch status {
+	case "completed", "complete", "succeeded", "success", "done":
+		return true
+	default:
+		return false
+	}
+}
+
+func isCloudFailureStatus(status string) bool {
+	switch status {
+	case "failed", "error", "cancelled", "canceled":
+		return true
+	default:
+		return false
+	}
 }
 
 type Aria2 struct {

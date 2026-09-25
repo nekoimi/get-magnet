@@ -174,6 +174,38 @@ func Retry(id int64) error {
 func Complete(id int64, output any, externalID string) error {
 	return finish(id, taskSucceeded, output, externalID, "")
 }
+
+// SchedulePoll puts an asynchronous external task back in the durable queue.
+// The task remains unfinished and will be leased again after delay.
+func SchedulePoll(id int64, output any, externalID string, delay time.Duration) error {
+	if db.Instance() == nil {
+		return errors.New("database is not initialized")
+	}
+	if strings.TrimSpace(externalID) == "" {
+		return errors.New("external id is required for polling")
+	}
+	encoded := "{}"
+	if output != nil {
+		data, err := json.Marshal(output)
+		if err != nil {
+			return err
+		}
+		if len(data) > 1024*1024 {
+			return errors.New("plugin output exceeds size limit")
+		}
+		encoded = string(data)
+	}
+	if delay < 0 {
+		delay = 0
+	}
+	next := time.Now().Add(delay)
+	_, err := db.Instance().ID(id).Cols("status", "output", "external_id", "next_retry_at", "lease_owner", "lease_until", "error_message", "updated_at", "finished_at").Update(&table.PluginTask{
+		Status: taskQueued, Output: encoded, ExternalID: externalID, NextRetryAt: &next,
+		LeaseOwner: "", LeaseUntil: nil, ErrorMessage: "", UpdatedAt: time.Now(), FinishedAt: nil,
+	})
+	return err
+}
+
 func Fail(id int64, cause error, retryable bool) error {
 	message := "plugin task failed"
 	if cause != nil {

@@ -19,6 +19,38 @@ type Handler interface {
 	Handle(context.Context, Task) (output any, externalID string, err error)
 }
 
+// AsyncHandler is a plugin whose Handle call starts an external operation.
+// The worker persists the returned external ID and calls Poll until done.
+type AsyncHandler interface {
+	Handler
+	Poll(context.Context, Task, string) (output any, done bool, err error)
+}
+
+// CompletionHandler receives the final external output before the plugin task
+// is marked successful. It is useful for writing provider artifacts back to a
+// resource without coupling the generic worker to a specific provider.
+type CompletionHandler interface {
+	OnComplete(context.Context, Task, any) error
+}
+
+// PermanentError marks an error as a terminal business failure. Transport and
+// temporary provider errors remain retryable by default.
+type PermanentError struct{ Err error }
+
+func (e *PermanentError) Error() string {
+	if e == nil || e.Err == nil {
+		return "permanent plugin error"
+	}
+	return e.Err.Error()
+}
+
+func (e *PermanentError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 type Registry struct {
 	mu       sync.RWMutex
 	handlers map[string]Handler

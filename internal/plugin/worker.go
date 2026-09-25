@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	LeaseDuration = 5 * time.Minute
-	PollInterval  = 500 * time.Millisecond
+	LeaseDuration        = 5 * time.Minute
+	PollInterval         = 500 * time.Millisecond
+	ExternalPollInterval = 10 * time.Second
 )
 
 type Worker struct {
@@ -85,15 +86,58 @@ func (w *Worker) loop(ctx context.Context, index int) {
 			_ = plugin_repo.Fail(claim.Task.Id, err, false)
 			continue
 		}
-		output, externalID, err := handler.Handle(ctx, Task{ResourceID: claim.Task.ResourceId, EventType: claim.Task.EventType, Input: input})
-		if err != nil {
-			_ = plugin_repo.Fail(claim.Task.Id, err, true)
+		task := Task{ResourceID: claim.Task.ResourceId, EventType: claim.Task.EventType, Input: input}
+		async, isAsync := handler.(AsyncHandler)
+		if isAsync && claim.Task.ExternalID != "" {
+			output, done, err := async.Poll(ctx, task, claim.Task.ExternalID)
+			if err != nil {
+				_ = plugin_repo.Fail(claim.Task.Id, err, !isPermanent(err))
+				continue
+			}
+			if !done {
+				if err := plugin_repo.SchedulePoll(claim.Task.Id, output, claim.Task.ExternalID, ExternalPollInterval); err != nil {
+					log.Errorf("重新调度插件轮询失败: %s", err)
+				}
+				continue
+			}
+			if completion, ok := handler.(CompletionHandler); ok {
+				if err := completion.OnComplete(ctx, task, output); err != nil {
+					_ = plugin_repo.Fail(claim.Task.Id, err, true)
+					continue
+				}
+			}
+			if err := plugin_repo.Complete(claim.Task.Id, output, claim.Task.ExternalID); err != nil {
+				log.Errorf("完成插件任务失败: %s", err)
+			}
 			continue
+		}
+
+		output, externalID, err := handler.Handle(ctx, task)
+		if err != nil {
+			_ = plugin_repo.Fail(claim.Task.Id, err, !isPermanent(err))
+			continue
+		}
+		if isAsync && externalID != "" {
+			if err := plugin_repo.SchedulePoll(claim.Task.Id, output, externalID, ExternalPollInterval); err != nil {
+				log.Errorf("调度插件轮询失败: %s", err)
+			}
+			continue
+		}
+		if completion, ok := handler.(CompletionHandler); ok {
+			if err := completion.OnComplete(ctx, task, output); err != nil {
+				_ = plugin_repo.Fail(claim.Task.Id, err, true)
+				continue
+			}
 		}
 		if err := plugin_repo.Complete(claim.Task.Id, output, externalID); err != nil {
 			log.Errorf("完成插件任务失败: %s", err)
 		}
 	}
+}
+
+func isPermanent(err error) bool {
+	var permanent *PermanentError
+	return errors.As(err, &permanent)
 }
 
 func wait(ctx context.Context, delay time.Duration) bool {

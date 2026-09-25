@@ -3,6 +3,7 @@ package resource_repo
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -461,6 +462,84 @@ func RecordEvent(resourceID int64, eventType, message string, data string) error
 		CreatedAt:  time.Now(),
 	})
 	return err
+}
+
+// MergeAttributes applies a provider-owned patch to resource.attributes and
+// records the corresponding event atomically. Delivery metadata is kept in
+// attributes so it remains extensible without adding provider columns.
+func MergeAttributes(resourceID int64, patch map[string]any, eventType, message string) error {
+	if db.Instance() == nil {
+		return errors.New("database is not initialized")
+	}
+	if resourceID <= 0 || len(patch) == 0 {
+		return errors.New("resource id and attributes patch are required")
+	}
+	if strings.TrimSpace(eventType) == "" {
+		return errors.New("event type is required")
+	}
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return err
+	}
+	resource := new(table.Resource)
+	has, err := s.ID(resourceID).Get(resource)
+	if err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if !has {
+		_ = s.Rollback()
+		return errors.New("resource not found")
+	}
+	attributes := map[string]any{}
+	if strings.TrimSpace(resource.Attributes) != "" {
+		if err := json.Unmarshal([]byte(resource.Attributes), &attributes); err != nil {
+			_ = s.Rollback()
+			return fmt.Errorf("resource attributes are invalid: %w", err)
+		}
+	}
+	if attributes == nil {
+		attributes = map[string]any{}
+	}
+	mergeAttributeMap(attributes, patch)
+	encoded, err := json.Marshal(attributes)
+	if err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	eventData, err := json.Marshal(patch)
+	if err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	now := time.Now()
+	if _, err := s.ID(resourceID).Cols("attributes", "updated_at", "last_seen_at").Update(&table.Resource{
+		Attributes: string(encoded), UpdatedAt: now, LastSeenAt: now,
+	}); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if _, err := s.Insert(&table.ResourceEvent{
+		ResourceId: resourceID, EventType: eventType, Message: message,
+		Data: string(eventData), CreatedAt: now,
+	}); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	return s.Commit()
+}
+
+func mergeAttributeMap(target, patch map[string]any) {
+	for key, value := range patch {
+		if nested, ok := value.(map[string]any); ok {
+			if current, ok := target[key].(map[string]any); ok {
+				mergeAttributeMap(current, nested)
+				continue
+			}
+		}
+		target[key] = value
+	}
 }
 
 func appendLinks(resourceID int64, links []string, optimalLink string) error {
