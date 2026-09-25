@@ -22,6 +22,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/drission_rod"
 	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
 	"github.com/nekoimi/get-magnet/internal/repo/task_repo"
+	"github.com/nekoimi/get-magnet/internal/script"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -234,6 +235,24 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 		case "validate":
 			if err := ValidateValues(values, node.Config); err != nil {
 				return fmt.Errorf("node %s: %w", node.Name, err)
+			}
+		case "script":
+			timeout := 2 * time.Second
+			if rawTimeout, ok := node.Config["timeout_ms"].(float64); ok && rawTimeout > 0 {
+				timeout = time.Duration(rawTimeout) * time.Millisecond
+			}
+			scriptResult, err := script.Execute(ctx, script.Request{
+				Script: stringValue(node.Config["script"]), Input: values, Timeout: timeout,
+			})
+			if err != nil {
+				return fmt.Errorf("node %s: %w", node.Name, err)
+			}
+			output, ok := scriptResult.Output.(map[string]any)
+			if !ok {
+				return fmt.Errorf("node %s script output must be an object", node.Name)
+			}
+			for key, value := range output {
+				values[key] = value
 			}
 		}
 	}

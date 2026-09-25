@@ -37,6 +37,7 @@ type Node struct {
 var nodeTypes = map[string]struct{}{
 	"trigger": {}, "acquire": {}, "navigate": {}, "discover": {},
 	"extract": {}, "transform": {}, "validate": {}, "deduplicate": {},
+	"script":  {},
 	"persist": {}, "event": {}, "list": {}, "detail": {}, "pagination": {},
 }
 
@@ -136,8 +137,23 @@ func validateNode(node Node) error {
 				return fmt.Errorf("transform.operations must be an array")
 			}
 		}
+	case "script":
+		if strings.TrimSpace(stringConfigValue(node.Config["script"])) == "" {
+			return fmt.Errorf("script is required")
+		}
 	}
 	return nil
+}
+
+func stringConfigValue(value any) string {
+	if value == nil {
+		return ""
+	}
+	text, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return text
 }
 
 func validateSchema(raw json.RawMessage, name string) error {

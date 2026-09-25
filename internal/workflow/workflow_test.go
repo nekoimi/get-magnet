@@ -16,6 +16,12 @@ func TestDefinitionValidation(t *testing.T) {
 	if _, err := ParseDefinition(`{"trigger":{"type":"manual"},"nodes":[{"name":"x","type":"extract","config":{"fields":[],"run_on":42}}]}`); err == nil {
 		t.Fatal("expected invalid run_on error")
 	}
+	if _, err := ParseDefinition(`{"trigger":{"type":"manual"},"nodes":[{"name":"x","type":"script","config":{"script":"return {};"}}]}`); err != nil {
+		t.Fatalf("expected script node to validate: %v", err)
+	}
+	if _, err := ParseDefinition(`{"trigger":{"type":"manual"},"nodes":[{"name":"x","type":"script","config":{}}]}`); err == nil {
+		t.Fatal("expected empty script to fail validation")
+	}
 }
 
 func TestDefinitionTriggerOptions(t *testing.T) {
