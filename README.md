@@ -82,7 +82,7 @@ go run cmd/main.go
 ### 前端开发
 
 ```bash
-cd ui/get-magnet-ui
+cd web
 
 # 安装依赖
 pnpm install
@@ -198,9 +198,7 @@ get-magnet/
 │   ├── pkg/                       # 工具包
 │   ├── repo/                      # 数据仓储层
 │   └── server/                    # HTTP 服务器
-├── ui/
-│   ├── aria-ng/                   # aria-ng Web UI
-│   └── get-magnet-ui/             # 主管理界面 (Vue3)
+├── web/                           # 主管理界面 (Vue3)
 ├── proto/                         # Protobuf 定义
 ├── deploy/                        # 部署配置
 ├── docker/                        # Docker 配置
@@ -257,7 +255,6 @@ log.Error("错误日志")
 ## 依赖说明
 
 - 项目 fork 并修改了 `siku2/arigo`，替换为 `github.com/nekoimi/arigo`
-- ui/aria-ng 是 git submodule
 
 ## 许可证
 

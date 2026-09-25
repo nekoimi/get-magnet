@@ -26,7 +26,7 @@ go build -o get-magnet cmd/main.go
 ### 前端开发
 
 ```bash
-cd ui/get-magnet-ui
+cd web
 
 # 安装依赖
 pnpm install
@@ -165,6 +165,6 @@ LifecycleManager 负责统一管理：
 
 ## 前端项目
 
-- 位置：`ui/get-magnet-ui/`
+- 位置：`web`
 - 技术栈：Vue 3.4 + Element Plus + Pinia + Vite
 - 默认端口：开发模式由 Vite 配置，生产构建后由 Go 后端服务

@@ -93,12 +93,10 @@ get-magnet/
 │   └── server/                    # HTTP 服务器
 │       ├── router.go             # 路由定义
 │       └── server.go             # 服务器实现
-├── ui/
-│   ├── aria-ng/                   # aria-ng Web UI（第三方）
-│   └── get-magnet-ui/             # 主 UI 项目（Vue3）
-│       ├── src/                   # 源代码
-│       ├── package.json           # 前端依赖和脚本
-│       └── vite.config.ts         # Vite 配置
+├── web/                         # 主 UI 项目（Vue3）
+│    ├── src/                   # 源代码
+│    ├── package.json           # 前端依赖和脚本
+│    └── vite.config.ts         # Vite 配置
 ├── proto/                         # Protobuf 定义
 ├── deploy/                        # 部署配置
 ├── docker/                        # Docker 相关
@@ -136,7 +134,7 @@ go build -o get-magnet cmd/main.go
 
 **安装依赖：**
 ```bash
-cd ui/get-magnet-ui
+cd web
 pnpm install
 ```
 
@@ -241,4 +239,3 @@ type Crawler interface {
 ## 依赖关系说明
 
 - 项目 fork 了 `siku2/arigo` 并替换为 `github.com/nekoimi/arigo`（在 go.mod 中定义）
-- ui/aria-ng 是 git submodule（在 .gitmodules 中定义）

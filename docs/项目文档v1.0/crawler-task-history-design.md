@@ -724,7 +724,7 @@ internal/
         ├── crawler.go
         └── history.go
 
-ui/get-magnet-ui/src/
+web/src/
 ├── api/crawler/index.ts
 ├── views/crawler/history/index.vue
 └── views/crawler/history/detail.vue
