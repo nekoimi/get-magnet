@@ -7,6 +7,7 @@ require (
 	github.com/antchfx/htmlquery v1.3.4
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 	github.com/cristalhq/jwt/v5 v5.4.0
+	github.com/dop251/goja v0.0.0-20260917113740-793a2a65c13b
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.12.3
@@ -29,11 +30,14 @@ require (
 	github.com/antchfx/xpath v1.3.3 // indirect
 	github.com/cenkalti/hub v1.0.1-0.20160527103212-11382a9960d3 // indirect
 	github.com/cenkalti/rpc2 v0.0.0-20180727162946-9642ea02d0aa // indirect
+	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
+	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect

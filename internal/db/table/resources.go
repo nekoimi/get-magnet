@@ -179,6 +179,44 @@ type ResourceEvent struct {
 
 func (ResourceEvent) TableName() string { return "resource_events" }
 
+type PluginTask struct {
+	Id             int64      `json:"id"`
+	ResourceId     int64      `xorm:"resource_id" json:"resource_id"`
+	EventType      string     `xorm:"event_type" json:"event_type"`
+	PluginCode     string     `xorm:"plugin_code" json:"plugin_code"`
+	IdempotencyKey string     `xorm:"idempotency_key" json:"idempotency_key"`
+	Status         string     `json:"status"`
+	AttemptCount   int        `xorm:"attempt_count" json:"attempt_count"`
+	MaxAttempts    int        `xorm:"max_attempts" json:"max_attempts"`
+	NextRetryAt    *time.Time `xorm:"next_retry_at" json:"next_retry_at,omitempty"`
+	ExternalID     string     `xorm:"external_id" json:"external_id,omitempty"`
+	Input          string     `xorm:"jsonb" json:"input"`
+	Output         string     `xorm:"jsonb" json:"output"`
+	ErrorMessage   string     `xorm:"text error_message" json:"error_message,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	FinishedAt     *time.Time `xorm:"finished_at" json:"finished_at,omitempty"`
+}
+
+func (PluginTask) TableName() string { return "plugin_tasks" }
+
+type AIExtraction struct {
+	Id                int64     `json:"id"`
+	CacheKey          string    `xorm:"cache_key" json:"cache_key"`
+	DocumentId        *int64    `xorm:"document_id" json:"document_id,omitempty"`
+	WorkflowVersionId *int64    `xorm:"workflow_version_id" json:"workflow_version_id,omitempty"`
+	Model             string    `json:"model"`
+	Result            string    `xorm:"jsonb" json:"result"`
+	Confidence        float64   `json:"confidence"`
+	ReviewStatus      string    `xorm:"review_status" json:"review_status"`
+	InputTokens       int       `xorm:"input_tokens" json:"input_tokens"`
+	OutputTokens      int       `xorm:"output_tokens" json:"output_tokens"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (AIExtraction) TableName() string { return "ai_extractions" }
+
 // LegacyDownloadState keeps historical delivery fields queryable without
 // making them part of the v2 resource lifecycle.
 type LegacyDownloadState struct {

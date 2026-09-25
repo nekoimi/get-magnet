@@ -1,0 +1,170 @@
+package plugin_repo
+
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+	"time"
+
+	"github.com/nekoimi/get-magnet/internal/db"
+	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/get-magnet/internal/plugin"
+)
+
+type EnqueueInput struct {
+	ResourceID     int64
+	EventType      string
+	PluginCode     string
+	IdempotencyKey string
+	Input          any
+	MaxAttempts    int
+}
+
+func Enqueue(input EnqueueInput) (*table.PluginTask, bool, error) {
+	if db.Instance() == nil {
+		return nil, false, errors.New("database is not initialized")
+	}
+	if input.ResourceID <= 0 || strings.TrimSpace(input.EventType) == "" || strings.TrimSpace(input.PluginCode) == "" || strings.TrimSpace(input.IdempotencyKey) == "" {
+		return nil, false, errors.New("resource, event, plugin and idempotency key are required")
+	}
+	encoded, err := json.Marshal(input.Input)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(encoded) > 1024*1024 {
+		return nil, false, errors.New("plugin input exceeds size limit")
+	}
+	max := input.MaxAttempts
+	if max <= 0 {
+		max = 5
+	}
+	row := &table.PluginTask{ResourceId: input.ResourceID, EventType: input.EventType, PluginCode: input.PluginCode, IdempotencyKey: input.IdempotencyKey, Status: plugin.TaskQueued, MaxAttempts: max, Input: string(encoded), Output: "{}", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	inserted, err := db.Instance().InsertOne(row)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "unique") {
+			existing := new(table.PluginTask)
+			has, getErr := db.Instance().Where("plugin_code = ? AND idempotency_key = ?", input.PluginCode, input.IdempotencyKey).Get(existing)
+			if getErr != nil {
+				return nil, false, getErr
+			}
+			if has {
+				return existing, false, nil
+			}
+		}
+		return nil, false, err
+	}
+	return row, inserted > 0, nil
+}
+
+func Get(id int64) (*table.PluginTask, bool, error) {
+	if db.Instance() == nil {
+		return nil, false, errors.New("database is not initialized")
+	}
+	row := new(table.PluginTask)
+	has, err := db.Instance().ID(id).Get(row)
+	return row, has, err
+}
+
+func List(resourceID int64, status string, page, size int) ([]table.PluginTask, int64, error) {
+	if db.Instance() == nil {
+		return nil, 0, errors.New("database is not initialized")
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 20
+	}
+	count := db.Instance().NewSession()
+	defer count.Close()
+	if resourceID > 0 {
+		count.Where("resource_id = ?", resourceID)
+	}
+	if status != "" {
+		count.And("status = ?", status)
+	}
+	total, err := count.Count(new(table.PluginTask))
+	if err != nil {
+		return nil, 0, err
+	}
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if resourceID > 0 {
+		s.Where("resource_id = ?", resourceID)
+	}
+	if status != "" {
+		s.And("status = ?", status)
+	}
+	rows := make([]table.PluginTask, 0)
+	err = s.Desc("created_at").Limit(size, (page-1)*size).Find(&rows)
+	return rows, total, err
+}
+
+func MarkRunning(id int64) error {
+	if db.Instance() == nil {
+		return errors.New("database is not initialized")
+	}
+	_, err := db.Instance().ID(id).Cols("status", "attempt_count", "updated_at").Where("status = ?", plugin.TaskQueued).Update(&table.PluginTask{Status: plugin.TaskRunning, AttemptCount: 1, UpdatedAt: time.Now()})
+	return err
+}
+
+func Cancel(id int64) error {
+	if db.Instance() == nil {
+		return errors.New("database is not initialized")
+	}
+	now := time.Now()
+	_, err := db.Instance().ID(id).Cols("status", "updated_at", "finished_at").Where("status IN (?, ?)", plugin.TaskQueued, plugin.TaskRunning).Update(&table.PluginTask{Status: plugin.TaskCancelled, UpdatedAt: now, FinishedAt: &now})
+	return err
+}
+
+func Retry(id int64) error {
+	if db.Instance() == nil {
+		return errors.New("database is not initialized")
+	}
+	_, err := db.Instance().ID(id).Cols("status", "next_retry_at", "error_message", "finished_at", "updated_at").Update(&table.PluginTask{Status: plugin.TaskQueued, NextRetryAt: nil, ErrorMessage: "", FinishedAt: nil, UpdatedAt: time.Now()})
+	return err
+}
+
+func Complete(id int64, output any, externalID string) error {
+	return finish(id, plugin.TaskSucceeded, output, externalID, "")
+}
+func Fail(id int64, cause error, retryable bool) error {
+	message := "plugin task failed"
+	if cause != nil {
+		message = cause.Error()
+	}
+	row, has, err := Get(id)
+	if err != nil || !has {
+		return err
+	}
+	if retryable && row.AttemptCount < row.MaxAttempts {
+		next := time.Now().Add(time.Duration(1<<min(row.AttemptCount, 6)) * time.Second)
+		_, err = db.Instance().ID(id).Cols("status", "next_retry_at", "error_message", "updated_at").Update(&table.PluginTask{Status: plugin.TaskQueued, NextRetryAt: &next, ErrorMessage: message, UpdatedAt: time.Now()})
+		return err
+	}
+	return finish(id, plugin.TaskFailed, nil, "", message)
+}
+
+func finish(id int64, status string, output any, externalID, message string) error {
+	encoded := "{}"
+	if output != nil {
+		data, err := json.Marshal(output)
+		if err != nil {
+			return err
+		}
+		if len(data) > 1024*1024 {
+			return errors.New("plugin output exceeds size limit")
+		}
+		encoded = string(data)
+	}
+	now := time.Now()
+	_, err := db.Instance().ID(id).Cols("status", "output", "external_id", "error_message", "updated_at", "finished_at").Update(&table.PluginTask{Status: status, Output: encoded, ExternalID: externalID, ErrorMessage: message, UpdatedAt: now, FinishedAt: &now})
+	return err
+}
+
+func min(left, right int) int {
+	if left < right {
+		return left
+	}
+	return right
+}

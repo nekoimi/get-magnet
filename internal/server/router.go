@@ -13,6 +13,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/api/magnets"
 	"github.com/nekoimi/get-magnet/internal/api/middleware"
 	"github.com/nekoimi/get-magnet/internal/api/ops"
+	"github.com/nekoimi/get-magnet/internal/api/plugins"
 	"github.com/nekoimi/get-magnet/internal/api/resources"
 	"github.com/nekoimi/get-magnet/internal/api/runs"
 	"github.com/nekoimi/get-magnet/internal/api/settings"
@@ -123,6 +124,9 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/tasks/cancel", runs.CancelTask).Methods("POST")
 			v2Api.HandleFunc("/tasks/retry", runs.RetryTask).Methods("POST")
 			v2Api.HandleFunc("/observability/metrics", ops.Metrics(crawlerEngine)).Methods("GET")
+			v2Api.HandleFunc("/plugins/tasks", plugins.List).Methods("GET")
+			v2Api.HandleFunc("/plugins/tasks/cancel", plugins.Cancel).Methods("POST")
+			v2Api.HandleFunc("/plugins/tasks/retry", plugins.Retry).Methods("POST")
 		}
 	}
 
