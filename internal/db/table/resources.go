@@ -18,6 +18,8 @@ func (Source) TableName() string { return "sources" }
 
 type Workflow struct {
 	Id                 int64     `json:"id"`
+	ProjectId          *int64    `xorm:"project_id" json:"project_id,omitempty"`
+	DatasetId          *int64    `xorm:"dataset_id" json:"dataset_id,omitempty"`
 	SourceId           int64     `xorm:"source_id" json:"source_id"`
 	Code               string    `json:"code"`
 	Name               string    `json:"name"`

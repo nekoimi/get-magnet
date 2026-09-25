@@ -19,13 +19,17 @@ import (
 )
 
 type ListRequest struct {
-	Page     int    `json:"page,omitempty"`
-	Size     int    `json:"size,omitempty"`
-	SourceID *int64 `json:"source_id,omitempty"`
-	Enabled  *bool  `json:"enabled,omitempty"`
+	ProjectID *int64 `json:"project_id,omitempty"`
+	DatasetID *int64 `json:"dataset_id,omitempty"`
+	Page      int    `json:"page,omitempty"`
+	Size      int    `json:"size,omitempty"`
+	SourceID  *int64 `json:"source_id,omitempty"`
+	Enabled   *bool  `json:"enabled,omitempty"`
 }
 
 type CreateRequest struct {
+	ProjectID    *int64 `json:"project_id,omitempty"`
+	DatasetID    *int64 `json:"dataset_id,omitempty"`
 	SourceID     *int64 `json:"source_id,omitempty"`
 	Source       string `json:"source,omitempty"`
 	SourceName   string `json:"source_name,omitempty"`
@@ -84,7 +88,15 @@ func List(w http.ResponseWriter, r *http.Request) {
 		value, _ := strconv.ParseInt(query.Get("source_id"), 10, 64)
 		input.SourceID = &value
 	}
-	rows, total, err := workflow_repo.List(workflow_repo.WorkflowFilter{Page: input.Page, Size: input.Size, SourceID: input.SourceID, Enabled: input.Enabled})
+	if input.ProjectID == nil && query.Get("project_id") != "" {
+		value, _ := strconv.ParseInt(query.Get("project_id"), 10, 64)
+		input.ProjectID = &value
+	}
+	if input.DatasetID == nil && query.Get("dataset_id") != "" {
+		value, _ := strconv.ParseInt(query.Get("dataset_id"), 10, 64)
+		input.DatasetID = &value
+	}
+	rows, total, err := workflow_repo.List(workflow_repo.WorkflowFilter{Page: input.Page, Size: input.Size, SourceID: input.SourceID, ProjectID: input.ProjectID, DatasetID: input.DatasetID, Enabled: input.Enabled})
 	if err != nil {
 		respond.Error(w, err)
 		return
@@ -121,7 +133,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, err)
 		return
 	}
-	row, version, err := workflow_repo.Create(workflow_repo.CreateWorkflowInput{SourceID: input.SourceID, Source: input.Source, SourceName: input.SourceName, Code: input.Code, Name: input.Name, ResourceType: input.ResourceType, Definition: input.Definition})
+	row, version, err := workflow_repo.Create(workflow_repo.CreateWorkflowInput{ProjectID: input.ProjectID, DatasetID: input.DatasetID, SourceID: input.SourceID, Source: input.Source, SourceName: input.SourceName, Code: input.Code, Name: input.Name, ResourceType: input.ResourceType, Definition: input.Definition})
 	if err != nil {
 		respond.Error(w, err)
 		return

@@ -731,7 +731,21 @@ func ensureWorkflow(sourceCode, sourceName string) (int64, int64, error) {
 		return 0, 0, err
 	}
 	if !has {
-		workflow = &table.Workflow{SourceId: sourceID, Code: "default", Name: sourceName + " default", ResourceType: "magnet", Enabled: true}
+		var project table.Project
+		if found, err := db.Instance().Where("code = ?", "default").Get(&project); err != nil || !found {
+			if err != nil {
+				return 0, 0, err
+			}
+			return 0, 0, errors.New("default project not found")
+		}
+		var dataset table.Dataset
+		if found, err := db.Instance().Where("project_id = ? AND code = ?", project.Id, "magnet").Get(&dataset); err != nil || !found {
+			if err != nil {
+				return 0, 0, err
+			}
+			return 0, 0, errors.New("default magnet dataset not found")
+		}
+		workflow = &table.Workflow{ProjectId: &project.Id, DatasetId: &dataset.Id, SourceId: sourceID, Code: "default", Name: sourceName + " default", ResourceType: "magnet", Enabled: true}
 		if _, err = db.Instance().InsertOne(workflow); err != nil {
 			return 0, 0, err
 		}

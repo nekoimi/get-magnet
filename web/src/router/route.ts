@@ -48,6 +48,10 @@ export const dynamicRoutes: Array<RouteRecordRaw> = [
 		},
 		children: [
 			{
+				path: '/projects', name: 'projects', component: () => import('/@/views/projects/index.vue'),
+				meta: { title: '项目与数据集', isHide: false, isKeepAlive: true, roles: ['admin', 'common'], icon: 'ele-FolderOpened' },
+			},
+			{
 				path: '/home',
 				name: 'home',
 				component: () => import('/@/views/home/index.vue'),

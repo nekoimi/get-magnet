@@ -22,13 +22,17 @@ const (
 )
 
 type WorkflowFilter struct {
-	SourceID *int64
-	Enabled  *bool
-	Page     int
-	Size     int
+	ProjectID *int64
+	DatasetID *int64
+	SourceID  *int64
+	Enabled   *bool
+	Page      int
+	Size      int
 }
 
 type CreateWorkflowInput struct {
+	ProjectID    *int64
+	DatasetID    *int64
 	SourceID     *int64
 	Source       string
 	SourceName   string
@@ -65,8 +69,14 @@ func List(filter WorkflowFilter) ([]table.Workflow, int64, error) {
 }
 
 func applyFilter(s *xorm.Session, filter WorkflowFilter) {
+	if filter.ProjectID != nil {
+		s.And("project_id = ?", *filter.ProjectID)
+	}
+	if filter.DatasetID != nil {
+		s.And("dataset_id = ?", *filter.DatasetID)
+	}
 	if filter.SourceID != nil {
-		s.Where("source_id = ?", *filter.SourceID)
+		s.And("source_id = ?", *filter.SourceID)
 	}
 	if filter.Enabled != nil {
 		s.And("enabled = ?", *filter.Enabled)
@@ -118,11 +128,53 @@ func Create(input CreateWorkflowInput) (*table.Workflow, *table.WorkflowVersion,
 	if _, err := workflow.ParseDefinition(input.Definition); err != nil {
 		return nil, nil, err
 	}
+	projectID := input.ProjectID
+	if projectID == nil {
+		defaultProject := new(table.Project)
+		if has, err := db.Instance().Where("code = ?", "default").Get(defaultProject); err != nil || !has {
+			if err != nil {
+				return nil, nil, err
+			}
+			return nil, nil, errors.New("default project not found")
+		}
+		projectID = &defaultProject.Id
+	}
+	project := new(table.Project)
+	if has, err := db.Instance().ID(*projectID).Get(project); err != nil || !has {
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, nil, errors.New("project not found")
+	}
+	datasetID := input.DatasetID
+	if datasetID == nil && input.ResourceType == "magnet" {
+		defaultDataset := new(table.Dataset)
+		if has, err := db.Instance().Where("project_id = ? AND code = ?", *projectID, "magnet").Get(defaultDataset); err != nil {
+			return nil, nil, err
+		} else if has {
+			datasetID = &defaultDataset.Id
+		}
+	}
+	if datasetID != nil {
+		dataset := new(table.Dataset)
+		if has, err := db.Instance().ID(*datasetID).Get(dataset); err != nil || !has {
+			if err != nil {
+				return nil, nil, err
+			}
+			return nil, nil, errors.New("dataset not found")
+		}
+		if dataset.ProjectId != *projectID || dataset.RecordType != input.ResourceType {
+			return nil, nil, errors.New("dataset must belong to project and match resource type")
+		}
+	}
+	if datasetID == nil {
+		return nil, nil, errors.New("dataset is required for new workflows")
+	}
 	sourceID, err := resource_repo.ResolveSourceID(input.SourceID, input.Source, input.SourceName)
 	if err != nil {
 		return nil, nil, err
 	}
-	row := &table.Workflow{SourceId: sourceID, Code: input.Code, Name: input.Name, ResourceType: input.ResourceType, Enabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	row := &table.Workflow{ProjectId: projectID, DatasetId: datasetID, SourceId: sourceID, Code: input.Code, Name: input.Name, ResourceType: input.ResourceType, Enabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	version := &table.WorkflowVersion{Version: 1, Status: VersionDraft, Definition: input.Definition, CreatedBy: input.CreatedBy, CreatedAt: time.Now()}
 	s := db.Instance().NewSession()
 	defer s.Close()
