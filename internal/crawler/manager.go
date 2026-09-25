@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nekoimi/get-magnet/internal/bean"
-	"github.com/nekoimi/get-magnet/internal/job"
+	"github.com/nekoimi/scrapio/internal/bean"
+	"github.com/nekoimi/scrapio/internal/job"
 	log "github.com/sirupsen/logrus"
 )
 

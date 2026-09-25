@@ -3,8 +3,8 @@ package task_repo
 import (
 	"errors"
 
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/db"
+	"github.com/nekoimi/scrapio/internal/db/table"
 )
 
 type MetricsSnapshot struct {

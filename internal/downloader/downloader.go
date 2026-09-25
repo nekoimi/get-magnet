@@ -1,6 +1,6 @@
 package downloader
 
-import "github.com/nekoimi/get-magnet/internal/bean"
+import "github.com/nekoimi/scrapio/internal/bean"
 
 type DownloadCallback func(task DownloadTask)
 

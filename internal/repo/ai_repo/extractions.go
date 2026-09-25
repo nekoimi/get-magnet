@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/ai"
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/ai"
+	"github.com/nekoimi/scrapio/internal/db"
+	"github.com/nekoimi/scrapio/internal/db/table"
 )
 
 func GetByCacheKey(key string) (*table.AIExtraction, bool, error) {

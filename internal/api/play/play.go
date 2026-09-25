@@ -5,12 +5,12 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/downloader/cloud_downloader"
-	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
-	"github.com/nekoimi/get-magnet/internal/pkg/util"
-	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/downloader/cloud_downloader"
+	"github.com/nekoimi/scrapio/internal/pkg/error_ext"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/pkg/util"
+	"github.com/nekoimi/scrapio/internal/repo/magnet_repo"
 )
 
 func Play(cfg *config.Config) http.HandlerFunc {

@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
-	pluginruntime "github.com/nekoimi/get-magnet/internal/plugin"
-	"github.com/nekoimi/get-magnet/internal/repo/plugin_repo"
+	"github.com/nekoimi/scrapio/internal/pkg/error_ext"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
+	pluginruntime "github.com/nekoimi/scrapio/internal/plugin"
+	"github.com/nekoimi/scrapio/internal/repo/plugin_repo"
 )
 
 type IDRequest struct {

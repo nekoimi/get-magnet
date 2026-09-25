@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/scrapio/internal/config"
 )
 
 func ResolveMediaURL(ctx context.Context, cfg *config.CloudDriverConfig, taskID string) (string, error) {

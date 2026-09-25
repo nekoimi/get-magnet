@@ -1,8 +1,8 @@
 package job_run_repo
 
 import (
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/db"
+	"github.com/nekoimi/scrapio/internal/db/table"
 	log "github.com/sirupsen/logrus"
 )
 

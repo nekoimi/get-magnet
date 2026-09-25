@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nekoimi/get-magnet/internal/bean"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/repo/plugin_repo"
+	"github.com/nekoimi/scrapio/internal/bean"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/repo/plugin_repo"
 	log "github.com/sirupsen/logrus"
 )
 

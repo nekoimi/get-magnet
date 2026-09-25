@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/api/middleware"
-	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
-	"github.com/nekoimi/get-magnet/internal/repo/task_repo"
+	"github.com/nekoimi/scrapio/internal/api/middleware"
+	"github.com/nekoimi/scrapio/internal/crawler"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/repo/task_repo"
 )
 
 func Metrics(engine *crawler.Engine) http.HandlerFunc {

@@ -8,11 +8,11 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/api/settings"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/job"
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/api/settings"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/db"
+	"github.com/nekoimi/scrapio/internal/job"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
 )
 
 var startedAt = time.Now()

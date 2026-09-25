@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
 )
 
 func TestStatusOptions(t *testing.T) {

@@ -3,17 +3,17 @@ package bootstrap
 import (
 	"context"
 
-	"github.com/nekoimi/get-magnet/internal/bean"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/crawler/providers/javdb"
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/drission_rod"
-	"github.com/nekoimi/get-magnet/internal/job"
-	"github.com/nekoimi/get-magnet/internal/plugin"
-	"github.com/nekoimi/get-magnet/internal/plugin/delivery"
-	"github.com/nekoimi/get-magnet/internal/server"
-	workflowexec "github.com/nekoimi/get-magnet/internal/workflow"
+	"github.com/nekoimi/scrapio/internal/bean"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/crawler"
+	"github.com/nekoimi/scrapio/internal/crawler/providers/javdb"
+	"github.com/nekoimi/scrapio/internal/db"
+	"github.com/nekoimi/scrapio/internal/drission_rod"
+	"github.com/nekoimi/scrapio/internal/job"
+	"github.com/nekoimi/scrapio/internal/plugin"
+	"github.com/nekoimi/scrapio/internal/plugin/delivery"
+	"github.com/nekoimi/scrapio/internal/server"
+	workflowexec "github.com/nekoimi/scrapio/internal/workflow"
 )
 
 func BeanLifecycle() *bean.LifecycleManager {

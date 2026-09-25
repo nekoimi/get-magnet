@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/scrapio/internal/config"
 )
 
 type cloudClient struct {

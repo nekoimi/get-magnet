@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/repo/magnet_repo"
 )
 
 type CloudTask struct {

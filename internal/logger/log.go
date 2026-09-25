@@ -35,5 +35,5 @@ func Initialize(logLevel string, logDir string, rotation RotationConfig) {
 }
 
 func friendlyCaller(frame *runtime.Frame) (function string, file string) {
-	return strings.ReplaceAll(frame.Function, "github.com/nekoimi/get-magnet/", " "), ""
+	return strings.ReplaceAll(frame.Function, "github.com/nekoimi/scrapio/", " "), ""
 }

@@ -3,7 +3,7 @@ package migrate
 import (
 	"testing"
 
-	"github.com/nekoimi/get-magnet/internal/pkg/util"
+	"github.com/nekoimi/scrapio/internal/pkg/util"
 )
 
 func TestEncodePassword(t *testing.T) {

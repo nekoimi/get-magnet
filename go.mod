@@ -1,4 +1,4 @@
-module github.com/nekoimi/get-magnet
+module github.com/nekoimi/scrapio
 
 go 1.26.0
 

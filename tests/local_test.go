@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/nekoimi/get-magnet/internal/bootstrap"
+	"github.com/nekoimi/scrapio/internal/bootstrap"
 )
 
 func Test_Run(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/repo/task_repo"
+	"github.com/nekoimi/scrapio/internal/repo/task_repo"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/bus"
-	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/scrapio/internal/bus"
+	"github.com/nekoimi/scrapio/internal/crawler"
 	log "github.com/sirupsen/logrus"
 )
 

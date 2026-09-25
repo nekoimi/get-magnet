@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/crawler/download"
-	"github.com/nekoimi/get-magnet/internal/pkg/util"
-	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
+	"github.com/nekoimi/scrapio/internal/crawler"
+	"github.com/nekoimi/scrapio/internal/crawler/download"
+	"github.com/nekoimi/scrapio/internal/pkg/util"
+	"github.com/nekoimi/scrapio/internal/repo/resource_repo"
 	log "github.com/sirupsen/logrus"
 )
 

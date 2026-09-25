@@ -6,12 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/bean"
-	"github.com/nekoimi/get-magnet/internal/bus"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
-	"github.com/nekoimi/get-magnet/internal/repo/task_repo"
+	"github.com/nekoimi/scrapio/internal/bean"
+	"github.com/nekoimi/scrapio/internal/bus"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/repo/resource_repo"
+	"github.com/nekoimi/scrapio/internal/repo/task_repo"
 	log "github.com/sirupsen/logrus"
 	"modernc.org/mathutil"
 )

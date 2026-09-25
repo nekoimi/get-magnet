@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/db"
+	"github.com/nekoimi/scrapio/internal/db/table"
 	"xorm.io/xorm"
 )
 

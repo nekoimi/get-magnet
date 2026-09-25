@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/nekoimi/get-magnet/internal/bootstrap"
+	"github.com/nekoimi/scrapio/internal/bootstrap"
 	log "github.com/sirupsen/logrus"
 )
 

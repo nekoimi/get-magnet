@@ -6,11 +6,11 @@ import (
 	"sync"
 
 	_ "github.com/lib/pq"
-	"github.com/nekoimi/get-magnet/internal/bean"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/db/migrate"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/pkg/util"
+	"github.com/nekoimi/scrapio/internal/bean"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/db/migrate"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"xorm.io/xorm"
 )

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/plugin"
-	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/plugin"
+	"github.com/nekoimi/scrapio/internal/repo/resource_repo"
 )
 
 const (

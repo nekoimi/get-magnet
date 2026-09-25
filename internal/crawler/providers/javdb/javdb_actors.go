@@ -3,8 +3,8 @@ package javdb
 import (
 	"context"
 
-	"github.com/nekoimi/get-magnet/internal/bus"
-	"github.com/nekoimi/get-magnet/internal/crawler"
+	"github.com/nekoimi/scrapio/internal/bus"
+	"github.com/nekoimi/scrapio/internal/crawler"
 )
 
 type ActorCrawler struct {

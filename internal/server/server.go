@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/bean"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
+	"github.com/nekoimi/scrapio/internal/bean"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/pkg/jwt"
 	log "github.com/sirupsen/logrus"
 )
 

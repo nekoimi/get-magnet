@@ -30,14 +30,14 @@ ARG COMMIT=unknown
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath \
-      -ldflags="-s -w -extldflags=-static -X github.com/nekoimi/get-magnet/internal/api/ops.BuildVersion=${VERSION} -X github.com/nekoimi/get-magnet/internal/api/ops.BuildCommit=${COMMIT}" \
+      -ldflags="-s -w -extldflags=-static -X github.com/nekoimi/scrapio/internal/api/ops.BuildVersion=${VERSION} -X github.com/nekoimi/scrapio/internal/api/ops.BuildCommit=${COMMIT}" \
       -o /out/get-magnet ./cmd/main.go
 
 FROM alpine:3.22
 
 LABEL org.opencontainers.image.title="get-magnet" \
       org.opencontainers.image.description="Resource collection control plane" \
-      org.opencontainers.image.source="https://github.com/nekoimi/get-magnet"
+      org.opencontainers.image.source="https://github.com/nekoimi/scrapio"
 
 RUN apk add --no-cache ca-certificates tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \

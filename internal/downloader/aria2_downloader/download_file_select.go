@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nekoimi/get-magnet/internal/pkg/files"
+	"github.com/nekoimi/scrapio/internal/pkg/files"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
 )

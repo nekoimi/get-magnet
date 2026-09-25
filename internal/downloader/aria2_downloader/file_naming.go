@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nekoimi/get-magnet/internal/pkg/files"
+	"github.com/nekoimi/scrapio/internal/pkg/files"
 )
 
 var singleEditionSuffixPattern = regexp.MustCompile(`^-[A-Z0-9]{1,6}$`)

@@ -3,7 +3,7 @@ package cloud_downloader
 import (
 	"sort"
 
-	"github.com/nekoimi/get-magnet/internal/pkg/files"
+	"github.com/nekoimi/scrapio/internal/pkg/files"
 	log "github.com/sirupsen/logrus"
 )
 

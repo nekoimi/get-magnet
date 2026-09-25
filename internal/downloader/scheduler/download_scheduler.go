@@ -4,11 +4,11 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/nekoimi/get-magnet/internal/bean"
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/downloader"
-	"github.com/nekoimi/get-magnet/internal/job"
-	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
+	"github.com/nekoimi/scrapio/internal/bean"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/downloader"
+	"github.com/nekoimi/scrapio/internal/job"
+	"github.com/nekoimi/scrapio/internal/repo/magnet_repo"
 	log "github.com/sirupsen/logrus"
 )
 

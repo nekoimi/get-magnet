@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/pkg/files"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/pkg/files"
 )
 
 var singleEditionSuffixPattern = regexp.MustCompile(`^-[A-Z0-9]{1,6}$`)

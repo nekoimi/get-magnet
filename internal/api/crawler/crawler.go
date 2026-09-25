@@ -3,11 +3,11 @@ package crawlerapi
 import (
 	"net/http"
 
-	"github.com/nekoimi/get-magnet/internal/bus"
-	"github.com/nekoimi/get-magnet/internal/crawler"
-	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
-	"github.com/nekoimi/get-magnet/internal/pkg/request"
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/bus"
+	"github.com/nekoimi/scrapio/internal/crawler"
+	"github.com/nekoimi/scrapio/internal/pkg/error_ext"
+	"github.com/nekoimi/scrapio/internal/pkg/request"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
 	log "github.com/sirupsen/logrus"
 )
 

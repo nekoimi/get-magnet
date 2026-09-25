@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
-	"github.com/nekoimi/get-magnet/internal/repo/audit_repo"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/repo/audit_repo"
 )
 
 func List(w http.ResponseWriter, r *http.Request) {

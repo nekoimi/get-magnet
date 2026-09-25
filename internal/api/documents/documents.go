@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/db"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/pkg/error_ext"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
 )
 
 func List(w http.ResponseWriter, r *http.Request) {

@@ -5,13 +5,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
-	"github.com/nekoimi/get-magnet/internal/pkg/request"
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
-	"github.com/nekoimi/get-magnet/internal/repo/magnet_event_repo"
-	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/pkg/error_ext"
+	"github.com/nekoimi/scrapio/internal/pkg/request"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/repo/magnet_event_repo"
+	"github.com/nekoimi/scrapio/internal/repo/magnet_repo"
 )
 
 // ListRequest 磁力链接列表查询请求

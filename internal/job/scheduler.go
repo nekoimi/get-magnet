@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/bean"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/repo/job_run_repo"
+	"github.com/nekoimi/scrapio/internal/bean"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/repo/job_run_repo"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 )

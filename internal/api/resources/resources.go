@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/api/middleware"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
-	"github.com/nekoimi/get-magnet/internal/pkg/request"
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
-	"github.com/nekoimi/get-magnet/internal/repo/audit_repo"
-	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
+	"github.com/nekoimi/scrapio/internal/api/middleware"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/pkg/error_ext"
+	"github.com/nekoimi/scrapio/internal/pkg/request"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/repo/audit_repo"
+	"github.com/nekoimi/scrapio/internal/repo/resource_repo"
 )
 
 type ListRequest struct {

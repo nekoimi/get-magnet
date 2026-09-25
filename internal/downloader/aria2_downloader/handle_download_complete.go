@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/pkg/files"
-	"github.com/nekoimi/get-magnet/internal/repo/magnet_repo"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/pkg/files"
+	"github.com/nekoimi/scrapio/internal/repo/magnet_repo"
 	"github.com/siku2/arigo"
 	log "github.com/sirupsen/logrus"
 )

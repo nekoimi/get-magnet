@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/bean"
-	"github.com/nekoimi/get-magnet/internal/config"
-	pb "github.com/nekoimi/get-magnet/internal/drission_rod/grpc"
+	"github.com/nekoimi/scrapio/internal/bean"
+	"github.com/nekoimi/scrapio/internal/config"
+	pb "github.com/nekoimi/scrapio/internal/drission_rod/grpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

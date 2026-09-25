@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
+	"github.com/nekoimi/scrapio/internal/pkg/error_ext"
 	log "github.com/sirupsen/logrus"
 )
 

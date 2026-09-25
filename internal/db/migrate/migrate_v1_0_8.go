@@ -1,7 +1,7 @@
 package migrate
 
 import (
-	"github.com/nekoimi/get-magnet/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/db/table"
 	"xorm.io/xorm"
 )
 

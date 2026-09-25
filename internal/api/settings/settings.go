@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
 )
 
 type TestResult struct {

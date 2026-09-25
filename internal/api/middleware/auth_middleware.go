@@ -5,10 +5,10 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/nekoimi/get-magnet/internal/pkg/error_ext"
-	"github.com/nekoimi/get-magnet/internal/pkg/jwt"
-	"github.com/nekoimi/get-magnet/internal/pkg/request"
-	"github.com/nekoimi/get-magnet/internal/pkg/respond"
+	"github.com/nekoimi/scrapio/internal/pkg/error_ext"
+	"github.com/nekoimi/scrapio/internal/pkg/jwt"
+	"github.com/nekoimi/scrapio/internal/pkg/request"
+	"github.com/nekoimi/scrapio/internal/pkg/respond"
 	log "github.com/sirupsen/logrus"
 )
 

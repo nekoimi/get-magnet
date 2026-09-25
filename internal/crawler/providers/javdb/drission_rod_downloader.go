@@ -6,8 +6,8 @@ import (
 	"net/url"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/nekoimi/get-magnet/internal/crawler/download"
-	"github.com/nekoimi/get-magnet/internal/drission_rod"
+	"github.com/nekoimi/scrapio/internal/crawler/download"
+	"github.com/nekoimi/scrapio/internal/drission_rod"
 	log "github.com/sirupsen/logrus"
 )
 

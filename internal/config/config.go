@@ -4,8 +4,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nekoimi/get-magnet/internal/logger"
-	"github.com/nekoimi/get-magnet/internal/pkg/util"
+	"github.com/nekoimi/scrapio/internal/logger"
+	"github.com/nekoimi/scrapio/internal/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )

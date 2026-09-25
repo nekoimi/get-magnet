@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/repo/magnet_event_repo"
+	"github.com/nekoimi/scrapio/internal/db"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/repo/magnet_event_repo"
 	log "github.com/sirupsen/logrus"
 	"xorm.io/xorm"
 )

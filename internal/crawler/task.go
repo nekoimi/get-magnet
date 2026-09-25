@@ -3,7 +3,7 @@ package crawler
 import (
 	"net/url"
 
-	"github.com/nekoimi/get-magnet/internal/crawler/download"
+	"github.com/nekoimi/scrapio/internal/crawler/download"
 )
 
 type TaskHandler func(t CrawlerTask) ([]CrawlerTask, []MagnetEntry, error)

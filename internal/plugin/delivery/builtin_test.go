@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nekoimi/get-magnet/internal/config"
-	"github.com/nekoimi/get-magnet/internal/plugin"
+	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/plugin"
 )
 
 func TestAria2Handle(t *testing.T) {

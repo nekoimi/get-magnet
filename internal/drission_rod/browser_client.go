@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	pb "github.com/nekoimi/get-magnet/internal/drission_rod/grpc"
+	pb "github.com/nekoimi/scrapio/internal/drission_rod/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

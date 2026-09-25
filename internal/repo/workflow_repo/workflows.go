@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nekoimi/get-magnet/internal/db"
-	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
-	"github.com/nekoimi/get-magnet/internal/repo/task_repo"
-	"github.com/nekoimi/get-magnet/internal/workflow"
+	"github.com/nekoimi/scrapio/internal/db"
+	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/repo/resource_repo"
+	"github.com/nekoimi/scrapio/internal/repo/task_repo"
+	"github.com/nekoimi/scrapio/internal/workflow"
 	"xorm.io/xorm"
 )
 

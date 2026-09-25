@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/scrapio/internal/config"
 )
 
 func TestBuildPlayURLIncludesFileID(t *testing.T) {
