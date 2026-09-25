@@ -57,3 +57,14 @@ func Error(w http.ResponseWriter, err error) {
 	}
 	sendJsonResponse(w, resp)
 }
+
+// InvalidDefinition returns a machine-readable publication blocker.
+func InvalidDefinition(w http.ResponseWriter, path, reason string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusUnprocessableEntity)
+	sendJsonResponse(w, JsonResponse{
+		Code: http.StatusUnprocessableEntity,
+		Msg:  "workflow definition cannot be published",
+		Data: map[string]any{"issues": []map[string]string{{"path": path, "reason": reason}}},
+	})
+}

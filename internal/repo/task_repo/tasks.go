@@ -19,6 +19,8 @@ const (
 	RunQueued      = "queued"
 	RunRunning     = "running"
 	RunSucceeded   = "succeeded"
+	RunPartial     = "partial"
+	RunLimited     = "limited"
 	RunFailed      = "failed"
 	RunCancelled   = "cancelled"
 	RunInterrupted = "interrupted"
@@ -111,6 +113,21 @@ func CreateTask(runID, parentTaskID int64, stepName, taskType, input string, max
 		if len(parentRows) == 0 || parentRows[0]["status"] != TaskRunning {
 			_ = s.Rollback()
 			return nil, ErrStaleAttempt
+		}
+	}
+	// The run lock serializes child creation across workers and retries.
+	// Returning the existing task prevents a replayed parent from duplicating
+	// detail work. Non-workflow task types keep their historical behavior.
+	if parentTaskID > 0 && taskType == "workflow" {
+		var existing table.CrawlTask
+		has, err := s.Where("run_id = ? AND task_type = ? AND step_name = ? AND input = ?::jsonb", runID, taskType, stepName, input).Get(&existing)
+		if err != nil {
+			_ = s.Rollback()
+			return nil, err
+		}
+		if has {
+			_ = s.Rollback()
+			return &existing, nil
 		}
 	}
 	if _, err := s.InsertOne(task); err != nil {
@@ -536,8 +553,8 @@ func RetryTask(id int64) error {
 	if err != nil {
 		return err
 	}
-	if !has || (run.Status != RunFailed && run.Status != RunRunning) {
-		return errors.New("only tasks in failed or running runs can be retried; rerun the workflow instead")
+	if !has || (run.Status != RunFailed && run.Status != RunPartial && run.Status != RunRunning) {
+		return errors.New("only tasks in failed, partial or running runs can be retried; rerun the workflow instead")
 	}
 	s := db.Instance().NewSession()
 	defer s.Close()
@@ -549,7 +566,7 @@ func RetryTask(id int64) error {
 		_ = s.Rollback()
 		return err
 	}
-	if len(rows) == 0 || (rows[0]["status"] != RunFailed && rows[0]["status"] != RunRunning) {
+	if len(rows) == 0 || (rows[0]["status"] != RunFailed && rows[0]["status"] != RunPartial && rows[0]["status"] != RunRunning) {
 		_ = s.Rollback()
 		return errors.New("workflow run is no longer retryable")
 	}
@@ -566,7 +583,7 @@ func RetryTask(id int64) error {
 		_ = s.Rollback()
 		return errors.New("only terminal tasks can be retried")
 	}
-	if _, err = s.ID(task.RunId).Where("status IN (?, ?)", RunFailed, RunRunning).Cols("status", "finished_at").Update(&table.WorkflowRun{Status: RunRunning, FinishedAt: nil}); err != nil {
+	if _, err = s.ID(task.RunId).Where("status IN (?, ?, ?)", RunFailed, RunPartial, RunRunning).Cols("status", "finished_at").Update(&table.WorkflowRun{Status: RunRunning, FinishedAt: nil}); err != nil {
 		_ = s.Rollback()
 		return err
 	}
@@ -750,21 +767,58 @@ func tryFinishRun(taskID int64) error {
 	if err != nil || !has {
 		return err
 	}
-	count, err := db.Instance().Where("run_id = ? AND status IN (?, ?)", task.RunId, TaskQueued, TaskRunning).Count(new(table.CrawlTask))
-	if err != nil || count > 0 {
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
 		return err
 	}
-	failed, err := db.Instance().Where("run_id = ? AND status IN (?, ?)", task.RunId, TaskDeadLetter, TaskFailed).Exist(new(table.CrawlTask))
+	// Locking the run coordinates this final check with CreateTask and with
+	// other workers completing tasks in the same run.
+	rows, err := s.QueryString("SELECT status FROM workflow_runs WHERE id = ? FOR UPDATE", task.RunId)
 	if err != nil {
+		_ = s.Rollback()
 		return err
 	}
-	cancelled, err := db.Instance().Where("run_id = ? AND status = ?", task.RunId, TaskCancelled).Exist(new(table.CrawlTask))
+	if len(rows) == 0 || (rows[0]["status"] != RunQueued && rows[0]["status"] != RunRunning) {
+		_ = s.Rollback()
+		return nil
+	}
+	results, err := s.QueryString(`SELECT t.status, t.task_type, a.response_snapshot
+FROM crawl_tasks t LEFT JOIN LATERAL (
+ SELECT response_snapshot FROM task_attempts
+ WHERE task_id = t.id AND status = 'succeeded' ORDER BY attempt_no DESC LIMIT 1
+) a ON true WHERE t.run_id = ?`, task.RunId)
 	if err != nil {
+		_ = s.Rollback()
 		return err
 	}
-	status := aggregateRunStatus(failed, cancelled)
-	_, err = db.Instance().ID(task.RunId).Where("status IN (?, ?)", RunQueued, RunRunning).Cols("status", "finished_at").Update(&table.WorkflowRun{Status: status, FinishedAt: ptrTime(time.Now())})
-	return err
+	summary := RunSummary{}
+	workflowRun := false
+	for _, row := range results {
+		if row["status"] == TaskQueued || row["status"] == TaskRunning {
+			_ = s.Rollback()
+			return nil
+		}
+		if row["task_type"] == "workflow" {
+			workflowRun = true
+		}
+		summary.Add(row["status"], row["response_snapshot"])
+	}
+	status := aggregateRunStatus(summary.Failed > 0, summary.Cancelled > 0)
+	if workflowRun {
+		status = summary.Status()
+	}
+	update := &table.WorkflowRun{Status: status, FinishedAt: ptrTime(time.Now())}
+	cols := []string{"status", "finished_at"}
+	if workflowRun {
+		update.Summary = summary.JSON()
+		cols = append(cols, "summary")
+	}
+	if _, err := s.ID(task.RunId).Cols(cols...).Update(update); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	return s.Commit()
 }
 
 func aggregateRunStatus(failed, cancelled bool) string {

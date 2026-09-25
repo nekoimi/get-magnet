@@ -58,6 +58,21 @@ func ParseDefinition(raw string) (Definition, error) {
 	return definition, nil
 }
 
+// ParseExecutableDefinition rejects unknown structural fields at the publish
+// boundary while retaining permissive historical reads through ParseDefinition.
+func ParseExecutableDefinition(raw string) (Definition, error) {
+	definition, err := ParseDefinition(raw)
+	if err != nil {
+		return definition, err
+	}
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(new(Definition)); err != nil {
+		return definition, fmt.Errorf("definition: %w", err)
+	}
+	return definition, definition.ValidateExecutable()
+}
+
 func (d Definition) Validate() error {
 	if strings.TrimSpace(d.Trigger.Type) == "" {
 		return fmt.Errorf("trigger.type is required")
@@ -99,6 +114,119 @@ func (d Definition) Validate() error {
 		}
 	}
 	return nil
+}
+
+// ValidateExecutable is the publish/runtime boundary for the current worker.
+// ParseDefinition stays permissive so historical definitions remain readable.
+func (d Definition) ValidateExecutable() error {
+	if err := d.Validate(); err != nil {
+		return err
+	}
+	if d.Trigger.Type != "manual" {
+		return fmt.Errorf("trigger.type: %q is not executable; only manual is supported", d.Trigger.Type)
+	}
+	if d.Trigger.Cron != "" || d.Trigger.Input != "" || d.Trigger.Concurrency != 0 || d.Trigger.ProfileID != "" {
+		return fmt.Errorf("trigger: cron, input, concurrency and profile_id are not executable")
+	}
+	if len(d.Credentials) != 0 {
+		return fmt.Errorf("credentials: secret references are not resolved by the workflow worker")
+	}
+	if len(d.InputSchema) != 0 || len(d.OutputSchema) != 0 {
+		return fmt.Errorf("input_schema/output_schema: runtime schema validation is not implemented")
+	}
+	if len(d.Acquire) != 0 {
+		return fmt.Errorf("acquire: acquisition nodes are not executed by the workflow worker")
+	}
+	if len(d.Nodes) == 0 {
+		return fmt.Errorf("nodes: at least one executable node is required")
+	}
+	if strings.TrimSpace(d.Trigger.URL) == "" {
+		return fmt.Errorf("trigger.url: an entry URL is required for publication")
+	}
+	if err := validateHTTPURL(d.Trigger.URL); err != nil {
+		return fmt.Errorf("trigger.url: %w", err)
+	}
+	hasExtract := false
+	hasDiscover := false
+	for i, node := range d.Nodes {
+		path := fmt.Sprintf("nodes[%d]", i)
+		switch node.Type {
+		case "extract", "discover", "transform", "validate", "script":
+		default:
+			return fmt.Errorf("%s.type: %q is not executed by the workflow worker", path, node.Type)
+		}
+		if err := validateExecutableNode(node); err != nil {
+			return fmt.Errorf("%s.%w", path, err)
+		}
+		if node.Type == "extract" {
+			hasExtract = true
+		}
+		if node.Type == "discover" {
+			hasDiscover = true
+		}
+	}
+	if !hasExtract {
+		return fmt.Errorf("nodes: extract is required to produce a resource")
+	}
+	// The current persistence adapter only writes magnet resources. Check the
+	// final field names for every page role that must produce a resource.
+	role := "trigger"
+	if hasDiscover {
+		role = "detail"
+	}
+	if !d.producesPersistableFields(role) {
+		return fmt.Errorf("nodes: %s pages cannot produce number, canonical_key or magnet links for persistence", role)
+	}
+	return nil
+}
+
+func (d Definition) producesPersistableFields(role string) bool {
+	fields := map[string]bool{}
+	for _, node := range d.Nodes {
+		if !nodeApplies(node, role) {
+			continue
+		}
+		switch node.Type {
+		case "extract":
+			if raw, ok := node.Config["fields"].([]any); ok {
+				for _, item := range raw {
+					if field, ok := item.(map[string]any); ok {
+						if name, ok := field["name"].(string); ok {
+							fields[name] = true
+						}
+					}
+				}
+			}
+		case "transform":
+			if operations, ok := node.Config["operations"].([]any); ok {
+				for _, item := range operations {
+					op, ok := item.(map[string]any)
+					if !ok {
+						continue
+					}
+					name, _ := op["field"].(string)
+					switch op["op"] {
+					case "rename":
+						if fields[name] {
+							delete(fields, name)
+							to, _ := op["to"].(string)
+							fields[to] = true
+						}
+					case "set", "default":
+						fields[name] = true
+					case "delete":
+						delete(fields, name)
+					}
+				}
+			}
+		}
+	}
+	for _, name := range []string{"number", "canonical_key", "links", "optimal_link", "optimalLink"} {
+		if fields[name] {
+			return true
+		}
+	}
+	return false
 }
 
 func validateNode(node Node) error {

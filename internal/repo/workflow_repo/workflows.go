@@ -173,8 +173,21 @@ func ValidateVersion(id int64) error {
 	if !has {
 		return errors.New("workflow version not found")
 	}
-	_, err = workflow.ParseDefinition(version.Definition)
-	return err
+	owner, has, err := Get(version.WorkflowId)
+	if err != nil {
+		return err
+	}
+	if !has {
+		return errors.New("workflow not found")
+	}
+	if owner.ResourceType != "magnet" {
+		return &workflow.DefinitionError{Cause: fmt.Errorf("resource_type: %q cannot be persisted by the current worker", owner.ResourceType)}
+	}
+	_, err = workflow.ParseExecutableDefinition(version.Definition)
+	if err != nil {
+		return &workflow.DefinitionError{Cause: err}
+	}
+	return nil
 }
 
 func PublishVersion(id int64) error {
@@ -235,13 +248,22 @@ func StartRun(workflowID int64, input string, createdBy *int64) (*table.Workflow
 	if !row.Enabled || row.PublishedVersionId == nil {
 		return nil, nil, errors.New("workflow has no published version")
 	}
+	if err := ValidateVersion(*row.PublishedVersionId); err != nil {
+		return nil, nil, fmt.Errorf("published workflow cannot execute: %w", err)
+	}
 	if input == "" {
 		input = "{}"
 	}
 	// Run input is an arbitrary JSON object, unlike the workflow definition.
-	var value any
+	var value map[string]any
 	if jsonErr := json.Unmarshal([]byte(input), &value); jsonErr != nil {
 		return nil, nil, fmt.Errorf("invalid run input: %w", jsonErr)
+	}
+	if value == nil {
+		return nil, nil, errors.New("run input must be a JSON object")
+	}
+	if _, hasURL := value["url"]; hasURL {
+		return nil, nil, errors.New("run input cannot override the published entry URL")
 	}
 	now := time.Now()
 	run := &table.WorkflowRun{WorkflowId: workflowID, WorkflowVersionId: *row.PublishedVersionId, TriggerType: "manual", Status: task_repo.RunQueued, Input: input, Summary: "{}", CreatedBy: createdBy, CreatedAt: now}

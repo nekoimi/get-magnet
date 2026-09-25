@@ -1,0 +1,17 @@
+name: V2.1 contracts
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  go-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Check fixed workflow contracts and Go packages
+        run: go test -timeout 120s ./...

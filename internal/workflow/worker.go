@@ -168,9 +168,9 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 		}
 		return errors.New("workflow version not found")
 	}
-	definition, err := ParseDefinition(version.Definition)
+	definition, err := ParseExecutableDefinition(version.Definition)
 	if err != nil {
-		return err
+		return fmt.Errorf("published workflow cannot execute: %w", err)
 	}
 	input := map[string]any{}
 	if strings.TrimSpace(claim.Task.Input) != "" {
@@ -296,6 +296,9 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 		}
 	}
 	var resourceID int64
+	if len(discoveredURLs) == 0 && claim.Task.StepName == "trigger" && len(values) == 0 {
+		return errors.New("workflow produced no discovered pages or extracted fields")
+	}
 	err = task_repo.WithActiveAttempt(claim.Task.Id, claim.Attempt, func() error {
 		var writeErr error
 		resourceID, writeErr = persistResource(values, pageURL, run.WorkflowId)
@@ -304,14 +307,16 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	if err != nil {
 		return err
 	}
-	output := map[string]any{"document_id": documentID, "values": values}
+	if resourceID == 0 && len(discoveredURLs) == 0 {
+		return errors.New("workflow produced no persisted resource or discovered pages")
+	}
+	output := map[string]any{"document_id": documentID, "values": values, "discovered_count": len(discoveredURLs)}
 	if resourceID > 0 {
 		output["resource_id"] = resourceID
 	} else {
 		output["resource_persisted"] = false
 	}
 	encoded, _ := json.Marshal(output)
-	_ = task_repo.UpdateRunSummary(run.Id, string(encoded))
 	return task_repo.Complete(claim.Task.Id, claim.Attempt.Id, string(encoded))
 }
 

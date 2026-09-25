@@ -164,13 +164,13 @@ func Run(w http.ResponseWriter, r *http.Request) {
 }
 
 func Validate(w http.ResponseWriter, r *http.Request) {
-	mutateVersion(w, r, workflow_repo.ValidateVersion)
+	mutateVersion(w, r, workflow_repo.ValidateVersion, true)
 }
 func Publish(w http.ResponseWriter, r *http.Request) {
-	mutateVersion(w, r, workflow_repo.PublishVersion)
+	mutateVersion(w, r, workflow_repo.PublishVersion, true)
 }
 func Rollback(w http.ResponseWriter, r *http.Request) {
-	mutateVersion(w, r, workflow_repo.RollbackVersion)
+	mutateVersion(w, r, workflow_repo.RollbackVersion, true)
 }
 
 func Stop(w http.ResponseWriter, r *http.Request) {
@@ -328,13 +328,18 @@ func extractionFields(definition workflow.Definition) ([]workflow.FieldRule, err
 	return nil, errors.New("workflow has no extract node")
 }
 
-func mutateVersion(w http.ResponseWriter, r *http.Request, action func(int64) error) {
+func mutateVersion(w http.ResponseWriter, r *http.Request, action func(int64) error, validation bool) {
 	id, err := idFromRequest(r)
 	if err != nil || id <= 0 {
 		respond.Error(w, error_ext.ValidateError)
 		return
 	}
 	if err := action(id); err != nil {
+		if validation && workflow.IsDefinitionError(err) {
+			path, reason := workflow.Issue(err)
+			respond.InvalidDefinition(w, path, reason)
+			return
+		}
 		respond.Error(w, err)
 		return
 	}
