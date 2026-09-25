@@ -29,7 +29,7 @@ func BeanLifecycle() *bean.LifecycleManager {
 	pluginRegistry := plugin.NewRegistry()
 	delivery.RegisterBuiltins(pluginRegistry, bean.PtrFromContext[config.Config](ctx))
 	bean.MustRegisterPtr[plugin.Registry](ctx, pluginRegistry)
-	bean.MustRegister[bean.Lifecycle](ctx, plugin.NewWorker(pluginRegistry))
+	bean.MustRegisterPtr[plugin.Worker](ctx, plugin.NewWorker(pluginRegistry))
 	// 任务管理器
 	crawlerManager := crawler.NewCrawlerManager(ctx)
 	crawlerManager.Register(javdb.NewJavDBCrawler())

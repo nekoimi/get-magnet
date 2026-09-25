@@ -22,10 +22,25 @@ const (
 )
 
 type Worker struct {
-	registry *Registry
-	cancel   context.CancelFunc
-	wg       sync.WaitGroup
-	count    int
+	registry     *Registry
+	cancel       context.CancelFunc
+	wg           sync.WaitGroup
+	count        int
+	mu           sync.RWMutex
+	running      bool
+	active       int
+	startedAt    *time.Time
+	stoppedAt    *time.Time
+	lastActivity *time.Time
+}
+
+type WorkerSnapshot struct {
+	Running      bool       `json:"running"`
+	WorkerCount  int        `json:"worker_count"`
+	Active       int        `json:"active"`
+	StartedAt    *time.Time `json:"started_at,omitempty"`
+	StoppedAt    *time.Time `json:"stopped_at,omitempty"`
+	LastActivity *time.Time `json:"last_activity,omitempty"`
 }
 
 func NewWorker(registry *Registry) *Worker { return &Worker{registry: registry} }
@@ -36,13 +51,17 @@ func (w *Worker) Start(parent context.Context) error {
 		return errors.New("plugin registry is required")
 	}
 	cfg := bean.PtrFromContext[config.Config](parent)
-	w.count = 1
+	count := 1
 	if cfg != nil && cfg.Crawler != nil && cfg.Crawler.WorkerNum > 0 {
-		w.count = cfg.Crawler.WorkerNum
+		count = cfg.Crawler.WorkerNum
 	}
 	ctx, cancel := context.WithCancel(parent)
 	w.cancel = cancel
-	for i := 0; i < w.count; i++ {
+	now := time.Now()
+	w.mu.Lock()
+	w.running, w.active, w.count, w.startedAt, w.stoppedAt = true, 0, count, &now, nil
+	w.mu.Unlock()
+	for i := 0; i < count; i++ {
 		w.wg.Add(1)
 		go w.loop(ctx, i)
 	}
@@ -54,7 +73,38 @@ func (w *Worker) Stop(_ context.Context) error {
 		w.cancel()
 	}
 	w.wg.Wait()
+	now := time.Now()
+	w.mu.Lock()
+	w.running, w.active, w.stoppedAt = false, 0, &now
+	w.mu.Unlock()
 	return nil
+}
+
+func (w *Worker) Snapshot() WorkerSnapshot {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return WorkerSnapshot{
+		Running: w.running, WorkerCount: w.count, Active: w.active,
+		StartedAt: w.startedAt, StoppedAt: w.stoppedAt, LastActivity: w.lastActivity,
+	}
+}
+
+func (w *Worker) taskStarted() {
+	now := time.Now()
+	w.mu.Lock()
+	w.active++
+	w.lastActivity = &now
+	w.mu.Unlock()
+}
+
+func (w *Worker) taskFinished() {
+	now := time.Now()
+	w.mu.Lock()
+	if w.active > 0 {
+		w.active--
+	}
+	w.lastActivity = &now
+	w.mu.Unlock()
 }
 
 func (w *Worker) loop(ctx context.Context, index int) {
@@ -76,62 +126,79 @@ func (w *Worker) loop(ctx context.Context, index int) {
 			}
 			continue
 		}
-		handler, ok := w.registry.Get(claim.Task.PluginCode)
-		if !ok {
-			_ = plugin_repo.Fail(claim.Task.Id, fmt.Errorf("plugin %q is not registered", claim.Task.PluginCode), false)
-			continue
-		}
-		input := map[string]any{}
-		if err := json.Unmarshal([]byte(claim.Task.Input), &input); err != nil {
-			_ = plugin_repo.Fail(claim.Task.Id, err, false)
-			continue
-		}
-		task := Task{ResourceID: claim.Task.ResourceId, EventType: claim.Task.EventType, Input: input}
-		async, isAsync := handler.(AsyncHandler)
-		if isAsync && claim.Task.ExternalID != "" {
-			output, done, err := async.Poll(ctx, task, claim.Task.ExternalID)
-			if err != nil {
-				_ = plugin_repo.Fail(claim.Task.Id, err, !isPermanent(err))
-				continue
-			}
-			if !done {
-				if err := plugin_repo.SchedulePoll(claim.Task.Id, output, claim.Task.ExternalID, ExternalPollInterval); err != nil {
-					log.Errorf("重新调度插件轮询失败: %s", err)
-				}
-				continue
-			}
-			if completion, ok := handler.(CompletionHandler); ok {
-				if err := completion.OnComplete(ctx, task, output); err != nil {
-					_ = plugin_repo.Fail(claim.Task.Id, err, true)
-					continue
-				}
-			}
-			if err := plugin_repo.Complete(claim.Task.Id, output, claim.Task.ExternalID); err != nil {
-				log.Errorf("完成插件任务失败: %s", err)
-			}
-			continue
-		}
+		w.processSafely(ctx, claim)
+	}
+}
 
-		output, externalID, err := handler.Handle(ctx, task)
+func (w *Worker) processSafely(ctx context.Context, claim *plugin_repo.Claim) {
+	w.taskStarted()
+	defer w.taskFinished()
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err := fmt.Errorf("plugin task panic: %v", recovered)
+			log.Errorf("插件任务执行 panic: task=%d error=%s", claim.Task.Id, err)
+			_ = plugin_repo.Fail(claim.Task.Id, err, false)
+		}
+	}()
+	w.processClaim(ctx, claim)
+}
+
+func (w *Worker) processClaim(ctx context.Context, claim *plugin_repo.Claim) {
+	handler, ok := w.registry.Get(claim.Task.PluginCode)
+	if !ok {
+		_ = plugin_repo.Fail(claim.Task.Id, fmt.Errorf("plugin %q is not registered", claim.Task.PluginCode), false)
+		return
+	}
+	input := map[string]any{}
+	if err := json.Unmarshal([]byte(claim.Task.Input), &input); err != nil {
+		_ = plugin_repo.Fail(claim.Task.Id, err, false)
+		return
+	}
+	task := Task{ResourceID: claim.Task.ResourceId, EventType: claim.Task.EventType, Input: input}
+	async, isAsync := handler.(AsyncHandler)
+	if isAsync && claim.Task.ExternalID != "" {
+		output, done, err := async.Poll(ctx, task, claim.Task.ExternalID)
 		if err != nil {
 			_ = plugin_repo.Fail(claim.Task.Id, err, !isPermanent(err))
-			continue
+			return
 		}
-		if isAsync && externalID != "" {
-			if err := plugin_repo.SchedulePoll(claim.Task.Id, output, externalID, ExternalPollInterval); err != nil {
-				log.Errorf("调度插件轮询失败: %s", err)
+		if !done {
+			if err := plugin_repo.SchedulePoll(claim.Task.Id, output, claim.Task.ExternalID, ExternalPollInterval); err != nil {
+				log.Errorf("重新调度插件轮询失败: %s", err)
 			}
-			continue
+			return
 		}
 		if completion, ok := handler.(CompletionHandler); ok {
 			if err := completion.OnComplete(ctx, task, output); err != nil {
 				_ = plugin_repo.Fail(claim.Task.Id, err, true)
-				continue
+				return
 			}
 		}
-		if err := plugin_repo.Complete(claim.Task.Id, output, externalID); err != nil {
+		if err := plugin_repo.Complete(claim.Task.Id, output, claim.Task.ExternalID); err != nil {
 			log.Errorf("完成插件任务失败: %s", err)
 		}
+		return
+	}
+
+	output, externalID, err := handler.Handle(ctx, task)
+	if err != nil {
+		_ = plugin_repo.Fail(claim.Task.Id, err, !isPermanent(err))
+		return
+	}
+	if isAsync && externalID != "" {
+		if err := plugin_repo.SchedulePoll(claim.Task.Id, output, externalID, ExternalPollInterval); err != nil {
+			log.Errorf("调度插件轮询失败: %s", err)
+		}
+		return
+	}
+	if completion, ok := handler.(CompletionHandler); ok {
+		if err := completion.OnComplete(ctx, task, output); err != nil {
+			_ = plugin_repo.Fail(claim.Task.Id, err, true)
+			return
+		}
+	}
+	if err := plugin_repo.Complete(claim.Task.Id, output, externalID); err != nil {
+		log.Errorf("完成插件任务失败: %s", err)
 	}
 }
 

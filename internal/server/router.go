@@ -25,6 +25,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/config"
 	crawlercore "github.com/nekoimi/get-magnet/internal/crawler"
 	"github.com/nekoimi/get-magnet/internal/job"
+	pluginruntime "github.com/nekoimi/get-magnet/internal/plugin"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -35,6 +36,8 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 	cronScheduler := bean.FromContext[job.CronScheduler](ctx)
 	crawlerEngine := bean.PtrFromContext[crawlercore.Engine](ctx)
 	crawlerManager := bean.PtrFromContext[crawlercore.Manager](ctx)
+	pluginRegistry := bean.PtrFromContext[pluginruntime.Registry](ctx)
+	pluginWorker := bean.PtrFromContext[pluginruntime.Worker](ctx)
 
 	r.Use(middleware.CORSMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
@@ -124,7 +127,9 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/tasks/cancel", runs.CancelTask).Methods("POST")
 			v2Api.HandleFunc("/tasks/retry", runs.RetryTask).Methods("POST")
 			v2Api.HandleFunc("/observability/metrics", ops.Metrics(crawlerEngine)).Methods("GET")
+			v2Api.HandleFunc("/plugins/overview", plugins.Overview(pluginRegistry, pluginWorker)).Methods("GET")
 			v2Api.HandleFunc("/plugins/tasks", plugins.List).Methods("GET")
+			v2Api.HandleFunc("/plugins/tasks/detail", plugins.Detail).Methods("GET")
 			v2Api.HandleFunc("/plugins/tasks/cancel", plugins.Cancel).Methods("POST")
 			v2Api.HandleFunc("/plugins/tasks/retry", plugins.Retry).Methods("POST")
 		}
