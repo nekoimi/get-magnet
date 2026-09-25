@@ -10,6 +10,8 @@ import (
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/drission_rod"
 	"github.com/nekoimi/get-magnet/internal/job"
+	"github.com/nekoimi/get-magnet/internal/plugin"
+	"github.com/nekoimi/get-magnet/internal/plugin/delivery"
 	"github.com/nekoimi/get-magnet/internal/server"
 	workflowexec "github.com/nekoimi/get-magnet/internal/workflow"
 )
@@ -24,6 +26,10 @@ func BeanLifecycle() *bean.LifecycleManager {
 	bean.MustRegister[job.CronScheduler](ctx, job.NewCronScheduler())
 	// drission_rod
 	bean.MustRegisterPtr[drission_rod.DrissionRod](ctx, drission_rod.NewDrissionRod())
+	pluginRegistry := plugin.NewRegistry()
+	delivery.RegisterBuiltins(pluginRegistry, bean.PtrFromContext[config.Config](ctx))
+	bean.MustRegisterPtr[plugin.Registry](ctx, pluginRegistry)
+	bean.MustRegister[bean.Lifecycle](ctx, plugin.NewWorker(pluginRegistry))
 	// 任务管理器
 	crawlerManager := crawler.NewCrawlerManager(ctx)
 	crawlerManager.Register(javdb.NewJavDBCrawler())

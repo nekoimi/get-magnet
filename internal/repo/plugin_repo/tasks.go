@@ -8,7 +8,14 @@ import (
 
 	"github.com/nekoimi/get-magnet/internal/db"
 	"github.com/nekoimi/get-magnet/internal/db/table"
-	"github.com/nekoimi/get-magnet/internal/plugin"
+)
+
+const (
+	taskQueued    = "queued"
+	taskRunning   = "running"
+	taskSucceeded = "succeeded"
+	taskFailed    = "failed"
+	taskCancelled = "cancelled"
 )
 
 type EnqueueInput struct {
@@ -18,6 +25,10 @@ type EnqueueInput struct {
 	IdempotencyKey string
 	Input          any
 	MaxAttempts    int
+}
+
+type Claim struct {
+	Task table.PluginTask
 }
 
 func Enqueue(input EnqueueInput) (*table.PluginTask, bool, error) {
@@ -38,7 +49,7 @@ func Enqueue(input EnqueueInput) (*table.PluginTask, bool, error) {
 	if max <= 0 {
 		max = 5
 	}
-	row := &table.PluginTask{ResourceId: input.ResourceID, EventType: input.EventType, PluginCode: input.PluginCode, IdempotencyKey: input.IdempotencyKey, Status: plugin.TaskQueued, MaxAttempts: max, Input: string(encoded), Output: "{}", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	row := &table.PluginTask{ResourceId: input.ResourceID, EventType: input.EventType, PluginCode: input.PluginCode, IdempotencyKey: input.IdempotencyKey, Status: taskQueued, MaxAttempts: max, Input: string(encoded), Output: "{}", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	inserted, err := db.Instance().InsertOne(row)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "unique") {
@@ -104,8 +115,43 @@ func MarkRunning(id int64) error {
 	if db.Instance() == nil {
 		return errors.New("database is not initialized")
 	}
-	_, err := db.Instance().ID(id).Cols("status", "attempt_count", "updated_at").Where("status = ?", plugin.TaskQueued).Update(&table.PluginTask{Status: plugin.TaskRunning, AttemptCount: 1, UpdatedAt: time.Now()})
+	_, err := db.Instance().ID(id).Cols("status", "attempt_count", "updated_at").Where("status = ?", taskQueued).Update(&table.PluginTask{Status: taskRunning, AttemptCount: 1, UpdatedAt: time.Now()})
 	return err
+}
+
+// ClaimNext atomically leases one plugin task. Delivery plugins use this
+// durable queue instead of the legacy downloader scheduler.
+func ClaimNext(workerID string, lease time.Duration) (*Claim, bool, error) {
+	if db.Instance() == nil {
+		return nil, false, errors.New("database is not initialized")
+	}
+	if lease <= 0 {
+		lease = 5 * time.Minute
+	}
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return nil, false, err
+	}
+	var task table.PluginTask
+	condition := "((status = ? AND (next_retry_at IS NULL OR next_retry_at <= NOW())) OR (status = ? AND lease_until < NOW()))"
+	has, err := s.Where(condition, taskQueued, taskRunning).Asc("created_at").Limit(1).Get(&task)
+	if err != nil || !has {
+		_ = s.Rollback()
+		return nil, false, err
+	}
+	now := time.Now()
+	until := now.Add(lease)
+	result, err := s.ID(task.Id).Cols("status", "attempt_count", "lease_owner", "lease_until", "updated_at").Where(condition, taskQueued, taskRunning).Update(&table.PluginTask{Status: taskRunning, AttemptCount: task.AttemptCount + 1, LeaseOwner: workerID, LeaseUntil: &until, UpdatedAt: now})
+	if err != nil || result == 0 {
+		_ = s.Rollback()
+		return nil, false, err
+	}
+	if err := s.Commit(); err != nil {
+		return nil, false, err
+	}
+	task.Status, task.AttemptCount, task.LeaseOwner, task.LeaseUntil = taskRunning, task.AttemptCount+1, workerID, &until
+	return &Claim{Task: task}, true, nil
 }
 
 func Cancel(id int64) error {
@@ -113,7 +159,7 @@ func Cancel(id int64) error {
 		return errors.New("database is not initialized")
 	}
 	now := time.Now()
-	_, err := db.Instance().ID(id).Cols("status", "updated_at", "finished_at").Where("status IN (?, ?)", plugin.TaskQueued, plugin.TaskRunning).Update(&table.PluginTask{Status: plugin.TaskCancelled, UpdatedAt: now, FinishedAt: &now})
+	_, err := db.Instance().ID(id).Cols("status", "updated_at", "finished_at").Where("status IN (?, ?)", taskQueued, taskRunning).Update(&table.PluginTask{Status: taskCancelled, UpdatedAt: now, FinishedAt: &now})
 	return err
 }
 
@@ -121,12 +167,12 @@ func Retry(id int64) error {
 	if db.Instance() == nil {
 		return errors.New("database is not initialized")
 	}
-	_, err := db.Instance().ID(id).Cols("status", "next_retry_at", "error_message", "finished_at", "updated_at").Update(&table.PluginTask{Status: plugin.TaskQueued, NextRetryAt: nil, ErrorMessage: "", FinishedAt: nil, UpdatedAt: time.Now()})
+	_, err := db.Instance().ID(id).Cols("status", "next_retry_at", "lease_owner", "lease_until", "error_message", "finished_at", "updated_at").Update(&table.PluginTask{Status: taskQueued, NextRetryAt: nil, LeaseOwner: "", LeaseUntil: nil, ErrorMessage: "", FinishedAt: nil, UpdatedAt: time.Now()})
 	return err
 }
 
 func Complete(id int64, output any, externalID string) error {
-	return finish(id, plugin.TaskSucceeded, output, externalID, "")
+	return finish(id, taskSucceeded, output, externalID, "")
 }
 func Fail(id int64, cause error, retryable bool) error {
 	message := "plugin task failed"
@@ -139,10 +185,10 @@ func Fail(id int64, cause error, retryable bool) error {
 	}
 	if retryable && row.AttemptCount < row.MaxAttempts {
 		next := time.Now().Add(time.Duration(1<<min(row.AttemptCount, 6)) * time.Second)
-		_, err = db.Instance().ID(id).Cols("status", "next_retry_at", "error_message", "updated_at").Update(&table.PluginTask{Status: plugin.TaskQueued, NextRetryAt: &next, ErrorMessage: message, UpdatedAt: time.Now()})
+		_, err = db.Instance().ID(id).Cols("status", "next_retry_at", "lease_owner", "lease_until", "error_message", "updated_at").Update(&table.PluginTask{Status: taskQueued, NextRetryAt: &next, LeaseOwner: "", LeaseUntil: nil, ErrorMessage: message, UpdatedAt: time.Now()})
 		return err
 	}
-	return finish(id, plugin.TaskFailed, nil, "", message)
+	return finish(id, taskFailed, nil, "", message)
 }
 
 func finish(id int64, status string, output any, externalID, message string) error {
@@ -158,7 +204,7 @@ func finish(id int64, status string, output any, externalID, message string) err
 		encoded = string(data)
 	}
 	now := time.Now()
-	_, err := db.Instance().ID(id).Cols("status", "output", "external_id", "error_message", "updated_at", "finished_at").Update(&table.PluginTask{Status: status, Output: encoded, ExternalID: externalID, ErrorMessage: message, UpdatedAt: now, FinishedAt: &now})
+	_, err := db.Instance().ID(id).Cols("status", "output", "external_id", "error_message", "lease_owner", "lease_until", "updated_at", "finished_at").Update(&table.PluginTask{Status: status, Output: encoded, ExternalID: externalID, ErrorMessage: message, LeaseOwner: "", LeaseUntil: nil, UpdatedAt: now, FinishedAt: &now})
 	return err
 }
 

@@ -189,6 +189,8 @@ type PluginTask struct {
 	AttemptCount   int        `xorm:"attempt_count" json:"attempt_count"`
 	MaxAttempts    int        `xorm:"max_attempts" json:"max_attempts"`
 	NextRetryAt    *time.Time `xorm:"next_retry_at" json:"next_retry_at,omitempty"`
+	LeaseOwner     string     `xorm:"lease_owner" json:"lease_owner,omitempty"`
+	LeaseUntil     *time.Time `xorm:"lease_until" json:"lease_until,omitempty"`
 	ExternalID     string     `xorm:"external_id" json:"external_id,omitempty"`
 	Input          string     `xorm:"jsonb" json:"input"`
 	Output         string     `xorm:"jsonb" json:"output"`
