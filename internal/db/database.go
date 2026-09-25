@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	_ "github.com/lib/pq"
@@ -15,50 +16,79 @@ import (
 )
 
 var (
-	err        error
 	engine     *xorm.Engine
 	engineOnce sync.Once
+	initErr    error
 )
 
 func NewDBLifecycle() bean.Lifecycle {
 	return bean.NewLifecycle("DB", func(ctx context.Context) error {
 		cfg := bean.PtrFromContext[config.Config](ctx)
 		// 初始化数据库
-		initialize(cfg.DB)
-		return nil
+		return initialize(cfg.DB)
 	}, func(ctx context.Context) error {
+		if engine == nil {
+			return nil
+		}
 		return engine.Close()
 	})
 }
 
 // 初始化数据库操作
-func initialize(cfg *config.DBConfig) {
+func initialize(cfg *config.DBConfig) error {
 	engineOnce.Do(func() {
 		log.Debugf("连接数据库")
-		engine, err = xorm.NewEngine(Postgres.String(), cfg.Dsn)
-		if err != nil {
-			log.Errorf("连接数据库异常: %s", err.Error())
-			panic(err)
+		var candidate *xorm.Engine
+		candidate, initErr = xorm.NewEngine(Postgres.String(), cfg.Dsn)
+		if initErr != nil {
+			return
 		}
+		defer func() {
+			if initErr != nil {
+				_ = candidate.Close()
+			}
+		}()
 
 		// 初始化设置
-		engine.ShowSQL(true)
-		engine.SetLogger(newXormLogger())
+		candidate.ShowSQL(true)
+		candidate.SetLogger(newXormLogger())
 		// 连接池设置
-		engine.SetMaxIdleConns(8)
-		engine.SetMaxOpenConns(8)
+		candidate.SetMaxIdleConns(8)
+		// Result writers hold a task-row lock while using another connection.
+		candidate.SetMaxOpenConns(24)
 
-		err = engine.Ping()
-		if err != nil {
-			log.Errorf("数据库连接不可用: %s", err.Error())
-			panic(err)
+		if initErr = candidate.Ping(); initErr != nil {
+			return
 		}
 
-		// 初始化数据迁移
-		initMigrates(engine)
-		// 数据表迁移
-		runMigrates(engine)
+		if initErr = migrateWithLock(candidate); initErr != nil {
+			return
+		}
+		engine = candidate
 	})
+	return initErr
+}
+
+// Serialize migrations across control-plane instances sharing a database.
+func migrateWithLock(e *xorm.Engine) error {
+	s := e.NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return err
+	}
+	if _, err := s.QueryString("SELECT pg_advisory_xact_lock(20260925, 1)"); err != nil {
+		_ = s.Rollback()
+		return fmt.Errorf("获取数据库迁移锁: %w", err)
+	}
+	if err := initMigrates(e); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if err := runMigrates(e); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	return s.Commit()
 }
 
 // Instance 获取数据库操作实例
@@ -67,16 +97,16 @@ func Instance() *xorm.Engine {
 }
 
 // 初始化数据迁移
-func initMigrates(e *xorm.Engine) {
+func initMigrates(e *xorm.Engine) error {
 	mg := new(table.Migrates)
 	if exist, err := e.IsTableExist(mg); err != nil {
 		log.Errorf("数据表检查失败: %s", err.Error())
-		panic(err)
+		return err
 	} else if !exist {
 		err := e.CreateTables(mg)
 		if err != nil {
 			log.Errorf("数据表初始化失败: %s", err.Error())
-			panic(err)
+			return err
 		}
 	}
 	// 修复 success 列类型：旧版 xorm 可能将 bool 映射为 smallint
@@ -89,46 +119,46 @@ BEGIN
     ALTER TABLE migrates ALTER COLUMN success TYPE boolean USING (success != 0);
   END IF;
 END $$`); err != nil {
-		log.Debugf("修复 migrates 表 success 列类型: %s", err.Error())
+		return fmt.Errorf("修复 migrates 表 success 列类型: %w", err)
 	}
+	return nil
 }
 
 // 初始化数据表迁移
-func runMigrates(e *xorm.Engine) {
+func runMigrates(e *xorm.Engine) error {
 	migrates := migrate.GetAll()
 	util.Sort[migrate.Migrate](migrates, func(a migrate.Migrate, b migrate.Migrate) bool {
 		return a.Version() < b.Version()
 	})
 	log.Debugln("数据表迁移执行...")
 	for _, m := range migrates {
-		if exists, err := e.Exist(&table.Migrates{Version: m.Version()}); err != nil {
-			log.Errorf("数据表迁移异常: %s, \n details: %s", m.Desc(), err.Error())
-			break
-		} else if exists {
-			// 已经存在迁移记录，仅跳过当前版本
+		var record table.Migrates
+		if exists, err := e.Where("version = ?", m.Version()).Get(&record); err != nil {
+			return fmt.Errorf("检查迁移 %d: %w", m.Version(), err)
+		} else if exists && record.Success {
 			continue
 		}
 
 		log.Infof("数据表迁移: %d, %s , 执行...", m.Version(), m.Desc())
-		err = m.Exec(e)
-		if err != nil {
-			log.Errorf("数据表迁移异常: %s, \n details: %s", m.Desc(), err.Error())
-			if _, insertErr := e.InsertOne(&table.Migrates{
-				Version: m.Version(),
-				Success: false,
-				Message: err.Error(),
-			}); insertErr != nil {
-				log.Errorf("数据库操作失败: %s", insertErr.Error())
+		migrationErr := m.Exec(e)
+		if migrationErr != nil {
+			if record.Id > 0 {
+				_, _ = e.ID(record.Id).Cols("success", "message").Update(&table.Migrates{Success: false, Message: migrationErr.Error()})
+			} else {
+				_, _ = e.InsertOne(&table.Migrates{Version: m.Version(), Success: false, Message: migrationErr.Error()})
 			}
-			break
+			return fmt.Errorf("执行迁移 %d (%s): %w", m.Version(), m.Desc(), migrationErr)
 		}
-		if _, insertErr := e.InsertOne(&table.Migrates{
-			Version: m.Version(),
-			Success: true,
-			Message: "ok",
-		}); insertErr != nil {
-			log.Errorf("数据库操作失败: %s", insertErr.Error())
+		var recordErr error
+		if record.Id > 0 {
+			_, recordErr = e.ID(record.Id).Cols("success", "message").Update(&table.Migrates{Success: true, Message: "ok"})
+		} else {
+			_, recordErr = e.InsertOne(&table.Migrates{Version: m.Version(), Success: true, Message: "ok"})
+		}
+		if recordErr != nil {
+			return fmt.Errorf("记录迁移 %d 成功状态: %w", m.Version(), recordErr)
 		}
 	}
 	log.Infoln("数据表迁移执行完毕")
+	return nil
 }

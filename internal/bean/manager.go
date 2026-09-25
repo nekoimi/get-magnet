@@ -2,6 +2,7 @@ package bean
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -36,8 +37,21 @@ func (m *LifecycleManager) Register(lifecycle Lifecycle) {
 	m.lifecycles = append(m.lifecycles, lifecycle)
 }
 
-func (m *LifecycleManager) StartAndServe() {
+func (m *LifecycleManager) StartAndServe() error {
+	// Database migrations must finish before any worker or HTTP endpoint starts.
 	for _, lifecycle := range m.lifecycles {
+		if lifecycle.Name() == "DB" {
+			log.Infof("[Lifecycle] Starting: %s ...", lifecycle.Name())
+			if err := lifecycle.Start(m.ctx); err != nil {
+				return fmt.Errorf("start %s: %w", lifecycle.Name(), err)
+			}
+			log.Infof("[Lifecycle] Start %s success!", lifecycle.Name())
+		}
+	}
+	for _, lifecycle := range m.lifecycles {
+		if lifecycle.Name() == "DB" {
+			continue
+		}
 		go func(life Lifecycle, ctx context.Context) {
 			defer func() {
 				if r := recover(); r != nil {
@@ -55,6 +69,7 @@ func (m *LifecycleManager) StartAndServe() {
 	}
 	m.waitForSignal()
 	m.shutdown(30 * time.Second)
+	return nil
 }
 
 func (m *LifecycleManager) waitForSignal() {

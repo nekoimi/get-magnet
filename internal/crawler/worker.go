@@ -91,6 +91,8 @@ func (w *Worker) do(t CrawlerTask) {
 	if entry, ok := t.(*TaskEntry); ok && entry.taskID > 0 {
 		if attempt, err := task_repo.StartAttempt(entry.taskID, w.String(), task_repo.TaskInput(entry.RawURL, entry.Origin)); err == nil {
 			entry.SetAttempt(attempt.Id)
+			_, stopLease := task_repo.MaintainLease(w.ctx, entry.taskID, *attempt, 5*time.Minute)
+			defer stopLease()
 		} else {
 			log.Warnf("创建任务尝试记录失败：%s", err.Error())
 			return
@@ -99,6 +101,12 @@ func (w *Worker) do(t CrawlerTask) {
 
 	handler := t.Handler()
 	tasks, outputs, err := handler(t)
+	if entry, ok := t.(*TaskEntry); ok && entry.taskID > 0 && entry.attemptID > 0 {
+		if checkErr := task_repo.CheckAttemptID(entry.taskID, entry.attemptID); checkErr != nil {
+			log.Warnf("丢弃失去租约的采集结果: task=%d error=%s", entry.taskID, checkErr)
+			return
+		}
+	}
 	if err != nil {
 		w.resultHandler.Error(w, t, err)
 		log.Errorf("[%s] handle task (%s) err: %s", w, t.RawUrl(), err.Error())

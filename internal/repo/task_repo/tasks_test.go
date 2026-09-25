@@ -22,3 +22,19 @@ func TestBackoffDelayIsExponentialWithJitter(t *testing.T) {
 		t.Fatalf("max retry delay should grow, got %s", got)
 	}
 }
+
+func TestAggregateRunStatus(t *testing.T) {
+	for _, tc := range []struct {
+		failed, cancelled bool
+		want              string
+	}{
+		{false, false, RunSucceeded},
+		{false, true, RunCancelled},
+		{true, false, RunFailed},
+		{true, true, RunFailed},
+	} {
+		if got := aggregateRunStatus(tc.failed, tc.cancelled); got != tc.want {
+			t.Fatalf("failed=%v cancelled=%v: got %s, want %s", tc.failed, tc.cancelled, got, tc.want)
+		}
+	}
+}

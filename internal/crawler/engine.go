@@ -9,6 +9,7 @@ import (
 	"github.com/nekoimi/get-magnet/internal/bean"
 	"github.com/nekoimi/get-magnet/internal/bus"
 	"github.com/nekoimi/get-magnet/internal/config"
+	"github.com/nekoimi/get-magnet/internal/db/table"
 	"github.com/nekoimi/get-magnet/internal/repo/resource_repo"
 	"github.com/nekoimi/get-magnet/internal/repo/task_repo"
 	log "github.com/sirupsen/logrus"
@@ -104,13 +105,34 @@ func (e *Engine) Success(w *Worker, tasks []CrawlerTask, outputs []MagnetEntry) 
 		parentID, runID = parent.taskID, parent.runID
 	}
 	for _, t := range tasks {
+		if parent != nil && parent.taskID > 0 && parent.attemptID > 0 {
+			if err := task_repo.CheckAttemptID(parent.taskID, parent.attemptID); err != nil {
+				return
+			}
+		}
 		e.persistTask(t, runID, parentID)
 		e.Submit(t)
 	}
 
 	for _, output := range outputs {
-		resource, err := resource_repo.SaveCollected(output.Origin, output.Title, output.Number, output.Actress0,
-			output.RawURLHost, output.RawURLPath, output.Links, output.OptimalLink)
+		if parent != nil && parent.taskID > 0 && parent.attemptID > 0 {
+			if err := task_repo.CheckAttemptID(parent.taskID, parent.attemptID); err != nil {
+				return
+			}
+		}
+		var resource *table.Resource
+		write := func() error {
+			var err error
+			resource, err = resource_repo.SaveCollected(output.Origin, output.Title, output.Number, output.Actress0,
+				output.RawURLHost, output.RawURLPath, output.Links, output.OptimalLink)
+			return err
+		}
+		var err error
+		if parent != nil && parent.taskID > 0 && parent.attemptID > 0 {
+			err = task_repo.WithActiveAttemptID(parent.taskID, parent.attemptID, write)
+		} else {
+			err = write()
+		}
 		if err != nil {
 			log.Errorf("保存采集资源异常：%s -> %s: %s", output.Origin, output.OptimalLink, err.Error())
 			continue

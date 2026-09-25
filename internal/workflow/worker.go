@@ -47,6 +47,9 @@ func NewWorker() *Worker { return &Worker{} }
 func (w *Worker) Name() string { return "WorkflowWorker" }
 
 func (w *Worker) Start(parent context.Context) error {
+	if _, err := task_repo.RecoverExpiredLeases(); err != nil {
+		return fmt.Errorf("recover expired task leases: %w", err)
+	}
 	cfg := bean.PtrFromContext[config.Config](parent)
 	w.browser = bean.PtrFromContext[drission_rod.DrissionRod](parent)
 	w.count = 1
@@ -55,6 +58,22 @@ func (w *Worker) Start(parent context.Context) error {
 	}
 	ctx, cancel := context.WithCancel(parent)
 	w.cancel = cancel
+	w.wg.Add(1)
+	go func() {
+		defer w.wg.Done()
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if _, err := task_repo.RecoverExpiredLeases(); err != nil {
+					log.Warnf("恢复过期任务租约失败: %s", err)
+				}
+			}
+		}
+	}()
 	for i := 0; i < w.count; i++ {
 		w.wg.Add(1)
 		go w.loop(ctx, i)
@@ -95,13 +114,22 @@ func (w *Worker) loop(ctx context.Context, index int) {
 			}
 			continue
 		}
-		if err := w.execute(ctx, claim); err != nil {
-			retryable := false
+		taskCtx, stopLease := task_repo.MaintainLease(ctx, claim.Task.Id, claim.Attempt, workflowLease)
+		execErr := w.execute(taskCtx, claim)
+		stopLease()
+		if err := execErr; err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			if errors.Is(err, task_repo.ErrStaleAttempt) {
+				continue
+			}
+			retryable := errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 			var browserErr *drission_rod.BrowserError
 			if errors.As(err, &browserErr) {
 				retryable = browserErr.Retryable
 			}
-			if _, failErr := task_repo.Fail(claim.Task.Id, claim.Attempt.Id, err, retryable); failErr != nil {
+			if _, failErr := task_repo.Fail(claim.Task.Id, claim.Attempt.Id, err, retryable); failErr != nil && !errors.Is(failErr, task_repo.ErrStaleAttempt) {
 				log.Errorf("回写 workflow 失败状态异常: %s", failErr)
 			}
 			continue
@@ -180,7 +208,12 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	if err != nil {
 		return err
 	}
-	documentID, err := saveDocument(claim.Task.Id, pageURL, result)
+	var documentID int64
+	err = task_repo.WithActiveAttempt(claim.Task.Id, claim.Attempt, func() error {
+		var writeErr error
+		documentID, writeErr = saveDocument(claim.Task.Id, pageURL, result)
+		return writeErr
+	})
 	if err != nil {
 		return err
 	}
@@ -191,6 +224,9 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	values := map[string]any{}
 	discoveredURLs := map[string]struct{}{}
 	for _, node := range append(append([]Node{}, definition.Acquire...), definition.Nodes...) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if !nodeApplies(node, claim.Task.StepName) {
 			continue
 		}
@@ -224,6 +260,9 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 					continue
 				}
 				discoveredURLs[childURL] = struct{}{}
+				if err := task_repo.CheckAttempt(claim.Task.Id, claim.Attempt); err != nil {
+					return err
+				}
 				if _, err := task_repo.CreateTask(run.Id, claim.Task.Id, "detail", workflowTaskType, task_repo.TaskInput(childURL, ""), 5); err != nil {
 					return fmt.Errorf("create discovered task: %w", err)
 				}
@@ -256,7 +295,12 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 			}
 		}
 	}
-	resourceID, err := persistResource(values, pageURL, run.WorkflowId)
+	var resourceID int64
+	err = task_repo.WithActiveAttempt(claim.Task.Id, claim.Attempt, func() error {
+		var writeErr error
+		resourceID, writeErr = persistResource(values, pageURL, run.WorkflowId)
+		return writeErr
+	})
 	if err != nil {
 		return err
 	}
