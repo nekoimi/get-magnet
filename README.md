@@ -1,269 +1,66 @@
-# get-magnet
+# scrapio
 
-[![Go Version](https://img.shields.io/badge/Go-1.24-blue.svg)](https://golang.org/)
-[![Vue Version](https://img.shields.io/badge/Vue-3.4-green.svg)](https://vuejs.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+scrapio 是面向自用和小团队的采集平台。Go 服务负责采集任务、工作流、数据与管理界面；[scrapio-browser](https://github.com/nekoimi/scrapio-browser) 提供浏览器执行能力；PostgreSQL 保存任务和结果。当前仓库的 `web/` 是 Vue 3 管理界面，生产镜像会将其与 Go 服务一同打包。
 
-磁力链接下载管理系统 - 基于 Go + Vue3 的全栈应用，集成爬虫采集、aria2 下载器管理和 Web UI 界面。
+当前实现包含声明式工作流、来源与资源管理、运行历史、插件任务监控，以及旧磁力采集能力。v2.1 的通用采集产品目标仍在[产品规划](docs/项目文档v2.1/采集平台v2.1产品规划.md)中，不应视为全部已交付。
 
-## 功能特性
+## 快速部署
 
-- **磁力链接爬虫采集**：支持从 javdb、sehuatang 等站点自动采集磁力链接
-- **aria2 下载器集成**：通过 aria2 JSON-RPC 接口管理下载任务
-- **Web UI 管理界面**：基于 Element Plus 的现代化管理后台
-- **用户认证**：JWT 认证机制，支持登录/登出
-- **定时任务调度**：可配置的爬虫定时执行
-- **数据库持久化**：PostgreSQL 数据存储
-- **DrissionRod 集成**：gRPC 客户端支持浏览器自动化操作
-- **下载完成后自动移动**：支持将下载完成的文件移动到指定目录
-- **资源生命周期管理**：下载队列、失败重试、事件时间线、播放信息与 STRM 重建
-- **网盘离线下载**：支持 cloud-driver 任务提交、状态查询和完成后处理
-- **在线运维**：运行配置脱敏展示、依赖健康检查、调度任务与版本信息
-- **采集状态**：查看 worker、队列、当前任务和 provider，并支持手动触发
+需要 Docker Compose、可用的 CloakBrowser Manager 和浏览器 Profile。复制 `docker-compose.example.yaml` 为 `docker-compose.yaml`，然后在同目录提供 `.env`：
 
-## 技术栈
-
-### 后端（Go 1.26）
-
-- **Web 框架**: [gorilla/mux](https://github.com/gorilla/mux)
-- **ORM**: [xorm](https://xorm.io/)
-- **数据库**: PostgreSQL (lib/pq)
-- **日志**: [logrus](https://github.com/sirupsen/logrus) + lumberjack
-- **配置**: [viper](https://github.com/spf13/viper)
-- **RPC**: gRPC + protobuf
-- **下载器**: [aria2](https://aria2.github.io/) (arigo 库)
-- **定时任务**: [robfig/cron](https://github.com/robfig/cron)
-- **认证**: [cristalhq/jwt](https://github.com/cristalhq/jwt)
-
-### 前端（Vue3）
-
-- **框架**: [Vue 3.4.21](https://vuejs.org/)
-- **UI 组件库**: [Element Plus 2.6.1](https://element-plus.org/)
-- **状态管理**: [Pinia 2.1.7](https://pinia.vuejs.org/)
-- **路由**: [Vue Router 4.3.0](https://router.vuejs.org/)
-- **构建工具**: [Vite 5.1.6](https://vitejs.dev/)
-- **HTTP 客户端**: [axios](https://axios-http.com/)
-- **图表**: [ECharts](https://echarts.apache.org/)
-
-## 快速开始
-
-### 环境要求
-
-- Go 1.26+
-- Node.js 16+ / pnpm
-- PostgreSQL 12+
-- aria2 (可选，用于下载功能)
-
-### 后端运行
-
-```bash
-# 1. 克隆项目
-git clone https://github.com/nekoimi/get-magnet.git
-cd get-magnet
-
-# 2. 安装依赖
-go mod download
-
-# 3. 配置环境变量（可选）
-export DB_DSN="postgres://user:password@localhost:5432/getmagnet?sslmode=disable"
-export JWT_SECRET="replace-with-a-strong-random-secret"
-export APP_EXTERNAL_BASE_URL="https://magnet.example.com"
-# 可选：配置后 /quick-api 请求必须携带 X-Quick-API-Token 或 Bearer token
-export QUICK_API_TOKEN="replace-with-a-random-token"
-export ARIA2_JSONRPC="http://localhost:6800/jsonrpc"
-export ARIA2_SECRET="your_aria2_secret"
-
-# 4. 运行
-go run cmd/main.go
+```dotenv
+POSTGRES_PASSWORD=replace-with-a-strong-password
+JWT_SECRET=replace-with-a-long-random-secret
+CLOAK_MANAGER_URL=https://your-cloak-manager.example
+CLOAK_PROFILE_ID=your-profile-id
+# 按需填写
+# CLOAK_AUTH_TOKEN=
+# SCRAPIO_BROWSER_IMAGE=ghcr.io/nekoimi/scrapio-browser:test
 ```
 
-服务默认运行在 `http://localhost:8093`
+```bash
+docker compose up -d
+```
 
-### 前端开发
+示例 Compose 启动 PostgreSQL、scrapio-browser 和 scrapio，应用默认访问地址为 `http://localhost:8093`。浏览器镜像默认使用目前浏览器仓库手动发布工作流生成的 `:test` 标签；可通过 `SCRAPIO_BROWSER_IMAGE` 指定自行构建或发布的标签。浏览器服务需要能访问 CloakBrowser Manager。
+
+已有 PostgreSQL 数据卷升级时，保留原来的 `POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD` 和卷名；示例中 `scrapio` 仅是新安装的默认数据库名与用户，不会自动重命名旧数据库。更多说明见[部署文档](docs/项目文档v1.0/deployment.md)。
+
+## 本地开发
+
+- Go 1.26
+- Node.js 22、pnpm 10
+- PostgreSQL 17（或与现有数据库兼容的版本）
+- 运行中的 scrapio-browser（默认 gRPC 端口 8191）
+
+```bash
+git clone https://github.com/nekoimi/scrapio.git
+cd scrapio
+cp config/dev.yaml.example config/dev.yaml
+# 配置 PostgreSQL DSN、浏览器地址及 JWT_SECRET
+go run ./cmd/main.go
+```
+
+管理界面：
 
 ```bash
 cd web
-
-# 安装依赖
-pnpm install
-
-# 开发模式
+pnpm install --frozen-lockfile
 pnpm dev
-
-# 生产构建
-pnpm build
 ```
 
-### Docker 部署
+生产前端构建使用 `pnpm build`，根目录 `Dockerfile` 会自动执行并将产物复制到 `/workspace/ui`。不再需要 Git submodule 或 AriaNg 静态站点。
 
-```bash
-# 构建镜像
-docker build -t get-magnet:latest .
+配置沿用当前兼容键 `CRAWLER_DRISSION_ROD_GRPC_IP` / `CRAWLER_DRISSION_ROD_GRPC_PORT` 连接 scrapio-browser。数据库使用 `DB_DSN`，生产环境应设置 `JWT_SECRET`。其他选项参见 `config/*.yaml.example`。下载交付功能由插件承载，需要时另行配置；它不是基础部署的必需服务。
 
-# 运行容器
-docker run -d \
-  -p 8093:8093 \
-  -e DB_DSN="postgres://user:password@db:5432/getmagnet?sslmode=disable" \
-  -e ARIA2_JSONRPC="http://aria2:6800/jsonrpc" \
-  -v /path/to/logs:/workspace/logs \
-  get-magnet:latest
-```
+## 目录
 
-## 配置说明
+- `cmd/`：Go 服务入口
+- `internal/`：API、采集、工作流、存储和插件实现
+- `web/`：Vue 管理界面
+- `proto/`：浏览器协议
+- `config/`：配置示例
+- `docs/项目文档v2.0/`：历史改造方案
+- `docs/项目文档v2.1/`：下一阶段产品规划
 
-项目使用 viper 管理配置，支持环境变量覆盖。
-
-### 环境变量
-
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `PORT` | HTTP 服务端口 | `8093` |
-| `LOG_LEVEL` | 日志级别 (debug/info/warning/error) | `debug` |
-| `LOG_DIR` | 日志目录 | `logs` |
-| `LOG_ROTATION_MAX_SIZE_MB` | 单个日志文件大小上限（MB） | `20` |
-| `LOG_ROTATION_MAX_BACKUPS` | 每个日志级别保留的历史文件数，`0` 表示不限制 | `7` |
-| `LOG_ROTATION_MAX_AGE_DAYS` | 历史日志保留天数，`0` 表示不限制 | `7` |
-| `LOG_ROTATION_COMPRESS` | 压缩因大小触发轮转的历史日志 | `true` |
-| `JWT_SECRET` | JWT 密钥 | `abc123456` |
-| `APP_EXTERNAL_BASE_URL` | 外部访问根地址，用于生成 STRM 播放 URL | - |
-| `QUICK_API_TOKEN` | 可选的 `/quick-api` 访问令牌 | - |
-| `DB_DSN` | PostgreSQL 连接字符串 | - |
-| `ARIA2_JSONRPC` | aria2 JSON-RPC 地址 | - |
-| `ARIA2_SECRET` | aria2 验证令牌 | - |
-| `ARIA2_MOVE_TO_JAVDB_DIR` | javdb 文件移动目录 | - |
-| `CRAWLER_EXEC_ON_STARTUP` | 启动时立即执行爬虫 | `false` |
-| `CRAWLER_WORKER_NUM` | 爬虫工作线程数 | `4` |
-| `CRAWLER_DRISSION_ROD_GRPC_IP` | DrissionRod gRPC IP | - |
-| `CRAWLER_DRISSION_ROD_GRPC_PORT` | DrissionRod gRPC 端口 | - |
-
-## API 接口
-
-### 认证相关
-
-- `POST /api/auth/login` - 用户登录
-- `POST /api/auth/logout` - 用户登出
-
-### 用户管理
-
-- `GET /api/v1/me` - 获取当前用户信息
-- `POST /api/v1/me/changePwd` - 修改密码
-
-### 磁力链接管理
-
-- `GET /api/v1/magnets/list` - 获取磁力链接列表
-- `GET /api/v1/magnets/detail` - 获取磁力链接详情
-- `POST /api/v1/magnets/create` - 创建磁力链接
-- `POST /api/v1/magnets/update` - 更新磁力链接
-- `POST /api/v1/magnets/delete` - 删除磁力链接
-
-### 下载管理
-
-- `POST /api/v1/download/submit` - 提交下载任务
-- `POST /quick-api/download/submit/javdb` - 快速提交 javdb 下载
-- `POST /quick-api/download/submit/javdb_page` - 提交 javdb 页面下载
-
-### aria2 代理
-
-- `POST /api/aria2/jsonrpc` - aria2 JSON-RPC 代理接口
-
-## 项目结构
-
-```
-get-magnet/
-├── cmd/
-│   └── main.go                    # 应用入口
-├── internal/
-│   ├── api/                       # HTTP API 接口
-│   │   ├── auth/                 # 认证相关
-│   │   ├── download/             # 下载管理
-│   │   ├── magnets/              # 磁力链接管理
-│   │   ├── user/                 # 用户管理
-│   │   └── middleware/           # 中间件
-│   ├── bean/                      # 依赖注入容器
-│   ├── bootstrap/                 # 应用启动引导
-│   ├── config/                    # 配置管理
-│   ├── crawler/                   # 爬虫模块
-│   │   ├── providers/            # 爬虫实现
-│   │   │   ├── javdb/           # JavDB 爬虫
-│   │   │   └── sehuatang/       # 色花堂爬虫
-│   │   └── download/             # 下载器
-│   ├── db/                        # 数据库模块
-│   │   ├── table/                # 数据表定义
-│   │   └── migrate/              # 数据库迁移
-│   ├── downloader/                # 下载器模块
-│   │   └── aria2_downloader/    # aria2 实现
-│   ├── drission_rod/              # DrissionRod gRPC 客户端
-│   ├── job/                       # 定时任务
-│   ├── logger/                    # 日志模块
-│   ├── pkg/                       # 工具包
-│   ├── repo/                      # 数据仓储层
-│   └── server/                    # HTTP 服务器
-├── web/                           # 主管理界面 (Vue3)
-├── proto/                         # Protobuf 定义
-├── deploy/                        # 部署配置
-├── docker/                        # Docker 配置
-└── logs/                          # 日志目录
-```
-
-## 爬虫开发
-
-实现 `crawler.Crawler` 接口即可添加新的爬虫：
-
-```go
-type Crawler interface {
-    Name() string          // 唯一名称
-    CronSpec() string      // 定时表达式（cron 格式）
-    Run()                  // 执行任务
-}
-```
-
-注册新爬虫：
-
-```go
-crawlerManager.Register(yourCrawler.NewYourCrawler())
-```
-
-## 数据库迁移
-
-项目使用 xorm 自动迁移，迁移脚本位于 `internal/db/migrate/`。
-
-## 开发规范
-
-### 依赖注入
-
-项目使用自定义的依赖注入容器（bean 包）：
-
-```go
-// 注册组件
-bean.MustRegisterPtr[config.Config](ctx, config.Load())
-
-// 获取依赖
-cfg := bean.PtrFromContext[config.Config](ctx)
-```
-
-### 日志规范
-
-使用 logrus 进行日志记录：
-
-```go
-import log "github.com/sirupsen/logrus"
-
-log.Info("信息日志")
-log.Error("错误日志")
-```
-
-## 依赖说明
-
-- 项目 fork 并修改了 `siku2/arigo`，替换为 `github.com/nekoimi/arigo`
-
-## 许可证
-
-[MIT](LICENSE)
-
-## 作者
-
-**nekoimi** - [nekoimime@gmail.com](mailto:nekoimime@gmail.com)
-
----
-
-如有问题或建议，欢迎提交 Issue 或 PR。
+许可证：[MIT](LICENSE)。

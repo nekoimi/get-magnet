@@ -15,6 +15,9 @@ log_rotation:
 crawler:
   exec_on_startup: true
   worker_num: 8
+  # 兼容配置键：连接 scrapio-browser，Compose 通过环境变量设置
+  # drission_rod_grpc_ip: "scrapio-browser"
+  # drission_rod_grpc_port: 8191
 
 db:
   dsn: ""  # 通过环境变量 DB_DSN 设置

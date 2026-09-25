@@ -2,14 +2,14 @@
 
 FROM node:22-alpine AS ui-builder
 
-WORKDIR /build/ui/get-magnet-ui
+WORKDIR /build/web
 RUN corepack enable
 
-COPY ui/get-magnet-ui/package.json ui/get-magnet-ui/pnpm-lock.yaml ui/get-magnet-ui/pnpm-workspace.yaml ./
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
-COPY ui/get-magnet-ui/ ./
+COPY web/ ./
 ARG VITE_PUBLIC_PATH=/
 ARG VITE_API_URL=/
 ENV VITE_PUBLIC_PATH=${VITE_PUBLIC_PATH}
@@ -31,11 +31,11 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath \
       -ldflags="-s -w -extldflags=-static -X github.com/nekoimi/scrapio/internal/api/ops.BuildVersion=${VERSION} -X github.com/nekoimi/scrapio/internal/api/ops.BuildCommit=${COMMIT}" \
-      -o /out/get-magnet ./cmd/main.go
+      -o /out/scrapio ./cmd/main.go
 
 FROM alpine:3.22
 
-LABEL org.opencontainers.image.title="get-magnet" \
+LABEL org.opencontainers.image.title="scrapio" \
       org.opencontainers.image.description="Resource collection control plane" \
       org.opencontainers.image.source="https://github.com/nekoimi/scrapio"
 
@@ -46,8 +46,8 @@ RUN apk add --no-cache ca-certificates tzdata \
     && mkdir -p /workspace/logs /workspace/ui \
     && chown -R appuser:appuser /workspace
 
-COPY --from=go-builder /out/get-magnet /usr/bin/get-magnet
-COPY --from=ui-builder /build/ui/get-magnet-ui/dist/ /workspace/ui/
+COPY --from=go-builder /out/scrapio /usr/bin/scrapio
+COPY --from=ui-builder /build/web/dist/ /workspace/ui/
 ENV TZ=Asia/Shanghai \
     LOG_DIR=/workspace/logs
 
@@ -60,4 +60,4 @@ EXPOSE 8093
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD wget -q --spider http://127.0.0.1:8093/healthz || exit 1
 
-ENTRYPOINT ["/usr/bin/get-magnet"]
+ENTRYPOINT ["/usr/bin/scrapio"]

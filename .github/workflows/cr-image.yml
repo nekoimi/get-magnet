@@ -26,11 +26,10 @@ jobs:
     name: Test backend and build frontend
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository and UI submodules
+      - name: Check out repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          submodules: recursive
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -51,25 +50,18 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: ui/get-magnet-ui/pnpm-lock.yaml
+          cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Install frontend dependencies
-        working-directory: ui/get-magnet-ui
+        working-directory: web
         run: pnpm install --frozen-lockfile
 
       - name: Build frontend
-        working-directory: ui/get-magnet-ui
+        working-directory: web
         env:
           VITE_PUBLIC_PATH: /
           VITE_API_URL: /
         run: pnpm build
-
-      - name: Build AriaNg
-        working-directory: ui/aria-ng
-        run: |
-          npm ci
-          npm run build
-          test -f dist/index.html
 
   image:
     name: Build and publish application image
@@ -81,26 +73,17 @@ jobs:
       attestations: write
       id-token: write
     steps:
-      - name: Check out repository and UI submodules
+      - name: Check out repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          submodules: recursive
 
       - name: Verify Docker build inputs
         shell: bash
         run: |
-          test -f ui/get-magnet-ui/package.json
-          test -f ui/get-magnet-ui/pnpm-lock.yaml
-          test -f ui/get-magnet-ui/pnpm-workspace.yaml
-          test -f ui/aria-ng/package.json
-          test -f ui/aria-ng/package-lock.json
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4.6.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+          test -f web/package.json
+          test -f web/pnpm-lock.yaml
+          test -f web/pnpm-workspace.yaml
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

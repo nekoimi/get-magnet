@@ -201,21 +201,6 @@ export const dynamicRoutes: Array<RouteRecordRaw> = [
 							icon: 'ele-List',
 						},
 					},
-					{
-						path: '/download/aria2',
-						name: 'downloadAria2',
-						component: () => import('/@/layout/routerView/iframes.vue'),
-						meta: {
-							title: 'Aria2 控制台',
-							isLink: '/ui/aria-ng/',
-							isHide: false,
-							isKeepAlive: true,
-							isAffix: false,
-							isIframe: true,
-							roles: ['admin', 'common'],
-							icon: 'ele-Monitor',
-						},
-					},
 				],
 			},
 			{

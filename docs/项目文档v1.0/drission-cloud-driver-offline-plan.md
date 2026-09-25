@@ -1,5 +1,7 @@
 # drission-cloud-driver 离线下载能力落地计划
 
+> 历史方案：文中的 get-magnet 现名为 scrapio。云盘下载已转为可选插件能力，当前基础部署不包含云盘中间服务。
+
 ## 目标
 
 为 `drission-cloud-driver` 补齐稳定的网盘离线下载 API，使 `get-magnet` 可以把磁力链接提交到中间服务，由中间服务完成：

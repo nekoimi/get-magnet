@@ -1,5 +1,7 @@
 # 在线管理系统功能计划
 
+> 历史方案：当时的主项目名为 get-magnet，前端目录为 `ui/get-magnet-ui`。当前项目名为 scrapio，前端已迁至 `web/`，AriaNg 静态页面已移除；现行部署参见 [部署说明](deployment.md)。
+
 ## 背景
 
 当前 `get-magnet` 后端已经具备磁力链接采集、资源入库、下载调度、网盘离线下载、播放地址代理、JWT 登录等核心能力。`ui/get-magnet-ui` 是基于 Vue3、Element Plus、Pinia、Vue Router 的管理后台模板，已经接入登录、当前用户、磁力链接列表和磁力链接 CRUD 的基础接口。

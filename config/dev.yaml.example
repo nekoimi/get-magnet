@@ -15,8 +15,9 @@ jwt_secret: dev-secret-not-for-production
 crawler:
   exec_on_startup: false
   worker_num: 2
+  # 兼容配置键：连接 scrapio-browser 的 gRPC 地址
   drission_rod_grpc_ip: "127.0.0.1"
   drission_rod_grpc_port: 8191
 
 db:
-  dsn: "postgres://dev:dev@localhost:5432/get_magnet_dev?sslmode=disable"
+  dsn: "postgres://dev:dev@localhost:5432/scrapio_dev?sslmode=disable"

@@ -1,54 +1,44 @@
-# 在线管理系统部署说明
+# scrapio 部署说明
 
-## 必填环境变量
+## 组件与镜像
 
-- `POSTGRES_PASSWORD`：PostgreSQL 密码。
-- `JWT_SECRET`：生产环境强随机 JWT 密钥。
-- `APP_EXTERNAL_BASE_URL`：外部可访问的应用根地址，例如 `https://magnet.example.com`，用于生成 STRM 播放地址。
+基础部署包含 PostgreSQL、scrapio 和 scrapio-browser。浏览器服务通过 CloakBrowser Manager 获取远程浏览器；下载类插件依赖按需另行部署。
 
-网盘中间服务不由本仓库构建。通过 `CLOUD_DRIVER_BASE_URL` 指向已部署实例；若它与 Compose 位于同一网络，可使用 `http://cloud-driver:8080`。
+根目录 `Dockerfile` 使用 Node 22 / pnpm 从 `web/` 构建管理界面，再用 Go 1.26 构建 `scrapio`，最终镜像将前端产物放在 `/workspace/ui`。Go 服务在 `/` 提供管理界面，同时提供 `/healthz`。前端构建参数 `VITE_PUBLIC_PATH` 和 `VITE_API_URL` 在镜像工作流中均为 `/`。已删除的 AriaNg 页面及其构建步骤不再参与部署。
 
-## 管理端静态资源
+`scrapio-browser` 仓库目前通过手动工作流发布 `ghcr.io/nekoimi/scrapio-browser:test`。根目录示例 Compose 默认使用此标签；实际发布时可以通过 `SCRAPIO_BROWSER_IMAGE` 选择自己验证过的镜像。浏览器镜像内提供 `grpc_health_probe`，Compose 等待其健康后启动主服务。
 
-根目录 `Dockerfile` 生成一个同时包含 Go 后端和管理端的镜像：
+## 使用 Compose
 
-1. `ui-builder` 使用 Node 22 和 pnpm 构建 `ui/get-magnet-ui`。
-2. `ariang-builder` 使用 Node 22 和 npm 构建 `ui/aria-ng`。
-3. `go-builder` 使用 Go 1.26 构建静态后端二进制，并注入版本与 Git commit。
-4. 最终 Alpine 镜像将管理端产物复制到 `/workspace/ui`，将 AriaNg 产物复制到 `/workspace/ui/aria-ng`。
-5. Go 后端在 `/` 提供管理端静态资源，在 `/ui/aria-ng/` 提供 AriaNg；后台“下载管理 / Aria2 控制台”通过 iframe 加载该地址，因此线上无需单独部署前端服务。
+复制根目录的 `docker-compose.example.yaml` 为 `docker-compose.yaml`，在 `.env` 中至少配置：
 
-生产构建固定使用同源地址：
-
-- `VITE_PUBLIC_PATH=/`
-- `VITE_API_URL=/`
-
-镜像内保留 BusyBox `wget`，容器健康检查请求 `http://127.0.0.1:8093/healthz`。
-
-根目录的 `docker-compose.example.yaml` 提供 PostgreSQL 与 get-magnet 示例，并分别使用 `pg_isready` 与 `/healthz` 进行健康检查。
-
-## GitHub Actions 镜像构建
-
-`.github/workflows/cr-image.yml` 在以下场景运行：
-
-- 推送到 `main`、`master` 或 `feature/**` 分支。
-- 推送 `v*` 标签。
-- Pull Request 和手动触发。
-
-工作流 checkout 时使用 `submodules: recursive`，这是构建管理端和 AriaNg 的必要条件。测试任务先执行全量 Go 测试和前端生产构建；镜像任务随后使用 Buildx 构建 `linux/amd64`、`linux/arm64`，非 Pull Request 构建发布至：
-
-```text
-ghcr.io/<owner>/<repository>
+```dotenv
+POSTGRES_PASSWORD=replace-with-a-strong-password
+JWT_SECRET=replace-with-a-long-random-secret
+CLOAK_MANAGER_URL=https://your-cloak-manager.example
+CLOAK_PROFILE_ID=your-profile-id
 ```
 
-标签构建会生成语义化版本标签和 `latest`，分支构建会生成分支标签及 `sha-*` 标签。
+可选项：`CLOAK_AUTH_TOKEN`、`SCRAPIO_BROWSER_IMAGE`、`APP_PORT`、`POSTGRES_DB`、`POSTGRES_USER`。启动：
 
-## 日志查询安全边界
+```bash
+docker compose up -d
+```
 
-后续增加日志查询接口时必须遵守以下约束：
+浏览器服务必须能访问所填的 CloakBrowser Manager。主服务通过现有兼容配置键 `CRAWLER_DRISSION_ROD_GRPC_IP/PORT` 连接 `scrapio-browser:8191`；这些键名目前是 Go 配置契约，不因产品改名而改动。
 
-- 仅允许读取运行时 `log_dir` 解析后的目录内文件。
-- 使用服务端枚举产生的文件标识，拒绝客户端传入任意绝对路径和 `..`。
-- 只允许读取常规日志文件，拒绝符号链接。
-- 限制单次读取行数、字节数与查询时间，不提供下载整个日志目录的能力。
-- 对日志内容进行敏感信息过滤，并保留接口鉴权。
+对于已有 PostgreSQL volume，保持原来的数据库名、用户、密码和卷名。Compose 中 `scrapio` 是新安装默认值；PostgreSQL 初始化变量不会给已有数据卷重命名或迁移数据。升级前备份数据库并核对 `DB_DSN`。
+
+## GitHub Actions
+
+`.github/workflows/cr-image.yml` 在 `feature/dev` 分支、`v*` 标签、Pull Request 或手动触发。它先运行 Go 测试与 `web/` 生产构建，再构建多架构镜像 `ghcr.io/<owner>/<repository>`。标签发布生成版本号与 `latest`，分支发布生成分支和提交 SHA 标签。手动的 `test.yml` 构建测试标签。前端已经是仓库内目录，无需递归 checkout 子模块。
+
+## 运行配置
+
+- `DB_DSN`：PostgreSQL 连接串。
+- `JWT_SECRET`：生产环境强随机密钥。
+- `APP_EXTERNAL_BASE_URL`：需要生成可从外部访问的 STRM 播放 URL 时设置。
+- `QUICK_API_TOKEN`：启用对应快速接口时设置。
+- `CRAWLER_DRISSION_ROD_GRPC_IP/PORT`：scrapio-browser 地址，Compose 已设置。
+
+本地配置样例位于 `config/dev.yaml.example` 和 `config/prod.yaml.example`。

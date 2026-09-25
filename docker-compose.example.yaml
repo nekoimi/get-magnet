@@ -3,8 +3,8 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-get_magnet}
-      POSTGRES_USER: ${POSTGRES_USER:-get_magnet}
+      POSTGRES_DB: ${POSTGRES_DB:-scrapio}
+      POSTGRES_USER: ${POSTGRES_USER:-scrapio}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -14,11 +14,27 @@ services:
       timeout: 5s
       retries: 5
 
-  get-magnet:
-    image: ghcr.io/nekoimi/get-magnet:latest
+  scrapio-browser:
+    image: ${SCRAPIO_BROWSER_IMAGE:-ghcr.io/nekoimi/scrapio-browser:test}
+    restart: unless-stopped
+    environment:
+      GRPC_PORT: 8191
+      CLOAK_MANAGER_URL: ${CLOAK_MANAGER_URL:?CLOAK_MANAGER_URL is required}
+      CLOAK_PROFILE_ID: ${CLOAK_PROFILE_ID:?CLOAK_PROFILE_ID is required}
+      CLOAK_AUTH_TOKEN: ${CLOAK_AUTH_TOKEN:-}
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=127.0.0.1:8191"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  scrapio:
+    image: ghcr.io/nekoimi/scrapio:latest
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      scrapio-browser:
         condition: service_healthy
     ports:
       - "${APP_PORT:-8093}:8093"
@@ -29,8 +45,11 @@ services:
       LOG_ROTATION_MAX_BACKUPS: ${LOG_ROTATION_MAX_BACKUPS:-7}
       LOG_ROTATION_MAX_AGE_DAYS: ${LOG_ROTATION_MAX_AGE_DAYS:-7}
       LOG_ROTATION_COMPRESS: ${LOG_ROTATION_COMPRESS:-true}
-      DB_DSN: postgres://${POSTGRES_USER:-get_magnet}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-get_magnet}?sslmode=disable
+      DB_DSN: postgres://${POSTGRES_USER:-scrapio}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-scrapio}?sslmode=disable
+      CRAWLER_DRISSION_ROD_GRPC_IP: scrapio-browser
+      CRAWLER_DRISSION_ROD_GRPC_PORT: 8191
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      APP_EXTERNAL_BASE_URL: ${APP_EXTERNAL_BASE_URL:-}
       QUICK_API_TOKEN: ${QUICK_API_TOKEN:-}
     volumes:
       - app-logs:/workspace/logs

@@ -1,8 +1,8 @@
 {
-	"name": "get-magnet-ui",
+	"name": "scrapio-web",
 	"version": "0.0.1",
 	"packageManager": "pnpm@10.30.3",
-	"description": "get-magnet-ui",
+	"description": "scrapio 管理界面",
 	"author": "nekoimi",
 	"license": "MIT",
 	"scripts": {
