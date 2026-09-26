@@ -2,6 +2,14 @@ package task_repo
 
 import "testing"
 
+func TestRunSummaryCountsGenericRecordDecisions(t *testing.T) {
+	s := RunSummary{}
+	s.Add(TaskSucceeded, `{"record_results":[{"record_id":1,"decision":"created"},{"record_id":2,"decision":"updated"},{"record_id":3,"decision":"unchanged"}]}`)
+	if s.Status() != RunSucceeded || s.Records != 3 || s.Created != 1 || s.Updated != 1 || s.Unchanged != 1 {
+		t.Fatalf("generic summary: %+v", s)
+	}
+}
+
 func TestRunSummaryAggregatesAllPages(t *testing.T) {
 	s := RunSummary{}
 	s.Add(TaskSucceeded, `{"resource_id":41,"discovered_count":2}`)

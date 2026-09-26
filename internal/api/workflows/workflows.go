@@ -69,6 +69,10 @@ type RunRequest struct {
 	Input      json.RawMessage `json:"input,omitempty"`
 }
 
+func Templates(w http.ResponseWriter, r *http.Request) {
+	respond.Ok(w, map[string]any{"list": workflow.Templates()})
+}
+
 func List(w http.ResponseWriter, r *http.Request) {
 	input := ListRequest{}
 	if r.Method == http.MethodPost {

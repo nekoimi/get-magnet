@@ -1,0 +1,82 @@
+package workflow
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/nekoimi/scrapio/internal/record"
+)
+
+func articleSchema() record.Schema {
+	return record.Schema{Version: 1, UniqueKeyFields: []string{"url"}, EmptyValuePolicy: "preserve", Fields: []record.Field{{Key: "url", Type: "url", Required: true}, {Key: "title", Type: "string"}, {Key: "body", Type: "string"}, {Key: "published_at", Type: "datetime"}}}
+}
+
+func TestTemplatesProduceSchemaValidCandidates(t *testing.T) {
+	templates := Templates()
+	for _, template := range templates {
+		encoded, _ := json.Marshal(template.Definition)
+		definition, err := ParseExecutableDefinition(string(encoded))
+		if err != nil {
+			t.Fatal(template.Code, err)
+		}
+		document := FetchResult{HTML: `<link rel="canonical" href="https://example.org/article"><h1>Title</h1><article>Body</article>`}
+		want := 1
+		if template.Code == "json_api" {
+			document = FetchResult{JSON: `{"items":[{"url":"https://example.org/a","title":" A ","body":"Body"},{"url":"https://example.org/b","title":"B","body":"Text"}]}`}
+			want = 2
+		}
+		candidates, err := RecordCandidates(definition, document, "trigger", articleSchema())
+		if err != nil || len(candidates) != want {
+			t.Fatalf("%s: %#v %v", template.Code, candidates, err)
+		}
+		if template.Code == "json_api" && candidates[0]["title"] != "A" {
+			t.Fatalf("conversion did not run: %#v", candidates)
+		}
+	}
+}
+
+func TestRecordBatchRejectsBadPathsAndMissingKeys(t *testing.T) {
+	d := Templates()[1].Definition
+	for _, body := range []string{`{"items":[]}`, `{}`, `{"items":[1]}`, `{"items":[{"url":"https://example.org/a","title":"ok"},{"title":"no key"}]}`} {
+		if _, err := RecordCandidates(d, FetchResult{JSON: body}, "trigger", articleSchema()); err == nil {
+			t.Fatalf("invalid batch accepted: %s", body)
+		}
+	}
+	d.Nodes[0].Config["items_path"] = "$.items[*]"
+	if err := d.ValidateExecutable(); err == nil {
+		t.Fatal("unsupported wildcard accepted")
+	}
+	for _, path := range []string{"$.items[*]", "$..url", "$.items[?(@.x)]", "$.items[-1]"} {
+		if _, err := jsonPathValue(nil, path); err == nil {
+			t.Fatalf("unsupported path accepted: %s", path)
+		}
+	}
+}
+
+func TestRecordPublicationRequiresDatasetFields(t *testing.T) {
+	d := Templates()[0].Definition
+	schema := articleSchema()
+	schema.UniqueKeyFields = []string{"missing"}
+	if err := d.ValidateRecordSchema(schema, "trigger"); err == nil || !strings.Contains(err.Error(), "unique_key_fields.missing") {
+		t.Fatalf("missing schema key: %v", err)
+	}
+	d.Nodes[0].Config["fields"].([]any)[0].(map[string]any)["name"] = "unknown"
+	if err := d.ValidateRecordSchema(articleSchema(), "trigger"); err == nil {
+		t.Fatal("missing required URL accepted")
+	}
+}
+
+func TestJSONOptionalFieldsAndRequiredEmptyArrays(t *testing.T) {
+	candidates, err := RecordCandidates(Templates()[1].Definition, FetchResult{JSON: `{"items":[{"url":"https://example.org/a"}]}`}, "trigger", articleSchema())
+	if err != nil || len(candidates) != 1 {
+		t.Fatalf("optional fields: %#v %v", candidates, err)
+	}
+	if _, err := Extract(ExtractRequest{Content: `<article></article>`, Fields: []FieldRule{{Name: "links", Selector: "a", Multiple: true, Required: true}}}); err == nil {
+		t.Fatal("required empty array accepted")
+	}
+	values, err := Extract(ExtractRequest{ContentType: "json", Content: `{"title":"Title:  Hello   World "}`, Fields: []FieldRule{{Name: "title", Selector: "$.title", Regex: `Title: (.*)`, Clean: "whitespace"}}})
+	if err != nil || values["title"] != "Hello World" {
+		t.Fatalf("JSON cleaning: %#v %v", values, err)
+	}
+}

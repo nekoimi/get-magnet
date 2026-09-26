@@ -44,6 +44,9 @@ func ApplyTransform(values map[string]any, config map[string]any) error {
 				return fmt.Errorf("transform %s requires field", op)
 			}
 			if value, exists := values[field]; exists {
+				if value == nil {
+					continue
+				}
 				text, ok := value.(string)
 				if !ok {
 					return fmt.Errorf("transform %s field %q must be a string", op, field)
@@ -202,6 +205,9 @@ func isEmptyValue(value any) bool {
 	}
 	if text, ok := value.(string); ok {
 		return strings.TrimSpace(text) == ""
+	}
+	if array, ok := value.([]any); ok {
+		return len(array) == 0
 	}
 	return false
 }

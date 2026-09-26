@@ -407,7 +407,9 @@ func WithActiveAttempt(taskID int64, attempt table.TaskAttempt, write func() err
 	if err := s.Begin(); err != nil {
 		return err
 	}
-	rows, err := s.QueryString("SELECT id FROM crawl_tasks WHERE id = ? AND status = ? AND lease_owner = ? AND attempt_count = ? AND lease_until > NOW() FOR UPDATE", taskID, TaskRunning, attempt.WorkerId, attempt.AttemptNo)
+	// Permit foreign-key KEY SHARE locks from the evidence writer's transaction
+	// while still fencing cancellation/reclaim and other task state updates.
+	rows, err := s.QueryString("SELECT id FROM crawl_tasks WHERE id = ? AND status = ? AND lease_owner = ? AND attempt_count = ? AND lease_until > NOW() FOR NO KEY UPDATE", taskID, TaskRunning, attempt.WorkerId, attempt.AttemptNo)
 	if err != nil {
 		_ = s.Rollback()
 		return err

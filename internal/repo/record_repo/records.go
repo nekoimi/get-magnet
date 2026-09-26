@@ -13,21 +13,23 @@ import (
 	"github.com/nekoimi/scrapio/internal/db"
 	"github.com/nekoimi/scrapio/internal/db/table"
 	"github.com/nekoimi/scrapio/internal/record"
+	"github.com/nekoimi/scrapio/internal/repo/dataset_repo"
 	"xorm.io/xorm"
 )
 
 type Candidate struct {
-	DatasetID         int64
-	Values            map[string]any
-	SourceID          *int64
-	SourceURL         string
-	WorkflowID        *int64
-	WorkflowVersionID *int64
-	RunID             *int64
-	TaskID            *int64
-	DocumentID        *int64
-	IdempotencyKey    string
-	LegacyResourceID  *int64
+	DatasetID             int64
+	ExpectedSchemaVersion int
+	Values                map[string]any
+	SourceID              *int64
+	SourceURL             string
+	WorkflowID            *int64
+	WorkflowVersionID     *int64
+	RunID                 *int64
+	TaskID                *int64
+	DocumentID            *int64
+	IdempotencyKey        string
+	LegacyResourceID      *int64
 }
 type Result struct {
 	RecordID      int64    `json:"record_id"`
@@ -35,6 +37,55 @@ type Result struct {
 	Decision      string   `json:"decision"`
 	CanonicalKey  string   `json:"canonical_key"`
 	ChangedFields []string `json:"changed_fields"`
+}
+
+func DatasetSchema(id int64) (record.Schema, error) {
+	dataset, fields, err := dataset_repo.Detail(id, 0)
+	if err != nil {
+		return record.Schema{}, err
+	}
+	if dataset.Status != "active" {
+		return record.Schema{}, errors.New("active dataset not found")
+	}
+	schema := record.Schema{Version: dataset.SchemaVersion, EmptyValuePolicy: dataset.EmptyValuePolicy}
+	if err := json.Unmarshal([]byte(dataset.UniqueKeyFields), &schema.UniqueKeyFields); err != nil {
+		return schema, err
+	}
+	for _, field := range fields {
+		schema.Fields = append(schema.Fields, record.Field{Key: field.FieldKey, Type: field.FieldType, Required: field.Required, Multiple: field.Multiple})
+	}
+	return schema, nil
+}
+
+// SaveBatch commits all candidates together; errors leave no partial batch.
+func SaveBatch(candidates []Candidate) ([]Result, error) {
+	if db.Instance() == nil {
+		return nil, errors.New("database is not initialized")
+	}
+	if len(candidates) == 0 || len(candidates) > 1000 {
+		return nil, errors.New("require 1–1000 candidates")
+	}
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return nil, err
+	}
+	defer s.Rollback()
+	results := make([]Result, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.DatasetID != candidates[0].DatasetID {
+			return nil, errors.New("batch must target one dataset")
+		}
+		result, err := save(s, candidate)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
+	}
+	if err := s.Commit(); err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 func Save(c Candidate) (Result, error) {
@@ -72,6 +123,9 @@ func save(s *xorm.Session, c Candidate) (Result, error) {
 	dataset := new(table.Dataset)
 	if _, err := s.ID(c.DatasetID).Get(dataset); err != nil {
 		return Result{}, err
+	}
+	if c.ExpectedSchemaVersion > 0 && dataset.SchemaVersion != c.ExpectedSchemaVersion {
+		return Result{}, errors.New("dataset schema changed during extraction; retry with current schema")
 	}
 	var fields []table.DatasetField
 	if err := s.Where("dataset_id = ? AND schema_version = ?", c.DatasetID, dataset.SchemaVersion).Asc("ordinal").Find(&fields); err != nil {

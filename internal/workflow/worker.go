@@ -220,6 +220,9 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	if documentID > 0 {
 		_, _ = db.Instance().ID(claim.Task.Id).Cols("output_document_id").Update(&table.CrawlTask{OutputDocumentId: &documentID})
 	}
+	if definition.Persistence == "records" {
+		return w.persistRecords(ctx, claim, run, definition, result, documentID)
+	}
 
 	values := map[string]any{}
 	discoveredURLs := map[string]struct{}{}
@@ -324,6 +327,43 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	}
 	encoded, _ := json.Marshal(output)
 	return task_repo.Complete(claim.Task.Id, claim.Attempt.Id, string(encoded))
+}
+
+func (w *Worker) persistRecords(ctx context.Context, claim *task_repo.Claim, run *table.WorkflowRun, definition Definition, document FetchResult, documentID int64) error {
+	owner := new(table.Workflow)
+	has, err := db.Instance().ID(run.WorkflowId).Get(owner)
+	if err != nil {
+		return err
+	}
+	if !has || owner.DatasetId == nil {
+		return errors.New("workflow dataset not found")
+	}
+	schema, err := record_repo.DatasetSchema(*owner.DatasetId)
+	if err != nil {
+		return err
+	}
+	values, err := RecordCandidates(definition, document, claim.Task.StepName, schema)
+	if err != nil {
+		return err
+	}
+	candidates := make([]record_repo.Candidate, 0, len(values))
+	for i, value := range values {
+		candidates = append(candidates, record_repo.Candidate{DatasetID: *owner.DatasetId, ExpectedSchemaVersion: schema.Version, Values: value, SourceID: &owner.SourceId, SourceURL: document.FinalURL, WorkflowID: &run.WorkflowId, WorkflowVersionID: &run.WorkflowVersionId, RunID: &run.Id, TaskID: &claim.Task.Id, DocumentID: &documentID, IdempotencyKey: fmt.Sprintf("workflow-task:%d:item:%d", claim.Task.Id, i)})
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	var results []record_repo.Result
+	err = task_repo.WithActiveAttempt(claim.Task.Id, claim.Attempt, func() error {
+		var writeErr error
+		results, writeErr = record_repo.SaveBatch(candidates)
+		return writeErr
+	})
+	if err != nil {
+		return fmt.Errorf("persist records: %w", err)
+	}
+	output, _ := json.Marshal(map[string]any{"document_id": documentID, "record_count": len(results), "record_results": results, "fetch": map[string]any{"adapter": document.Adapter, "final_url": document.FinalURL, "status_code": document.StatusCode}})
+	return task_repo.Complete(claim.Task.Id, claim.Attempt.Id, string(output))
 }
 
 func fieldRules(raw any) ([]FieldRule, error) {

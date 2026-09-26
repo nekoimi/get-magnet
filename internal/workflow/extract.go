@@ -64,6 +64,19 @@ func Extract(request ExtractRequest) (map[string]any, error) {
 				}
 			}
 			value, err = jsonPathValue(jsonValue, rule.Selector)
+			if text, ok := value.(string); ok {
+				value = cleanValue(text, rule)
+			}
+			if items, ok := value.([]any); ok {
+				cleaned := make([]any, len(items))
+				for i, item := range items {
+					cleaned[i] = item
+					if text, ok := item.(string); ok {
+						cleaned[i] = cleanValue(text, rule)
+					}
+				}
+				value = cleaned
+			}
 		case "xpath":
 			if htmlRoot == nil {
 				htmlRoot, err = htmlquery.Parse(strings.NewReader(request.Content))
@@ -82,7 +95,7 @@ func Extract(request ExtractRequest) (map[string]any, error) {
 		if err != nil {
 			return nil, fmt.Errorf("extract %s: %w", rule.Name, err)
 		}
-		if value == nil || value == "" {
+		if isEmptyValue(value) {
 			if rule.Required {
 				return nil, fmt.Errorf("required field %q is empty", rule.Name)
 			}
@@ -91,6 +104,9 @@ func Extract(request ExtractRequest) (map[string]any, error) {
 		value, err = normalizeValue(value, rule)
 		if err != nil {
 			return nil, fmt.Errorf("normalize %s: %w", rule.Name, err)
+		}
+		if rule.Required && isEmptyValue(value) {
+			return nil, fmt.Errorf("required field %q is empty", rule.Name)
 		}
 		result[rule.Name] = value
 	}
@@ -195,6 +211,9 @@ func normalizeValue(value any, rule FieldRule) (any, error) {
 
 func jsonPathValue(root any, path string) (any, error) {
 	path = strings.TrimSpace(path)
+	if !supportedJSONPath.MatchString(path) {
+		return nil, fmt.Errorf("unsupported JSONPath subset")
+	}
 	if path == "$" {
 		return root, nil
 	}

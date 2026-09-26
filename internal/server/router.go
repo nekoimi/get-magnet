@@ -104,6 +104,7 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/records/create", records.Create).Methods("POST")
 			v2Api.HandleFunc("/records/legacy/reconcile", records.ReconcileLegacy).Methods("POST")
 			v2Api.HandleFunc("/workflows/list", workflows.List).Methods("GET", "POST")
+			v2Api.HandleFunc("/workflows/templates", workflows.Templates).Methods("GET")
 			v2Api.HandleFunc("/workflows/detail", workflows.Detail).Methods("GET", "POST")
 			v2Api.HandleFunc("/workflows/create", workflows.Create).Methods("POST")
 			v2Api.HandleFunc("/workflows/versions/create", workflows.CreateVersion).Methods("POST")

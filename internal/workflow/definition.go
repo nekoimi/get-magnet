@@ -11,6 +11,7 @@ import (
 // deliberately represented as JSON objects so new node configuration can be
 // added without changing the database model or the browser protocol.
 type Definition struct {
+	Persistence  string            `json:"persistence,omitempty"`
 	Trigger      Trigger           `json:"trigger"`
 	Acquire      []Node            `json:"acquire,omitempty"`
 	Nodes        []Node            `json:"nodes"`
@@ -137,6 +138,9 @@ func (d Definition) ValidateExecutable() error {
 	if err := d.Validate(); err != nil {
 		return err
 	}
+	if d.Persistence != "" && d.Persistence != "records" {
+		return fmt.Errorf("persistence: only records is supported")
+	}
 	if d.Trigger.Type != "manual" {
 		return fmt.Errorf("trigger.type: %q is not executable; only manual is supported", d.Trigger.Type)
 	}
@@ -168,6 +172,9 @@ func (d Definition) ValidateExecutable() error {
 	hasDiscover := false
 	for i, node := range d.Nodes {
 		path := fmt.Sprintf("nodes[%d]", i)
+		if _, exists := node.Config["items_path"]; exists && d.Persistence != "records" {
+			return fmt.Errorf("%s.config.items_path: requires records persistence", path)
+		}
 		switch node.Type {
 		case "extract", "discover", "transform", "validate", "script":
 		default:
@@ -192,8 +199,23 @@ func (d Definition) ValidateExecutable() error {
 	if hasDiscover {
 		role = "detail"
 	}
-	if !d.producesPersistableFields(role) {
+	if d.Persistence != "records" && !d.producesPersistableFields(role) {
 		return fmt.Errorf("nodes: %s pages cannot produce number, canonical_key or magnet links for persistence", role)
+	}
+	if d.Persistence == "records" {
+		for _, n := range d.Nodes {
+			if n.Type == "discover" || n.Type == "script" {
+				return fmt.Errorf("nodes: records workflows currently support extract, transform and validate only")
+			}
+		}
+		if d.Nodes[0].Type != "extract" {
+			return fmt.Errorf("nodes[0].type: records workflow must begin with extract")
+		}
+		for i, n := range d.Nodes {
+			if i > 0 && n.Type == "extract" {
+				return fmt.Errorf("nodes[%d].type: records workflow supports one extract node", i)
+			}
+		}
 	}
 	return nil
 }

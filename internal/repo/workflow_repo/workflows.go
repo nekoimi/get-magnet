@@ -9,6 +9,7 @@ import (
 
 	"github.com/nekoimi/scrapio/internal/db"
 	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/repo/record_repo"
 	"github.com/nekoimi/scrapio/internal/repo/resource_repo"
 	"github.com/nekoimi/scrapio/internal/repo/task_repo"
 	"github.com/nekoimi/scrapio/internal/workflow"
@@ -232,12 +233,25 @@ func ValidateVersion(id int64) error {
 	if !has {
 		return errors.New("workflow not found")
 	}
-	if owner.ResourceType != "magnet" {
-		return &workflow.DefinitionError{Cause: fmt.Errorf("resource_type: %q cannot be persisted by the current worker", owner.ResourceType)}
-	}
-	_, err = workflow.ParseExecutableDefinition(version.Definition)
+	definition, err := workflow.ParseExecutableDefinition(version.Definition)
 	if err != nil {
 		return &workflow.DefinitionError{Cause: err}
+	}
+	if definition.Persistence == "records" {
+		if owner.DatasetId == nil {
+			return &workflow.DefinitionError{Cause: errors.New("dataset_id: required")}
+		}
+		schema, err := record_repo.DatasetSchema(*owner.DatasetId)
+		if err != nil {
+			return &workflow.DefinitionError{Cause: fmt.Errorf("dataset: %w", err)}
+		}
+		if err := definition.ValidateRecordSchema(schema, "trigger"); err != nil {
+			return &workflow.DefinitionError{Cause: err}
+		}
+		return nil
+	}
+	if owner.ResourceType != "magnet" {
+		return &workflow.DefinitionError{Cause: fmt.Errorf("resource_type: %q cannot be persisted by the current worker", owner.ResourceType)}
 	}
 	return nil
 }

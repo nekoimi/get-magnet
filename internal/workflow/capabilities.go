@@ -72,7 +72,7 @@ func validateFetchOptions(options FetchOptions) error {
 
 func validateExecutableNode(node Node) error {
 	allowed := map[string]map[string]bool{
-		"extract":   {"fields": true, "content_type": true, "run_on": true},
+		"extract":   {"fields": true, "content_type": true, "run_on": true, "items_path": true},
 		"discover":  {"fields": true, "content_type": true, "run_on": true, "url_field": true},
 		"transform": {"operations": true, "run_on": true},
 		"validate":  {"fields": true, "run_on": true},
@@ -103,6 +103,12 @@ func validateExecutableNode(node Node) error {
 	}
 	if raw, ok := node.Config["content_type"]; ok && raw != "html" && raw != "json" {
 		return fmt.Errorf("config.content_type: only html or json is supported")
+	}
+	if raw, ok := node.Config["items_path"]; ok {
+		path, ok := raw.(string)
+		if !ok || !supportedJSONPath.MatchString(path) || node.Config["content_type"] != "json" {
+			return fmt.Errorf("config.items_path: JSON content and supported JSONPath required")
+		}
 	}
 	switch node.Type {
 	case "extract", "discover":
