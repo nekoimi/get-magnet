@@ -36,6 +36,27 @@ func TestTemplatesProduceSchemaValidCandidates(t *testing.T) {
 	}
 }
 
+func TestTraceRecordCandidatesMatchesExecution(t *testing.T) {
+	d := Templates()[0].Definition
+	doc := FetchResult{HTML: `<link rel="canonical" href="https://example.org/trace"><h1>  Trace  </h1><article>Body</article>`}
+	values, steps, err := TraceRecordCandidates(d, doc, "trigger", articleSchema())
+	if err != nil || len(values) != 1 || len(steps) != 3 {
+		t.Fatalf("trace: %#v %#v %v", values, steps, err)
+	}
+	if steps[0].Values["title"] != "Trace" {
+		t.Fatalf("unexpected extraction: %#v", steps[0])
+	}
+	plain, err := RecordCandidates(d, doc, "trigger", articleSchema())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := json.Marshal(values)
+	b, _ := json.Marshal(plain)
+	if string(a) != string(b) {
+		t.Fatalf("preview and execution differ: %s / %s", a, b)
+	}
+}
+
 func TestRecordBatchRejectsBadPathsAndMissingKeys(t *testing.T) {
 	d := Templates()[1].Definition
 	for _, body := range []string{`{"items":[]}`, `{}`, `{"items":[1]}`, `{"items":[{"url":"https://example.org/a","title":"ok"},{"title":"no key"}]}`} {

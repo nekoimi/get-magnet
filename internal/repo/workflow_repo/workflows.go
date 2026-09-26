@@ -257,32 +257,61 @@ func ValidateVersion(id int64) error {
 }
 
 func PublishVersion(id int64) error {
-	version, has, err := GetVersion(id)
-	if err != nil {
-		return err
-	}
-	if !has {
-		return errors.New("workflow version not found")
-	}
-	if err := ValidateVersion(id); err != nil {
-		return err
-	}
-	now := time.Now()
 	s := db.Instance().NewSession()
 	defer s.Close()
 	if err := s.Begin(); err != nil {
 		return err
 	}
+	defer s.Rollback()
+	locked, err := s.QueryString("SELECT id,workflow_id,status FROM workflow_versions WHERE id=? FOR UPDATE", id)
+	if err != nil {
+		return err
+	}
+	if len(locked) == 0 {
+		return errors.New("workflow version not found")
+	}
+	if locked[0]["status"] != VersionDraft && locked[0]["status"] != VersionRetired {
+		return errors.New("workflow version is already published")
+	}
+	version, has, err := GetVersion(id)
+	if err != nil || !has {
+		return errors.New("workflow version not found")
+	}
+	owner, has, err := Get(version.WorkflowId)
+	if err != nil || !has {
+		return errors.New("workflow not found")
+	}
+	if owner.DatasetId != nil {
+		rows, err := s.QueryString("SELECT id FROM datasets WHERE id=? FOR SHARE", *owner.DatasetId)
+		if err != nil {
+			return err
+		}
+		if len(rows) == 0 {
+			return errors.New("dataset not found")
+		}
+	}
+	if err := ValidateVersion(id); err != nil {
+		return err
+	}
+	definition, err := workflow.ParseExecutableDefinition(version.Definition)
+	if err != nil {
+		return &workflow.DefinitionError{Cause: err}
+	}
+	// Existing retired versions predate A05. Fresh records drafts must pass
+	// every immutable sample while the version row excludes sample creation.
+	if definition.Persistence == "records" && locked[0]["status"] == VersionDraft {
+		if _, err := CheckSamples(id); err != nil {
+			return err
+		}
+	}
+	now := time.Now()
 	if _, err := s.Where("workflow_id = ? AND status = ?", version.WorkflowId, VersionPublished).Cols("status").Update(&table.WorkflowVersion{Status: VersionRetired}); err != nil {
-		_ = s.Rollback()
 		return err
 	}
 	if _, err := s.ID(id).Cols("status", "published_at").Update(&table.WorkflowVersion{Status: VersionPublished, PublishedAt: &now}); err != nil {
-		_ = s.Rollback()
 		return err
 	}
 	if _, err := s.ID(version.WorkflowId).Cols("published_version_id", "updated_at", "enabled").Update(&table.Workflow{PublishedVersionId: &id, UpdatedAt: now, Enabled: true}); err != nil {
-		_ = s.Rollback()
 		return err
 	}
 	return s.Commit()

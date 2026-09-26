@@ -10,40 +10,57 @@ import (
 // RecordCandidates is shared by template execution and future dry-run previews.
 // All candidates are extracted and validated before any database write occurs.
 func RecordCandidates(d Definition, document FetchResult, role string, schema record.Schema) ([]map[string]any, error) {
-	if err := d.ValidateRecordSchema(schema, role); err != nil {
+	values, _, err := TraceRecordCandidates(d, document, role, schema)
+	if err != nil {
 		return nil, err
+	}
+	return values, err
+}
+
+type RecordStep struct {
+	Candidate int            `json:"candidate"`
+	Node      string         `json:"node"`
+	Type      string         `json:"type"`
+	Values    map[string]any `json:"values"`
+}
+
+// TraceRecordCandidates is the execution path used by both the worker and dry-run.
+func TraceRecordCandidates(d Definition, document FetchResult, role string, schema record.Schema) ([]map[string]any, []RecordStep, error) {
+	if err := d.ValidateRecordSchema(schema, role); err != nil {
+		return nil, nil, err
 	}
 	contents := []FetchResult{document}
 	first := d.Nodes[0]
 	if path, ok := first.Config["items_path"].(string); ok {
 		var root any
 		if err := json.Unmarshal([]byte(document.JSON), &root); err != nil {
-			return nil, fmt.Errorf("nodes[0].items_path: invalid JSON: %w", err)
+			return nil, nil, fmt.Errorf("nodes[0].items_path: invalid JSON: %w", err)
 		}
 		value, err := jsonPathValue(root, path)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		items, ok := value.([]any)
 		if !ok {
-			return nil, fmt.Errorf("nodes[0].items_path: expected an array")
+			return nil, nil, fmt.Errorf("nodes[0].items_path: expected an array")
 		}
 		if len(items) == 0 || len(items) > 1000 {
-			return nil, fmt.Errorf("nodes[0].items_path: require 1–1000 items")
+			return nil, nil, fmt.Errorf("nodes[0].items_path: require 1–1000 items")
 		}
 		contents = make([]FetchResult, 0, len(items))
 		for i, item := range items {
 			if _, ok := item.(map[string]any); !ok {
-				return nil, fmt.Errorf("items[%d]: expected object", i)
+				return nil, nil, fmt.Errorf("items[%d]: expected object", i)
 			}
 			encoded, err := json.Marshal(item)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			contents = append(contents, FetchResult{JSON: string(encoded)})
 		}
 	}
 	candidates := make([]map[string]any, 0, len(contents))
+	steps := make([]RecordStep, 0, len(contents)*len(d.Nodes))
 	for i, content := range contents {
 		values := map[string]any{}
 		for _, node := range d.Nodes {
@@ -60,16 +77,21 @@ func RecordCandidates(d Definition, document FetchResult, role string, schema re
 				err = ValidateValues(values, node.Config)
 			}
 			if err != nil {
-				return nil, fmt.Errorf("candidate[%d].%s: %w", i, node.Name, err)
+				return candidates, steps, fmt.Errorf("candidate[%d].%s: %w", i, node.Name, err)
 			}
+			snapshot := make(map[string]any, len(values))
+			for key, value := range values {
+				snapshot[key] = value
+			}
+			steps = append(steps, RecordStep{Candidate: i, Node: node.Name, Type: node.Type, Values: snapshot})
 		}
 		prepared, err := record.Prepare(schema, values)
 		if err != nil {
-			return nil, fmt.Errorf("candidate[%d]: %w", i, err)
+			return candidates, steps, fmt.Errorf("candidate[%d]: %w", i, err)
 		}
 		candidates = append(candidates, prepared.Values)
 	}
-	return candidates, nil
+	return candidates, steps, nil
 }
 
 // ValidateRecordSchema checks the statically known output names at publication.

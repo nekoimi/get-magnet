@@ -26,6 +26,7 @@ import (
 	"github.com/nekoimi/scrapio/internal/bean"
 	"github.com/nekoimi/scrapio/internal/config"
 	crawlercore "github.com/nekoimi/scrapio/internal/crawler"
+	"github.com/nekoimi/scrapio/internal/drission_rod"
 	"github.com/nekoimi/scrapio/internal/job"
 	pluginruntime "github.com/nekoimi/scrapio/internal/plugin"
 	log "github.com/sirupsen/logrus"
@@ -40,6 +41,7 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 	crawlerManager := bean.PtrFromContext[crawlercore.Manager](ctx)
 	pluginRegistry := bean.PtrFromContext[pluginruntime.Registry](ctx)
 	pluginWorker := bean.PtrFromContext[pluginruntime.Worker](ctx)
+	browserService := bean.PtrFromContext[drission_rod.DrissionRod](ctx)
 
 	r.Use(middleware.CORSMiddleware)
 	r.Use(mux.CORSMethodMiddleware(r))
@@ -110,6 +112,11 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/workflows/versions/create", workflows.CreateVersion).Methods("POST")
 			v2Api.HandleFunc("/workflows/versions/validate", workflows.Validate).Methods("POST")
 			v2Api.HandleFunc("/workflows/versions/publish", workflows.Publish).Methods("POST")
+			v2Api.HandleFunc("/workflows/samples/create", workflows.SaveSample(browserService)).Methods("POST")
+			v2Api.HandleFunc("/workflows/samples/list", workflows.ListSamples).Methods("GET")
+			v2Api.HandleFunc("/workflows/samples/delete", workflows.DeleteSample).Methods("POST")
+			v2Api.HandleFunc("/workflows/samples/preview", workflows.PreviewSample).Methods("POST")
+			v2Api.HandleFunc("/workflows/versions/check-samples", workflows.CheckSamples).Methods("POST")
 			v2Api.HandleFunc("/workflows/versions/rollback", workflows.Rollback).Methods("POST")
 			v2Api.HandleFunc("/workflows/stop", workflows.Stop).Methods("POST")
 			v2Api.HandleFunc("/workflows/run", workflows.Run).Methods("POST")

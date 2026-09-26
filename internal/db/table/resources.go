@@ -45,6 +45,22 @@ type WorkflowVersion struct {
 
 func (WorkflowVersion) TableName() string { return "workflow_versions" }
 
+// WorkflowSample is an immutable content snapshot tied to one draft version.
+type WorkflowSample struct {
+	Id                int64     `json:"id"`
+	WorkflowVersionId int64     `xorm:"workflow_version_id" json:"workflow_version_id"`
+	Source            string    `json:"source"`
+	DocumentId        *int64    `xorm:"document_id" json:"document_id,omitempty"`
+	PageURL           string    `xorm:"page_url text" json:"page_url"`
+	ContentType       string    `xorm:"content_type" json:"content_type"`
+	Content           string    `xorm:"text" json:"content,omitempty"`
+	ContentHash       string    `xorm:"content_hash" json:"content_hash"`
+	Note              string    `xorm:"text" json:"note"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
+func (WorkflowSample) TableName() string { return "workflow_samples" }
+
 type WorkflowRun struct {
 	Id                int64      `json:"id"`
 	WorkflowId        int64      `xorm:"workflow_id" json:"workflow_id"`
