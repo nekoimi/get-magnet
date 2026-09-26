@@ -3,12 +3,14 @@ import request from '/@/utils/request';
 export interface Project { id:number; code:string; name:string; goal:string; owner:string; status:string }
 export interface Dataset { id:number; project_id:number; code:string; name:string; record_type:string; schema_version:number; unique_key_fields:string|string[]; empty_value_policy:string; status:string }
 export interface DatasetField { field_key:string; label:string; field_type:string; required:boolean; multiple:boolean }
+export interface SchemaField { key:string; label:string; type:string; required:boolean; multiple:boolean }
+export interface DatasetSchema { unique_key_fields:string[]; empty_value_policy:string; fields:SchemaField[] }
 export interface Workflow { id:number; project_id?:number; dataset_id?:number; source_id:number; code:string; name:string; resource_type:string; enabled:boolean; published_version_id?:number }
 export interface Version { id:number; workflow_id:number; version:number; status:string; definition:string|Definition; created_at:string }
 export interface Definition { persistence:string; trigger:{type:string;url:string;fetch:{mode:string}}; nodes:Array<{name:string;type:string;config:Record<string,any>}> }
 export interface Template { code:string; name:string; description:string; record_type:string; definition:Definition }
 export interface Sample { id:number; workflow_version_id:number; source:string; content_type:string; content_hash:string; note:string; page_url:string; created_at:string }
-export interface Preview { dry_run:boolean; passed:boolean; fetched_live:boolean; steps:Array<{candidate:number;node:string;type:string;values:Record<string,any>}>; decisions:Array<{index:number;decision:string;canonical_key?:string;values?:Record<string,any>;changed_fields?:string[];reason?:string}>; error?:string }
+export interface Preview { dry_run:boolean; passed:boolean; fetched_live:boolean; sample_id?:number; version_id:number; steps:Array<{candidate:number;node:string;type:string;values:Record<string,any>}>; decisions:Array<{index:number;decision:string;canonical_key?:string;values?:Record<string,any>;changed_fields?:string[];reason?:string}>; error?:string }
 export interface RecordRow { id:number; dataset_id:number; canonical_key:string; normalized:string|Record<string,any>; last_seen_at:string }
 export interface Run { id:number; workflow_id:number; workflow_version_id:number; status:string; created_at:string; started_at?:string; finished_at?:string; summary:string }
 export interface Task { id:number; run_id:number; step_name:string; status:string; output_document_id?:number; error_message?:string; input:string }
@@ -19,8 +21,9 @@ export const api={
  projects:()=>get<Project[]>('/api/v2/projects/list'),
  createProject:(data:any)=>post<Project>('/api/v2/projects/create',data),
  datasets:(project_id?:number)=>get<Dataset[]>('/api/v2/datasets/list',project_id?{project_id}:{}),
- dataset:(id:number)=>get<{dataset:Dataset;fields:DatasetField[]}>('/api/v2/datasets/detail',{id}),
+ dataset:(id:number,version?:number)=>get<{dataset:Dataset;schema_version:number;fields:DatasetField[]}>('/api/v2/datasets/detail',{id,version}),
  createDataset:(data:any)=>post<Dataset>('/api/v2/datasets/create',data),
+ updateSchema:(id:number,schema:DatasetSchema)=>post<Dataset>('/api/v2/datasets/schema/update',{id,...schema}),
  records:(dataset_id:number,page=1)=>get<{list:RecordRow[];total:number}>('/api/v2/records/list',{dataset_id,page,size:20}),
  record:(id:number)=>get<any>('/api/v2/records/detail',{id}),
  workflows:(project_id?:number)=>get<{list:Workflow[];total:number}>('/api/v2/workflows/list',{project_id,page:1,size:100}),

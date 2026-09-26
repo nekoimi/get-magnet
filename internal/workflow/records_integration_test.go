@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -86,11 +87,20 @@ func TestDevA04Templates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	magnetDataset, err := dataset_repo.CreateDataset(dataset_repo.CreateDatasetInput{ProjectID: project.Id, Code: "magnet", Name: "Magnet test", RecordType: "magnet", SchemaInput: dataset_repo.SchemaInput{UniqueKeyFields: []string{"canonical_key"}, EmptyValuePolicy: "preserve", Fields: []dataset_repo.FieldInput{{Key: "canonical_key", Label: "Key", Type: "string", Required: true}, {Key: "number", Label: "Number", Type: "string"}, {Key: "title", Label: "Title", Type: "string"}, {Key: "links", Label: "Links", Type: "string", Multiple: true}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	var sourceID int64
 	if err := raw.QueryRow("SELECT id FROM sources ORDER BY id LIMIT 1").Scan(&sourceID); err != nil {
 		t.Fatal(err)
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/magnet" {
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `<span class="number">AB-123</span><h1>Magnet title</h1><a href="magnet:?xt=urn:btih:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA">one</a><a href="magnet:?xt=urn:btih:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB">two</a>`)
+			return
+		}
 		if r.URL.Path == "/page" {
 			w.Header().Set("Content-Type", "text/html")
 			fmt.Fprint(w, `<link rel="canonical" href="https://a04-test.invalid/a"><h1>Old title</h1><article>Body</article>`)
@@ -101,12 +111,12 @@ func TestDevA04Templates(t *testing.T) {
 	}))
 	defer server.Close()
 	worker := NewWorker()
-	execute := func(template Template, code, path string) int64 {
+	execute := func(template Template, code, path string, target *table.Dataset) int64 {
 		t.Helper()
 		template.Definition.Trigger.URL = server.URL + path
 		encoded, _ := json.Marshal(template.Definition)
 		now := time.Now()
-		workflow := &table.Workflow{ProjectId: &project.Id, DatasetId: &dataset.Id, SourceId: sourceID, Code: code, Name: code, ResourceType: "article", Enabled: true, CreatedAt: now, UpdatedAt: now}
+		workflow := &table.Workflow{ProjectId: &project.Id, DatasetId: &target.Id, SourceId: sourceID, Code: code, Name: code, ResourceType: target.RecordType, Enabled: true, CreatedAt: now, UpdatedAt: now}
 		if _, err := db.Instance().InsertOne(workflow); err != nil {
 			t.Fatal(err)
 		}
@@ -137,9 +147,28 @@ func TestDevA04Templates(t *testing.T) {
 		return run.Id
 	}
 	templates := Templates()
-	execute(templates[0], "page", "/page")
-	jsonRun := execute(templates[1], "json", "/items")
-	execute(templates[1], "json_retry", "/items")
+	execute(templates[0], "page", "/page", dataset)
+	jsonRun := execute(templates[1], "json", "/items", dataset)
+	execute(templates[1], "json_retry", "/items", dataset)
+	magnet := templates[0]
+	magnet.Definition.Nodes = []Node{{Name: "extract", Type: "extract", Config: map[string]any{"content_type": "html", "fields": []any{
+		map[string]any{"name": "canonical_key", "selector": ".number", "required": true},
+		map[string]any{"name": "number", "selector": ".number"},
+		map[string]any{"name": "title", "selector": "h1"},
+		map[string]any{"name": "links", "selector": "a[href^=\"magnet:\"]", "attribute": "href", "multiple": true},
+	}}}}
+	magnetRun := execute(magnet, "magnet", "/magnet", magnetDataset)
+	var magnetKey, magnetValues string
+	if err := raw.QueryRow("SELECT canonical_key,normalized::text FROM records WHERE dataset_id=$1", magnetDataset.Id).Scan(&magnetKey, &magnetValues); err != nil {
+		t.Fatal("magnet record:", err)
+	}
+	if magnetKey != "AB-123" || !strings.Contains(magnetValues, "magnet:?xt=urn:btih:AAAAAAAA") || !strings.Contains(magnetValues, "magnet:?xt=urn:btih:BBBBBBBB") {
+		t.Fatalf("magnet values: key=%q values=%s", magnetKey, magnetValues)
+	}
+	var magnetObservations int
+	if err := raw.QueryRow("SELECT count(*) FROM record_observations WHERE dataset_id=$1 AND run_id=$2 AND document_id IS NOT NULL", magnetDataset.Id, magnetRun).Scan(&magnetObservations); err != nil || magnetObservations != 1 {
+		t.Fatalf("magnet provenance: observations=%d err=%v", magnetObservations, err)
+	}
 	var records, observations, revisions int
 	if err := raw.QueryRow("SELECT count(*) FROM records WHERE dataset_id=$1", dataset.Id).Scan(&records); err != nil {
 		t.Fatal(err)

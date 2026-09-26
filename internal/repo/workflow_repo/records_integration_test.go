@@ -122,6 +122,28 @@ func TestDevRecordTemplatePublication(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		invalidContent := "<h1>Missing key</h1>"
+		if contentType == "json" {
+			invalidContent = `{"items":[{"title":"Missing key"}]}`
+		}
+		invalidSample, err := SaveSample(SampleInput{VersionID: version.Id, Source: "paste", ContentType: contentType, Content: invalidContent})
+		if err != nil {
+			t.Fatal(err)
+		}
+		lastSample, err := SaveSample(SampleInput{VersionID: version.Id, Source: "paste", PageURL: url, ContentType: contentType, Content: content})
+		if err != nil {
+			t.Fatal(err)
+		}
+		checks, checkErr := CheckSamples(version.Id)
+		if checkErr == nil || len(checks) != 3 || !checks[0].Passed || checks[1].Passed || !checks[2].Passed || checks[2].SampleID != lastSample.Id {
+			t.Fatalf("regression must report every sample after failure: %#v %v", checks, checkErr)
+		}
+		if err := PublishVersion(version.Id); err == nil {
+			t.Fatal("published despite failed sample")
+		}
+		if err := DeleteSample(invalidSample.Id); err != nil {
+			t.Fatal(err)
+		}
 		if err := PublishVersion(version.Id); err != nil {
 			t.Fatal("non-magnet publication:", err)
 		}

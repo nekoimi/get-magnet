@@ -227,15 +227,20 @@ func CheckSamples(versionID int64) ([]SamplePreview, error) {
 		return nil, &workflow.DefinitionError{Cause: errors.New("samples: at least one sample is required for records publication")}
 	}
 	checks := make([]SamplePreview, 0, len(samples))
+	var firstError error
 	for _, sample := range samples {
 		preview, err := PreviewSample(versionID, &sample)
 		if err != nil {
-			return checks, err
+			preview.Passed = false
+			preview.Error = err.Error()
+			if firstError == nil {
+				firstError = err
+			}
 		}
 		checks = append(checks, preview)
-		if !preview.Passed {
-			return checks, &workflow.DefinitionError{Cause: fmt.Errorf("samples[%d]: %s", sample.Id, strings.TrimSpace(preview.Error))}
+		if !preview.Passed && firstError == nil {
+			firstError = &workflow.DefinitionError{Cause: fmt.Errorf("samples[%d]: %s", sample.Id, strings.TrimSpace(preview.Error))}
 		}
 	}
-	return checks, nil
+	return checks, firstError
 }
