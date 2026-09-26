@@ -22,11 +22,15 @@ func TestTemplatesProduceSchemaValidCandidates(t *testing.T) {
 		}
 		document := FetchResult{HTML: `<link rel="canonical" href="https://example.org/article"><h1>Title</h1><article>Body</article>`}
 		want := 1
+		role := "trigger"
 		if template.Code == "json_api" {
 			document = FetchResult{JSON: `{"items":[{"url":"https://example.org/a","title":" A ","body":"Body"},{"url":"https://example.org/b","title":"B","body":"Text"}]}`}
 			want = 2
 		}
-		candidates, err := RecordCandidates(definition, document, "trigger", articleSchema())
+		if definition.Listing != nil {
+			role = "detail"
+		}
+		candidates, err := RecordCandidates(definition, document, role, articleSchema())
 		if err != nil || len(candidates) != want {
 			t.Fatalf("%s: %#v %v", template.Code, candidates, err)
 		}

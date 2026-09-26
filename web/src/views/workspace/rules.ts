@@ -28,6 +28,7 @@ export function editableDefinition(raw:string|Definition):Definition {
  if(!value||typeof value!=='object'||Array.isArray(value)||!value.trigger||typeof value.trigger!=='object'||Array.isArray(value.trigger)||!Array.isArray(value.nodes))throw new Error('定义必须包含 trigger 对象和 nodes 数组');
  if(value.nodes.some((node:any)=>!node||typeof node!=='object'||typeof node.type!=='string'||!node.config||typeof node.config!=='object'||Array.isArray(node.config)))throw new Error('每个节点需要 type 和 config 对象');
  const extract=value.nodes.find((node:any)=>node.type==='extract');
+ if(value.listing!==undefined&&(!value.listing||typeof value.listing!=='object'||Array.isArray(value.listing)||typeof value.listing.detail_selector!=='string'||(value.listing.next_selector!==undefined&&typeof value.listing.next_selector!=='string')||!Number.isInteger(value.listing.max_pages)||!Number.isInteger(value.listing.max_empty_pages)))throw new Error('listing 需要详情 CSS、可选下一页 CSS 和整数页数上限');
  if(extract&&(!Array.isArray(extract.config.fields)||extract.config.fields.some((field:any)=>!field||typeof field.name!=='string'||typeof field.selector!=='string')))throw new Error('提取字段需要 name 和 selector');
  if(!value.trigger.fetch)value.trigger.fetch={mode:'http'};
  if(typeof value.trigger.fetch!=='object'||Array.isArray(value.trigger.fetch))throw new Error('trigger.fetch 必须是对象');

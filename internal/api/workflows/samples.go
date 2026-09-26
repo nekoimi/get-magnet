@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/nekoimi/scrapio/internal/db"
 	"github.com/nekoimi/scrapio/internal/db/table"
@@ -22,12 +24,13 @@ type previewRequest struct {
 	ContentType     string   `json:"content_type,omitempty"`
 	Content         string   `json:"content,omitempty"`
 	PageURL         string   `json:"page_url,omitempty"`
+	PageRole        string   `json:"page_role,omitempty"`
 	IdempotencyKeys []string `json:"idempotency_keys,omitempty"`
 }
 
 func SaveSample(browser *drission_rod.DrissionRod) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		r.Body=http.MaxBytesReader(w,r.Body,11<<20)
+		r.Body = http.MaxBytesReader(w, r.Body, 11<<20)
 		input := new(workflow_repo.SampleInput)
 		if err := request.Parse(r, input); err != nil || input.VersionID <= 0 {
 			respond.Error(w, error_ext.ValidateError)
@@ -47,13 +50,33 @@ func SaveSample(browser *drission_rod.DrissionRod) http.HandlerFunc {
 			respond.Error(w, errors.New("sample requires executable records workflow"))
 			return
 		}
+		if definition.Listing != nil && input.PageRole == "" {
+			input.PageRole = "list"
+		}
+		if input.PageRole == "" {
+			input.PageRole = "trigger"
+		}
+		if (definition.Listing != nil && input.PageRole != "list" && input.PageRole != "detail") || (definition.Listing == nil && input.PageRole != "trigger") {
+			respond.Error(w, errors.New("page_role does not match workflow template"))
+			return
+		}
 		switch input.Source {
 		case "live":
 			if definition.Trigger.Fetch.Mode == "browser" && browser == nil {
 				respond.Error(w, errors.New("browser worker is unavailable"))
 				return
 			}
-			fetched, err := (workflow.Fetcher{Browser: browser}).Fetch(r.Context(), definition.Trigger.URL, definition.Trigger.Fetch)
+			fetchURL := definition.Trigger.URL
+			if definition.Listing != nil && input.PageRole == "detail" {
+				entry, entryErr := url.Parse(definition.Trigger.URL)
+				target, targetErr := url.Parse(input.PageURL)
+				if entryErr != nil || targetErr != nil || target == nil || !strings.EqualFold(entry.Hostname(), target.Hostname()) || (target.Scheme != "http" && target.Scheme != "https") || target.User != nil {
+					respond.Error(w, errors.New("detail sample URL must be an HTTP(S) URL on the entry host"))
+					return
+				}
+				fetchURL = target.String()
+			}
+			fetched, err := (workflow.Fetcher{Browser: browser}).Fetch(r.Context(), fetchURL, definition.FetchForRole(input.PageRole))
 			if err != nil {
 				respond.Error(w, err)
 				return
@@ -79,11 +102,18 @@ func SaveSample(browser *drission_rod.DrissionRod) http.HandlerFunc {
 			}
 			input.ContentType = doc.DocumentType
 			input.Content = doc.Content
-			var metadata struct { FinalURL string `json:"final_url"`; URL string `json:"url"` }
-			_ = json.Unmarshal([]byte(doc.Metadata),&metadata)
-			input.PageURL=metadata.FinalURL
-			if input.PageURL=="" { input.PageURL=metadata.URL }
-			if input.PageURL=="" { input.PageURL=definition.Trigger.URL }
+			var metadata struct {
+				FinalURL string `json:"final_url"`
+				URL      string `json:"url"`
+			}
+			_ = json.Unmarshal([]byte(doc.Metadata), &metadata)
+			input.PageURL = metadata.FinalURL
+			if input.PageURL == "" {
+				input.PageURL = metadata.URL
+			}
+			if input.PageURL == "" {
+				input.PageURL = definition.Trigger.URL
+			}
 		case "paste":
 			if input.PageURL == "" {
 				input.PageURL = definition.Trigger.URL
@@ -130,7 +160,7 @@ func DeleteSample(w http.ResponseWriter, r *http.Request) {
 }
 
 func PreviewSample(w http.ResponseWriter, r *http.Request) {
-	r.Body=http.MaxBytesReader(w,r.Body,11<<20)
+	r.Body = http.MaxBytesReader(w, r.Body, 11<<20)
 	input := new(previewRequest)
 	if err := request.Parse(r, input); err != nil || input.VersionID <= 0 {
 		respond.Error(w, error_ext.ValidateError)
@@ -149,7 +179,7 @@ func PreviewSample(w http.ResponseWriter, r *http.Request) {
 			respond.Error(w, error_ext.ValidateError)
 			return
 		}
-		sample = &table.WorkflowSample{WorkflowVersionId: input.VersionID, Source: "paste", ContentType: input.ContentType, Content: input.Content, PageURL: input.PageURL}
+		sample = &table.WorkflowSample{WorkflowVersionId: input.VersionID, Source: "paste", PageRole: input.PageRole, ContentType: input.ContentType, Content: input.Content, PageURL: input.PageURL}
 	}
 	preview, err := workflow_repo.PreviewSampleWithKeys(input.VersionID, sample, input.IdempotencyKeys)
 	if err != nil {

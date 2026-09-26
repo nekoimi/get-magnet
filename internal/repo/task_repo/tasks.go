@@ -122,7 +122,17 @@ func CreateTask(runID, parentTaskID int64, stepName, taskType, input string, max
 	// detail work. Non-workflow task types keep their historical behavior.
 	if parentTaskID > 0 && taskType == "workflow" {
 		var existing table.CrawlTask
-		has, err := s.Where("run_id = ? AND task_type = ? AND step_name = ? AND input = ?::jsonb", runID, taskType, stepName, input).Get(&existing)
+		var taskInput struct {
+			URL string `json:"url"`
+		}
+		_ = json.Unmarshal([]byte(input), &taskInput)
+		condition := "run_id = ? AND task_type = ? AND step_name = ? AND input = ?::jsonb"
+		args := []any{runID, taskType, stepName, input}
+		if taskInput.URL != "" {
+			condition = "run_id = ? AND task_type = ? AND step_name = ? AND input->>'url' = ?"
+			args[3] = taskInput.URL
+		}
+		has, err := s.Where(condition, args...).Get(&existing)
 		if err != nil {
 			_ = s.Rollback()
 			return nil, err
@@ -144,6 +154,14 @@ func CreateTask(runID, parentTaskID int64, stepName, taskType, input string, max
 		return nil, err
 	}
 	return task, nil
+}
+
+// WorkflowTaskByURL checks the durable run graph before a list page schedules
+// another page or detail. It preserves the original parent across retries.
+func WorkflowTaskByURL(runID int64, stepName, pageURL string) (*table.CrawlTask, bool, error) {
+	var task table.CrawlTask
+	has, err := db.Instance().Where("run_id = ? AND task_type = ? AND step_name = ? AND input->>'url' = ?", runID, "workflow", stepName, pageURL).Asc("id").Get(&task)
+	return &task, has, err
 }
 
 // ClaimNext atomically claims one queued or expired task and creates its attempt.

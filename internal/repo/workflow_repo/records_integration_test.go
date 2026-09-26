@@ -58,7 +58,7 @@ func TestDevRecordTemplatePublication(t *testing.T) {
 	if err := raw.QueryRow("SELECT id FROM sources ORDER BY id LIMIT 1").Scan(&sourceID); err != nil {
 		t.Fatal(err)
 	}
-	for _, template := range workflow.Templates() {
+	for _, template := range workflow.Templates()[:2] {
 		encoded, _ := json.Marshal(template.Definition)
 		owner, version, err := Create(CreateWorkflowInput{ProjectID: &projectID, DatasetID: &datasetID, SourceID: &sourceID, Code: fmt.Sprintf("a04_publish_%d", time.Now().UnixNano()), Name: "A04 publication test", ResourceType: "article", Definition: string(encoded)})
 		if err != nil {
@@ -192,5 +192,33 @@ func TestDevRecordTemplatePublication(t *testing.T) {
 			t.Fatal("published template without dataset key")
 		}
 	}
-	t.Log("both non-magnet templates published and created durable runs; missing unique key blocked publication")
+	listing := workflow.Templates()[3].Definition
+	listing.Trigger.URL = "https://example.org/list"
+	listingEncoded, _ := json.Marshal(listing)
+	listingOwner, listingVersion, err := Create(CreateWorkflowInput{ProjectID: &projectID, DatasetID: &datasetID, SourceID: &sourceID, Code: fmt.Sprintf("b01_publish_%d", time.Now().UnixNano()), Name: "B01 listing test", ResourceType: "article", Definition: string(listingEncoded)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = raw.Exec("DELETE FROM workflows WHERE id=$1", listingOwner.Id) }()
+	listSample, err := SaveSample(SampleInput{VersionID: listingVersion.Id, Source: "paste", PageRole: "list", PageURL: listing.Trigger.URL, ContentType: "html", Content: `<a class="article-link" href="/detail/1">detail</a>`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result, err := PreviewSample(listingVersion.Id, listSample); err != nil || !result.Passed || len(result.Discovered) != 1 {
+		t.Fatalf("list preview: %#v %v", result, err)
+	}
+	if err := PublishVersion(listingVersion.Id); err == nil {
+		t.Fatal("listing published without detail sample")
+	}
+	detailSample, err := SaveSample(SampleInput{VersionID: listingVersion.Id, Source: "paste", PageRole: "detail", PageURL: "https://example.org/detail/1", ContentType: "html", Content: `<link rel="canonical" href="https://example.org/detail/1"><h1>Detail</h1>`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result, err := PreviewSample(listingVersion.Id, detailSample); err != nil || !result.Passed || len(result.Decisions) != 1 {
+		t.Fatalf("detail preview: %#v %v", result, err)
+	}
+	if err := PublishVersion(listingVersion.Id); err != nil {
+		t.Fatal("list and detail samples should allow publication:", err)
+	}
+	t.Log("article and JSON templates published; listing publication requires both list and detail samples")
 }

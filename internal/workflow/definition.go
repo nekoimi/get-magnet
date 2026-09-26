@@ -13,11 +13,20 @@ import (
 type Definition struct {
 	Persistence  string            `json:"persistence,omitempty"`
 	Trigger      Trigger           `json:"trigger"`
+	Listing      *ListingOptions   `json:"listing,omitempty"`
 	Acquire      []Node            `json:"acquire,omitempty"`
 	Nodes        []Node            `json:"nodes"`
 	InputSchema  json.RawMessage   `json:"input_schema,omitempty"`
 	OutputSchema json.RawMessage   `json:"output_schema,omitempty"`
 	Credentials  map[string]string `json:"credentials,omitempty"`
+}
+
+// ListingOptions bounds a list -> detail crawl. URLs stay on the entry host.
+type ListingOptions struct {
+	DetailSelector string `json:"detail_selector"`
+	NextSelector   string `json:"next_selector,omitempty"`
+	MaxPages       int    `json:"max_pages"`
+	MaxEmptyPages  int    `json:"max_empty_pages"`
 }
 
 type Trigger struct {
@@ -167,6 +176,27 @@ func (d Definition) ValidateExecutable() error {
 	}
 	if err := validateFetchOptions(d.Trigger.Fetch); err != nil {
 		return fmt.Errorf("trigger.fetch: %w", err)
+	}
+	if d.Listing != nil {
+		if d.Persistence != "records" {
+			return fmt.Errorf("listing: records persistence is required")
+		}
+		if strings.TrimSpace(d.Listing.DetailSelector) == "" || d.Listing.MaxPages < 1 || d.Listing.MaxPages > 100 || d.Listing.MaxEmptyPages < 1 || d.Listing.MaxEmptyPages > 10 {
+			return fmt.Errorf("listing: detail_selector, max_pages 1–100 and max_empty_pages 1–10 are required")
+		}
+		for _, selector := range []string{d.Listing.DetailSelector, d.Listing.NextSelector} {
+			if strings.TrimSpace(selector) == "" {
+				continue
+			}
+			if err := validateListingSelector(selector); err != nil {
+				return fmt.Errorf("listing: %w", err)
+			}
+		}
+		for i, action := range d.Trigger.Fetch.Actions {
+			if action.Type == "navigate" {
+				return fmt.Errorf("trigger.fetch.actions[%d]: navigate cannot override listing or detail task URLs", i)
+			}
+		}
 	}
 	hasExtract := false
 	hasDiscover := false

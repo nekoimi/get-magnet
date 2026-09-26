@@ -17,6 +17,7 @@ import (
 type SampleInput struct {
 	VersionID   int64  `json:"version_id"`
 	Source      string `json:"source"`
+	PageRole    string `json:"page_role,omitempty"`
 	DocumentID  *int64 `json:"document_id,omitempty"`
 	PageURL     string `json:"page_url,omitempty"`
 	ContentType string `json:"content_type,omitempty"`
@@ -31,14 +32,23 @@ type SamplePreview struct {
 	SampleID    int64                         `json:"sample_id,omitempty"`
 	Source      string                        `json:"source"`
 	FetchedLive bool                          `json:"fetched_live"`
+	PageRole    string                        `json:"page_role"`
+	Discovered  []string                      `json:"discovered_urls,omitempty"`
+	NextURL     string                        `json:"next_url,omitempty"`
 	Steps       []workflow.RecordStep         `json:"steps"`
 	Decisions   []record_repo.PreviewDecision `json:"decisions"`
 	Error       string                        `json:"error,omitempty"`
 }
 
 func SaveSample(input SampleInput) (*table.WorkflowSample, error) {
+	if input.PageRole == "" {
+		input.PageRole = "trigger"
+	}
 	if input.VersionID <= 0 || (input.Source != "paste" && input.Source != "document" && input.Source != "live") {
 		return nil, errors.New("version_id and valid source are required")
+	}
+	if input.PageRole != "trigger" && input.PageRole != "list" && input.PageRole != "detail" {
+		return nil, errors.New("page_role must be trigger, list or detail")
 	}
 	if len(input.Content) == 0 || len(input.Content) > 10<<20 {
 		return nil, errors.New("sample content must be 1–10485760 bytes")
@@ -78,7 +88,7 @@ func SaveSample(input SampleInput) (*table.WorkflowSample, error) {
 		}
 	}
 	hash := sha256.Sum256([]byte(input.Content))
-	row := &table.WorkflowSample{WorkflowVersionId: input.VersionID, Source: input.Source, DocumentId: input.DocumentID, PageURL: input.PageURL, ContentType: input.ContentType, Content: input.Content, ContentHash: hex.EncodeToString(hash[:]), Note: input.Note, CreatedAt: time.Now()}
+	row := &table.WorkflowSample{WorkflowVersionId: input.VersionID, Source: input.Source, PageRole: input.PageRole, DocumentId: input.DocumentID, PageURL: input.PageURL, ContentType: input.ContentType, Content: input.Content, ContentHash: hex.EncodeToString(hash[:]), Note: input.Note, CreatedAt: time.Now()}
 	if _, err := s.Insert(row); err != nil {
 		return nil, err
 	}
@@ -140,7 +150,7 @@ func PreviewSample(versionID int64, sample *table.WorkflowSample) (SamplePreview
 }
 
 func PreviewSampleWithKeys(versionID int64, sample *table.WorkflowSample, idempotencyKeys []string) (SamplePreview, error) {
-	result := SamplePreview{DryRun: true, VersionID: versionID, Source: sample.Source, SampleID: sample.Id, FetchedLive: false, Steps: []workflow.RecordStep{}, Decisions: []record_repo.PreviewDecision{}}
+	result := SamplePreview{DryRun: true, VersionID: versionID, Source: sample.Source, SampleID: sample.Id, PageRole: sample.PageRole, FetchedLive: false, Steps: []workflow.RecordStep{}, Decisions: []record_repo.PreviewDecision{}}
 	if sample.WorkflowVersionId != versionID {
 		return result, errors.New("sample belongs to another version")
 	}
@@ -167,6 +177,35 @@ func PreviewSampleWithKeys(versionID int64, sample *table.WorkflowSample, idempo
 		result.Error = "record dry-run requires records persistence"
 		return result, nil
 	}
+	role := sample.PageRole
+	if role == "" {
+		role = "trigger"
+	}
+	if definition.Listing != nil {
+		if role != "list" && role != "detail" {
+			result.Error = "listing sample requires list or detail page_role"
+			return result, nil
+		}
+		if role == "list" {
+			listing, err := workflow.ExtractListing(*definition.Listing, workflow.FetchResult{HTML: sample.Content, FinalURL: sample.PageURL}, definition.Trigger.URL)
+			if err != nil {
+				result.Error = err.Error()
+				return result, nil
+			}
+			result.PageRole = role
+			result.Discovered = listing.Details
+			result.NextURL = listing.NextURL
+			result.Steps = append(result.Steps, workflow.RecordStep{Candidate: 0, Node: "listing", Type: "discover", Values: map[string]any{"details": listing.Details, "next_url": listing.NextURL}})
+			result.Passed = len(listing.Details) > 0 || listing.NextURL != ""
+			if !result.Passed {
+				result.Error = "listing sample found no details or next page"
+			}
+			return result, nil
+		}
+	} else if role != "trigger" {
+		result.Error = "single-page sample requires trigger page_role"
+		return result, nil
+	}
 	schema, err := record_repo.DatasetSchema(*owner.DatasetId)
 	if err != nil {
 		result.Error = err.Error()
@@ -179,7 +218,7 @@ func PreviewSampleWithKeys(versionID int64, sample *table.WorkflowSample, idempo
 		document.HTML = sample.Content
 	}
 	result.Steps = append(result.Steps, workflow.RecordStep{Candidate: 0, Node: "acquire", Type: "acquire", Values: map[string]any{"source": sample.Source, "page_url": sample.PageURL, "content_type": sample.ContentType, "content_hash": sample.ContentHash}})
-	values, steps, err := workflow.TraceRecordCandidates(definition, document, "trigger", schema)
+	values, steps, err := workflow.TraceRecordCandidates(definition, document, role, schema)
 	result.Steps = append(result.Steps, steps...)
 	if err != nil {
 		if len(values) > 0 {
@@ -228,6 +267,15 @@ func CheckSamples(versionID int64) ([]SamplePreview, error) {
 	}
 	checks := make([]SamplePreview, 0, len(samples))
 	var firstError error
+	version, has, err := GetVersion(versionID)
+	if err != nil || !has {
+		return nil, errors.New("workflow version not found")
+	}
+	definition, err := workflow.ParseExecutableDefinition(version.Definition)
+	if err != nil {
+		return nil, err
+	}
+	listCount, detailCount, discoveredCount := 0, 0, 0
 	for _, sample := range samples {
 		preview, err := PreviewSample(versionID, &sample)
 		if err != nil {
@@ -238,9 +286,19 @@ func CheckSamples(versionID int64) ([]SamplePreview, error) {
 			}
 		}
 		checks = append(checks, preview)
+		if preview.Passed && preview.PageRole == "list" {
+			listCount++
+			discoveredCount += len(preview.Discovered)
+		}
+		if preview.Passed && preview.PageRole == "detail" {
+			detailCount++
+		}
 		if !preview.Passed && firstError == nil {
 			firstError = &workflow.DefinitionError{Cause: fmt.Errorf("samples[%d]: %s", sample.Id, strings.TrimSpace(preview.Error))}
 		}
+	}
+	if definition.Listing != nil && (listCount == 0 || detailCount == 0 || discoveredCount == 0) && firstError == nil {
+		firstError = &workflow.DefinitionError{Cause: errors.New("samples: listing publication requires a list sample with details and a detail sample")}
 	}
 	return checks, firstError
 }

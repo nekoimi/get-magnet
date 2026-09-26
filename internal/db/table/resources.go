@@ -50,6 +50,7 @@ type WorkflowSample struct {
 	Id                int64     `json:"id"`
 	WorkflowVersionId int64     `xorm:"workflow_version_id" json:"workflow_version_id"`
 	Source            string    `json:"source"`
+	PageRole          string    `xorm:"page_role" json:"page_role"`
 	DocumentId        *int64    `xorm:"document_id" json:"document_id,omitempty"`
 	PageURL           string    `xorm:"page_url text" json:"page_url"`
 	ContentType       string    `xorm:"content_type" json:"content_type"`

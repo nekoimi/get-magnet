@@ -245,7 +245,11 @@ func ValidateVersion(id int64) error {
 		if err != nil {
 			return &workflow.DefinitionError{Cause: fmt.Errorf("dataset: %w", err)}
 		}
-		if err := definition.ValidateRecordSchema(schema, "trigger"); err != nil {
+		role := "trigger"
+		if definition.Listing != nil {
+			role = "detail"
+		}
+		if err := definition.ValidateRecordSchema(schema, role); err != nil {
 			return &workflow.DefinitionError{Cause: err}
 		}
 		return nil
@@ -363,6 +367,21 @@ func StartRun(workflowID int64, input string, createdBy *int64) (*table.Workflow
 	now := time.Now()
 	run := &table.WorkflowRun{WorkflowId: workflowID, WorkflowVersionId: *row.PublishedVersionId, TriggerType: "manual", Status: task_repo.RunQueued, Input: input, Summary: "{}", CreatedBy: createdBy, CreatedAt: now}
 	task := &table.CrawlTask{StepName: "trigger", TaskType: "workflow", Input: input, Status: task_repo.TaskQueued, MaxAttempts: 5, CreatedAt: now, UpdatedAt: now}
+	version, has, err := GetVersion(*row.PublishedVersionId)
+	if err != nil || !has {
+		return nil, nil, errors.New("published version not found")
+	}
+	definition, err := workflow.ParseExecutableDefinition(version.Definition)
+	if err != nil {
+		return nil, nil, err
+	}
+	if definition.Listing != nil {
+		// Root metadata comes from the definition, never caller-supplied input.
+		value["page_role"], value["url"], value["page_index"] = "list", definition.Trigger.URL, 1
+		delete(value, "empty_streak")
+		encoded, _ := json.Marshal(value)
+		task.Input = string(encoded)
+	}
 	s := db.Instance().NewSession()
 	defer s.Close()
 	if err := s.Begin(); err != nil {

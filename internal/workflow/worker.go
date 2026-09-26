@@ -193,19 +193,17 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	if pageURL == "" {
 		return errors.New("workflow entry url is required")
 	}
-	fetchOptions := definition.Trigger.Fetch
-	if len(fetchOptions.Actions) > 0 {
-		actions := make([]FetchAction, 0, len(fetchOptions.Actions))
-		for _, action := range fetchOptions.Actions {
-			if action.RunOn == "" || action.RunOn == claim.Task.StepName {
-				actions = append(actions, action)
-			}
-		}
-		fetchOptions.Actions = actions
-	}
+	fetchOptions := definition.FetchForRole(claim.Task.StepName)
 	result, err := (Fetcher{Browser: w.browser}).Fetch(ctx, pageURL, fetchOptions)
 	if err != nil {
 		return err
+	}
+	if definition.Listing != nil {
+		entry, _ := url.Parse(definition.Trigger.URL)
+		final, parseErr := url.Parse(result.FinalURL)
+		if parseErr != nil || !strings.EqualFold(entry.Hostname(), final.Hostname()) {
+			return fmt.Errorf("listing fetch redirected outside entry host: %s", result.FinalURL)
+		}
 	}
 	pageURL = result.FinalURL
 	var documentID int64
@@ -221,6 +219,9 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 		_, _ = db.Instance().ID(claim.Task.Id).Cols("output_document_id").Update(&table.CrawlTask{OutputDocumentId: &documentID})
 	}
 	if definition.Persistence == "records" {
+		if definition.Listing != nil && claim.Task.StepName != "detail" {
+			return w.expandListing(ctx, claim, run, definition, result, documentID, input)
+		}
 		return w.persistRecords(ctx, claim, run, definition, result, documentID)
 	}
 
@@ -327,6 +328,79 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	}
 	encoded, _ := json.Marshal(output)
 	return task_repo.Complete(claim.Task.Id, claim.Attempt.Id, string(encoded))
+}
+
+func (w *Worker) expandListing(ctx context.Context, claim *task_repo.Claim, run *table.WorkflowRun, definition Definition, document FetchResult, documentID int64, input map[string]any) error {
+	pageIndex := 1
+	if claim.Task.StepName == "list" {
+		pageIndex = intNumber(input["page_index"])
+		if pageIndex < 2 || pageIndex > definition.Listing.MaxPages {
+			return errors.New("invalid listing page index")
+		}
+	}
+	listing, err := ExtractListing(*definition.Listing, document, definition.Trigger.URL)
+	if err != nil {
+		return err
+	}
+	if len(listing.Details) > 1000 {
+		return errors.New("listing produced more than 1000 detail links")
+	}
+	newDetails := 0
+	for _, detailURL := range listing.Details {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := task_repo.CheckAttempt(claim.Task.Id, claim.Attempt); err != nil {
+			return err
+		}
+		existing, has, err := task_repo.WorkflowTaskByURL(run.Id, "detail", detailURL)
+		if err != nil {
+			return err
+		}
+		if has {
+			if existing.ParentTaskId != nil && *existing.ParentTaskId == claim.Task.Id {
+				newDetails++
+			}
+			continue
+		}
+		if _, err := task_repo.CreateTask(run.Id, claim.Task.Id, "detail", workflowTaskType, task_repo.TaskInput(detailURL, ""), 5); err != nil {
+			return err
+		}
+		newDetails++
+	}
+	emptyStreak := 0
+	if newDetails == 0 && claim.Task.StepName == "list" {
+		emptyStreak = intNumber(input["empty_streak"]) + 1
+	} else if newDetails == 0 {
+		emptyStreak = 1
+	}
+	entry, _ := url.Parse(definition.Trigger.URL)
+	repeated := listing.NextURL == listingNormalized(entry) || listing.NextURL == document.FinalURL
+	if listing.NextURL != "" && !repeated {
+		existing, has, err := task_repo.WorkflowTaskByURL(run.Id, "list", listing.NextURL)
+		if err != nil {
+			return err
+		}
+		// A child created by this same attempt's replay is not a pagination loop.
+		repeated = has && (existing.ParentTaskId == nil || *existing.ParentTaskId != claim.Task.Id)
+	}
+	stop := listingStop(*definition.Listing, pageIndex, emptyStreak, listing.NextURL, repeated)
+	if stop == "" {
+		childInput, _ := json.Marshal(map[string]any{"url": listing.NextURL, "page_index": pageIndex + 1, "empty_streak": emptyStreak})
+		if err := task_repo.CheckAttempt(claim.Task.Id, claim.Attempt); err != nil {
+			return err
+		}
+		if _, err := task_repo.CreateTask(run.Id, claim.Task.Id, "list", workflowTaskType, string(childInput), 5); err != nil {
+			return err
+		}
+	}
+	output, _ := json.Marshal(map[string]any{"document_id": documentID, "page_role": "list", "page_index": pageIndex, "discovered_count": newDetails, "next_url": listing.NextURL, "stop_reason": stop, "limited": stop == "max_pages", "fetch": map[string]any{"adapter": document.Adapter, "final_url": document.FinalURL, "status_code": document.StatusCode}})
+	return task_repo.Complete(claim.Task.Id, claim.Attempt.Id, string(output))
+}
+
+func intNumber(value any) int {
+	number, _ := value.(float64)
+	return int(number)
 }
 
 func (w *Worker) persistRecords(ctx context.Context, claim *task_repo.Claim, run *table.WorkflowRun, definition Definition, document FetchResult, documentID int64) error {

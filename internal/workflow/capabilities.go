@@ -43,8 +43,8 @@ func validateFetchOptions(options FetchOptions) error {
 	}
 	for i, action := range options.Actions {
 		path := fmt.Sprintf("actions[%d]", i)
-		if action.RunOn != "" && action.RunOn != "trigger" && action.RunOn != "detail" {
-			return fmt.Errorf("%s.run_on: only trigger or detail is supported", path)
+		if action.RunOn != "" && action.RunOn != "trigger" && action.RunOn != "list" && action.RunOn != "detail" {
+			return fmt.Errorf("%s.run_on: only trigger, list or detail is supported", path)
 		}
 		if action.TimeoutMS < 0 || action.TimeoutMS > 60000 {
 			return fmt.Errorf("%s.timeout_ms: must be between 0 and 60000", path)

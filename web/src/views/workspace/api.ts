@@ -7,13 +7,13 @@ export interface SchemaField { key:string; label:string; type:string; required:b
 export interface DatasetSchema { unique_key_fields:string[]; empty_value_policy:string; fields:SchemaField[] }
 export interface Workflow { id:number; project_id?:number; dataset_id?:number; source_id:number; code:string; name:string; resource_type:string; enabled:boolean; published_version_id?:number }
 export interface Version { id:number; workflow_id:number; version:number; status:string; definition:string|Definition; created_at:string }
-export interface Definition { persistence:string; trigger:{type:string;url:string;fetch:{mode:string}}; nodes:Array<{name:string;type:string;config:Record<string,any>}> }
+export interface Definition { persistence:string; trigger:{type:string;url:string;fetch:{mode:string}}; listing?:{detail_selector:string;next_selector?:string;max_pages:number;max_empty_pages:number}; nodes:Array<{name:string;type:string;config:Record<string,any>}> }
 export interface Template { code:string; name:string; description:string; record_type:string; definition:Definition }
-export interface Sample { id:number; workflow_version_id:number; source:string; content_type:string; content_hash:string; note:string; page_url:string; created_at:string }
-export interface Preview { dry_run:boolean; passed:boolean; fetched_live:boolean; sample_id?:number; version_id:number; steps:Array<{candidate:number;node:string;type:string;values:Record<string,any>}>; decisions:Array<{index:number;decision:string;canonical_key?:string;values?:Record<string,any>;changed_fields?:string[];reason?:string}>; error?:string }
+export interface Sample { id:number; workflow_version_id:number; source:string; page_role:string; content_type:string; content_hash:string; note:string; page_url:string; created_at:string }
+export interface Preview { dry_run:boolean; passed:boolean; fetched_live:boolean; sample_id?:number; version_id:number; page_role:string; discovered_urls?:string[]; next_url?:string; steps:Array<{candidate:number;node:string;type:string;values:Record<string,any>}>; decisions:Array<{index:number;decision:string;canonical_key?:string;values?:Record<string,any>;changed_fields?:string[];reason?:string}>; error?:string }
 export interface RecordRow { id:number; dataset_id:number; canonical_key:string; normalized:string|Record<string,any>; last_seen_at:string }
 export interface Run { id:number; workflow_id:number; workflow_version_id:number; status:string; created_at:string; started_at?:string; finished_at?:string; summary:string }
-export interface Task { id:number; run_id:number; step_name:string; status:string; output_document_id?:number; error_message?:string; input:string }
+export interface Task { id:number; run_id:number; parent_task_id?:number; step_name:string; status:string; output_document_id?:number; error_message?:string; input:string }
 
 async function get<T>(url:string, params?:Record<string,any>):Promise<T> { const response:any=await request({url,method:'get',params}); return response.data as T; }
 async function post<T>(url:string, data:any):Promise<T> { const response:any=await request({url,method:'post',data}); return response.data as T; }

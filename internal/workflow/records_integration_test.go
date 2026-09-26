@@ -96,6 +96,23 @@ func TestDevA04Templates(t *testing.T) {
 		t.Fatal(err)
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/list" {
+			w.Header().Set("Content-Type", "text/html")
+			switch r.URL.Query().Get("page") {
+			case "1":
+				fmt.Fprint(w, `<a class="item" href="/detail/a">A</a><a class="item" href="/detail/a#fragment">duplicate</a><a class="item" href="/detail/b">B</a><a class="item" href="https://offsite.invalid/detail">offsite</a><a class="next" href="?page=2">Next</a>`)
+			case "2":
+				fmt.Fprint(w, `<a class="item" href="/detail/b">repeated</a><a class="item" href="/detail/c">C</a><a class="next" href="?page=3">Next</a>`)
+			default:
+				fmt.Fprint(w, `<a class="next" href="?page=2">Repeated next</a>`)
+			}
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/detail/") {
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprintf(w, `<link rel="canonical" href="%s%s"><h1>%s</h1><article>Body</article>`, "http://"+r.Host, r.URL.Path, r.URL.Path)
+			return
+		}
 		if r.URL.Path == "/magnet" {
 			w.Header().Set("Content-Type", "text/html")
 			fmt.Fprint(w, `<span class="number">AB-123</span><h1>Magnet title</h1><a href="magnet:?xt=urn:btih:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA">one</a><a href="magnet:?xt=urn:btih:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB">two</a>`)
@@ -207,6 +224,72 @@ func TestDevA04Templates(t *testing.T) {
 	var rollbackCount int
 	if err := raw.QueryRow("SELECT count(*) FROM records WHERE dataset_id=$1 AND canonical_key='https://a04-test.invalid/rollback'", dataset.Id).Scan(&rollbackCount); err != nil || rollbackCount != 0 {
 		t.Fatal("batch did not rollback")
+	}
+	listing := Templates()[3].Definition
+	listing.Trigger.URL = server.URL + "/list?page=1"
+	listing.Listing.MaxPages = 5
+	listing.Listing.DetailSelector = "a.item[href]"
+	listing.Listing.NextSelector = "a.next[href]"
+	encoded, _ := json.Marshal(listing)
+	now := time.Now()
+	owner := &table.Workflow{ProjectId: &project.Id, DatasetId: &dataset.Id, SourceId: sourceID, Code: "listing", Name: "listing", ResourceType: "article", Enabled: true, CreatedAt: now, UpdatedAt: now}
+	if _, err := db.Instance().InsertOne(owner); err != nil {
+		t.Fatal(err)
+	}
+	version := &table.WorkflowVersion{WorkflowId: owner.Id, Version: 1, Status: "published", Definition: string(encoded), CreatedAt: now}
+	if _, err := db.Instance().InsertOne(version); err != nil {
+		t.Fatal(err)
+	}
+	run := &table.WorkflowRun{WorkflowId: owner.Id, WorkflowVersionId: version.Id, TriggerType: "manual", Status: "running", Input: "{}", Summary: "{}", CreatedAt: now}
+	if _, err := db.Instance().InsertOne(run); err != nil {
+		t.Fatal(err)
+	}
+	root, err := task_repo.CreateTask(run.Id, 0, "trigger", workflowTaskType, "{}", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 12; i++ {
+		var task table.CrawlTask
+		has, err := db.Instance().Where("run_id=? AND status=?", run.Id, task_repo.TaskQueued).Asc("id").Get(&task)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !has {
+			break
+		}
+		lease := time.Now().Add(time.Minute)
+		if _, err := db.Instance().ID(task.Id).Cols("status", "attempt_count", "lease_owner", "lease_until").Update(&table.CrawlTask{Status: task_repo.TaskRunning, AttemptCount: 1, LeaseOwner: "b01-test", LeaseUntil: &lease}); err != nil {
+			t.Fatal(err)
+		}
+		task.Status, task.AttemptCount, task.LeaseOwner, task.LeaseUntil = task_repo.TaskRunning, 1, "b01-test", &lease
+		attempt := table.TaskAttempt{TaskId: task.Id, AttemptNo: 1, WorkerId: "b01-test", Status: task_repo.TaskRunning, StartedAt: &now, RequestSnapshot: task.Input, ResponseSnapshot: "{}"}
+		if _, err := db.Instance().InsertOne(&attempt); err != nil {
+			t.Fatal(err)
+		}
+		if err := worker.execute(ctx, &task_repo.Claim{Task: task, Attempt: attempt}); err != nil {
+			t.Fatalf("listing task %s #%d: %v", task.StepName, task.Id, err)
+		}
+	}
+	var queued, listTasks, detailTasks, distinctURLs int
+	if err := raw.QueryRow(`SELECT count(*) FILTER (WHERE status='queued'),count(*) FILTER (WHERE step_name IN ('trigger','list')),count(*) FILTER (WHERE step_name='detail'),count(DISTINCT input->>'url') FILTER (WHERE step_name='detail') FROM crawl_tasks WHERE run_id=$1`, run.Id).Scan(&queued, &listTasks, &detailTasks, &distinctURLs); err != nil {
+		t.Fatal(err)
+	}
+	if queued != 0 || listTasks != 3 || detailTasks != 3 || distinctURLs != 3 || root.Id == 0 {
+		t.Fatalf("listing task tree: queued=%d list=%d details=%d distinct=%d", queued, listTasks, detailTasks, distinctURLs)
+	}
+	var listingRecords, listingObservations int
+	if err := raw.QueryRow(`SELECT count(*) FROM records WHERE dataset_id=$1 AND canonical_key LIKE $2`, dataset.Id, server.URL+"/detail/%").Scan(&listingRecords); err != nil {
+		t.Fatal(err)
+	}
+	if err := raw.QueryRow("SELECT count(*) FROM record_observations WHERE run_id=$1 AND document_id IS NOT NULL", run.Id).Scan(&listingObservations); err != nil {
+		t.Fatal(err)
+	}
+	var listingStatus string
+	if err := raw.QueryRow("SELECT status FROM workflow_runs WHERE id=$1", run.Id).Scan(&listingStatus); err != nil {
+		t.Fatal(err)
+	}
+	if listingRecords != 3 || listingObservations != 3 || listingStatus != task_repo.RunSucceeded {
+		t.Fatalf("listing persistence: records=%d observations=%d status=%s", listingRecords, listingObservations, listingStatus)
 	}
 	t.Log("HTTP HTML and JSON templates executed without browser; 2 records, 5 observations, 3 revisions; batch rollback and run summary passed")
 }
