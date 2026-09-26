@@ -7,7 +7,7 @@ export interface SchemaField { key:string; label:string; type:string; required:b
 export interface DatasetSchema { unique_key_fields:string[]; empty_value_policy:string; fields:SchemaField[] }
 export interface Workflow { id:number; project_id?:number; dataset_id?:number; source_id:number; code:string; name:string; resource_type:string; enabled:boolean; published_version_id?:number }
 export interface Version { id:number; workflow_id:number; version:number; status:string; definition:string|Definition; created_at:string }
-export interface Definition { persistence:string; trigger:{type:string;url:string;fetch:{mode:string}}; listing?:{detail_selector:string;next_selector?:string;max_pages:number;max_empty_pages:number}; nodes:Array<{name:string;type:string;config:Record<string,any>}> }
+export interface Definition { persistence:string; trigger:{type:string;url:string;fetch:{mode:string}}; listing?:{detail_selector:string;next_selector?:string;max_pages:number;max_empty_pages:number}; budget?:{max_discovered_per_page:number;max_tasks:number;max_pages:number;max_depth:number;max_duration_seconds:number;max_domains:number;allowed_domains:string[]}; nodes:Array<{name:string;type:string;config:Record<string,any>}> }
 export interface Template { code:string; name:string; description:string; record_type:string; definition:Definition }
 export interface Sample { id:number; workflow_version_id:number; source:string; page_role:string; content_type:string; content_hash:string; note:string; page_url:string; created_at:string }
 export interface Preview { dry_run:boolean; passed:boolean; fetched_live:boolean; sample_id?:number; version_id:number; page_role:string; discovered_urls?:string[]; next_url?:string; steps:Array<{candidate:number;node:string;type:string;values:Record<string,any>}>; decisions:Array<{index:number;decision:string;canonical_key?:string;values?:Record<string,any>;changed_fields?:string[];reason?:string}>; error?:string }
@@ -41,7 +41,7 @@ export const api={
  run:(workflow_id:number)=>post<{run_id:number;task_id:number}>('/api/v2/workflows/run',{workflow_id}),
  runs:(page=1,project_id?:number)=>get<{list:Run[];total:number}>('/api/v2/runs/list',{page,size:20,project_id}),
  workflowRuns:(workflow_id:number)=>get<{list:Run[];total:number}>('/api/v2/runs/list',{workflow_id,page:1,size:20}),
- runDetail:(id:number)=>get<{run:Run;tasks:Task[]}>('/api/v2/runs/detail',{id}),
+	runDetail:(id:number)=>get<{run:Run;tasks:Task[];coverage?:Record<string,any>;limit_events?:Array<{task_id:number;page_role:string;url:string;reason:string}>}>('/api/v2/runs/detail',{id}),
  document:(id:number)=>get<any>('/api/v2/documents/detail',{id}),
 };
 

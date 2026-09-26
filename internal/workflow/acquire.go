@@ -51,11 +51,17 @@ type browserExecutor interface {
 }
 
 type Fetcher struct {
-	HTTP    *http.Client
-	Browser browserExecutor
+	HTTP     *http.Client
+	Browser  browserExecutor
+	AllowURL func(string) error
 }
 
 func (f Fetcher) Fetch(ctx context.Context, pageURL string, options FetchOptions) (FetchResult, error) {
+	if f.AllowURL != nil {
+		if err := f.AllowURL(pageURL); err != nil {
+			return FetchResult{}, err
+		}
+	}
 	mode := options.Mode
 	if mode == "" {
 		mode = "http"
@@ -84,6 +90,11 @@ func (f Fetcher) Fetch(ctx context.Context, pageURL string, options FetchOptions
 		if finalURL == "" {
 			finalURL = pageURL
 		}
+		if f.AllowURL != nil {
+			if err := f.AllowURL(finalURL); err != nil {
+				return FetchResult{}, err
+			}
+		}
 		return FetchResult{Adapter: "browser", RequestID: result.RequestID, RequestedURL: pageURL, FinalURL: finalURL, StatusCode: result.StatusCode, ContentType: result.ContentType, HTML: result.HTML, JSON: result.JSON, Screenshot: result.Screenshot, Duration: result.Duration, Actions: result.ActionResults}, nil
 	}
 	if mode != "http" {
@@ -92,6 +103,23 @@ func (f Fetcher) Fetch(ctx context.Context, pageURL string, options FetchOptions
 	client := f.HTTP
 	if client == nil {
 		client = &http.Client{Timeout: 60 * time.Second}
+	}
+	if f.AllowURL != nil {
+		copy := *client
+		previous := client.CheckRedirect
+		copy.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if err := f.AllowURL(req.URL.String()); err != nil {
+				return err
+			}
+			if previous != nil {
+				return previous(req, via)
+			}
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			return nil
+		}
+		client = &copy
 	}
 	if options.TimeoutMS > 0 {
 		var cancel context.CancelFunc

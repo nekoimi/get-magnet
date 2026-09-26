@@ -36,4 +36,12 @@ func TestRunSummaryAggregatesAllPages(t *testing.T) {
 	if emptyLimited.Status() != RunFailed {
 		t.Fatalf("limited run without a resource must fail: %+v", emptyLimited)
 	}
+	emptyLimited.Coverage.LimitReasons = map[string]int64{"max_tasks": 1}
+	if emptyLimited.Status() != RunFailed {
+		t.Fatalf("no-result coverage should fail: %+v", emptyLimited)
+	}
+	limited.Coverage.LimitReasons = map[string]int64{"max_discovered_per_page": 1}
+	if limited.Status() != RunLimited {
+		t.Fatalf("persisted limit event should mark run limited: %+v", limited)
+	}
 }

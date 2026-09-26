@@ -25,6 +25,7 @@ import (
 	"github.com/nekoimi/scrapio/internal/repo/task_repo"
 	"github.com/nekoimi/scrapio/internal/script"
 	log "github.com/sirupsen/logrus"
+	"xorm.io/xorm"
 )
 
 const (
@@ -153,7 +154,7 @@ func waitWorkflow(ctx context.Context, delay time.Duration) bool {
 	}
 }
 
-func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
+func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) (execErr error) {
 	run := new(table.WorkflowRun)
 	has, err := db.Instance().ID(claim.Task.RunId).Get(run)
 	if err != nil || !has {
@@ -174,6 +175,21 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	if err != nil {
 		return fmt.Errorf("published workflow cannot execute: %w", err)
 	}
+	_, deadline, err := task_repo.InitializeRunBudget(run.Id)
+	if err != nil {
+		return fmt.Errorf("initialize run budget: %w", err)
+	}
+	parentCtx := ctx
+	ctx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
+	defer func() {
+		var exceeded *task_repo.BudgetExceeded
+		if errors.As(execErr, &exceeded) {
+			execErr = task_repo.CompleteLimited(claim, definition.Trigger.URL, exceeded.Reason)
+		} else if execErr != nil && parentCtx.Err() == nil && !time.Now().Before(deadline) && !errors.Is(execErr, task_repo.ErrStaleAttempt) {
+			execErr = task_repo.CompleteLimited(claim, definition.Trigger.URL, "max_duration_seconds")
+		}
+	}()
 	input := map[string]any{}
 	if strings.TrimSpace(claim.Task.Input) != "" {
 		if err := json.Unmarshal([]byte(claim.Task.Input), &input); err != nil {
@@ -193,10 +209,42 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	if pageURL == "" {
 		return errors.New("workflow entry url is required")
 	}
+	if err := task_repo.ReservePage(claim, pageURL); err != nil {
+		return fmt.Errorf("reserve page: %w", err)
+	}
 	fetchOptions := definition.FetchForRole(claim.Task.StepName)
-	result, err := (Fetcher{Browser: w.browser}).Fetch(ctx, pageURL, fetchOptions)
-	if err != nil {
-		return err
+	var result FetchResult
+	var documentID int64
+	// Resume from the immutable document if a worker died after fetching or
+	// writing records. Idempotency keys then see the same candidates on replay.
+	if definition.Persistence == "records" && claim.Task.OutputDocumentId != nil {
+		var stored table.Document
+		has, err := db.Instance().ID(*claim.Task.OutputDocumentId).Where("task_id=?", claim.Task.Id).Get(&stored)
+		if err != nil {
+			return err
+		}
+		if !has {
+			return errors.New("task resume document not found")
+		}
+		result = FetchResult{RequestedURL: pageURL, FinalURL: pageURL, Adapter: "replay", ContentType: stored.DocumentType}
+		var metadata struct {
+			FinalURL string `json:"final_url"`
+		}
+		_ = json.Unmarshal([]byte(stored.Metadata), &metadata)
+		if metadata.FinalURL != "" {
+			result.FinalURL = metadata.FinalURL
+		}
+		if stored.DocumentType == "json" {
+			result.JSON = stored.Content
+		} else {
+			result.HTML = stored.Content
+		}
+		documentID = stored.Id
+	} else {
+		result, err = (Fetcher{Browser: w.browser, AllowURL: func(raw string) error { return task_repo.CheckPageURL(claim, raw) }}).Fetch(ctx, pageURL, fetchOptions)
+		if err != nil {
+			return err
+		}
 	}
 	if definition.Listing != nil {
 		entry, _ := url.Parse(definition.Trigger.URL)
@@ -206,17 +254,16 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 		}
 	}
 	pageURL = result.FinalURL
-	var documentID int64
-	err = task_repo.WithActiveAttempt(claim.Task.Id, claim.Attempt, func() error {
-		var writeErr error
-		documentID, writeErr = saveDocument(claim.Task.Id, pageURL, result)
-		return writeErr
-	})
-	if err != nil {
-		return err
-	}
-	if documentID > 0 {
-		_, _ = db.Instance().ID(claim.Task.Id).Cols("output_document_id").Update(&table.CrawlTask{OutputDocumentId: &documentID})
+	if documentID == 0 {
+		documentID, err = task_repo.SaveAttemptDocument(claim, func(s *xorm.Session) (int64, error) {
+			if err := ctx.Err(); err != nil {
+				return 0, err
+			}
+			return saveDocument(s, claim.Task.Id, pageURL, result)
+		})
+		if err != nil {
+			return err
+		}
 	}
 	if definition.Persistence == "records" {
 		if definition.Listing != nil && claim.Task.StepName != "detail" {
@@ -267,7 +314,12 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 				if err := task_repo.CheckAttempt(claim.Task.Id, claim.Attempt); err != nil {
 					return err
 				}
-				if _, err := task_repo.CreateTask(run.Id, claim.Task.Id, "detail", workflowTaskType, task_repo.TaskInput(childURL, ""), 5); err != nil {
+				if _, err := task_repo.CreateTaskForAttempt(claim, "detail", task_repo.TaskInput(childURL, "")); err != nil {
+					var exceeded *task_repo.BudgetExceeded
+					if errors.As(err, &exceeded) {
+						delete(discoveredURLs, childURL)
+						continue
+					}
 					return fmt.Errorf("create discovered task: %w", err)
 				}
 			}
@@ -343,7 +395,10 @@ func (w *Worker) expandListing(ctx context.Context, claim *task_repo.Claim, run 
 		return err
 	}
 	if len(listing.Details) > 1000 {
-		return errors.New("listing produced more than 1000 detail links")
+		if err := task_repo.RecordLimit(run.Id, claim.Task.Id, "detail", document.FinalURL, "max_discovered_per_page"); err != nil {
+			return err
+		}
+		listing.Details = listing.Details[:1000]
 	}
 	newDetails := 0
 	for _, detailURL := range listing.Details {
@@ -363,7 +418,11 @@ func (w *Worker) expandListing(ctx context.Context, claim *task_repo.Claim, run 
 			}
 			continue
 		}
-		if _, err := task_repo.CreateTask(run.Id, claim.Task.Id, "detail", workflowTaskType, task_repo.TaskInput(detailURL, ""), 5); err != nil {
+		if _, err := task_repo.CreateTaskForAttempt(claim, "detail", task_repo.TaskInput(detailURL, "")); err != nil {
+			var exceeded *task_repo.BudgetExceeded
+			if errors.As(err, &exceeded) {
+				continue
+			}
 			return err
 		}
 		newDetails++
@@ -390,7 +449,17 @@ func (w *Worker) expandListing(ctx context.Context, claim *task_repo.Claim, run 
 		if err := task_repo.CheckAttempt(claim.Task.Id, claim.Attempt); err != nil {
 			return err
 		}
-		if _, err := task_repo.CreateTask(run.Id, claim.Task.Id, "list", workflowTaskType, string(childInput), 5); err != nil {
+		if _, err := task_repo.CreateTaskForAttempt(claim, "list", string(childInput)); err != nil {
+			var exceeded *task_repo.BudgetExceeded
+			if errors.As(err, &exceeded) {
+				stop = exceeded.Reason
+			} else {
+				return err
+			}
+		}
+	}
+	if stop == "max_pages" {
+		if err := task_repo.RecordLimit(run.Id, claim.Task.Id, "list", listing.NextURL, "max_pages"); err != nil {
 			return err
 		}
 	}
@@ -429,6 +498,9 @@ func (w *Worker) persistRecords(ctx context.Context, claim *task_repo.Claim, run
 	}
 	var results []record_repo.Result
 	err = task_repo.WithActiveAttempt(claim.Task.Id, claim.Attempt, func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		var writeErr error
 		results, writeErr = record_repo.SaveBatch(candidates)
 		return writeErr
@@ -533,7 +605,7 @@ func nodeApplies(node Node, step string) bool {
 	}
 }
 
-func saveDocument(taskID int64, pageURL string, result FetchResult) (int64, error) {
+func saveDocument(s *xorm.Session, taskID int64, pageURL string, result FetchResult) (int64, error) {
 	if db.Instance() == nil {
 		return 0, errors.New("database is not initialized")
 	}
@@ -547,12 +619,12 @@ func saveDocument(taskID int64, pageURL string, result FetchResult) (int64, erro
 	hash := sha256.Sum256([]byte(content))
 	metadata, _ := json.Marshal(map[string]any{"url": pageURL, "requested_url": result.RequestedURL, "final_url": result.FinalURL, "adapter": result.Adapter, "status_code": result.StatusCode, "content_type": result.ContentType, "request_id": result.RequestID, "duration_ms": result.Duration.Milliseconds(), "action_results": result.Actions})
 	document := &table.Document{TaskId: &taskID, DocumentType: documentType, Content: content, ContentHash: hex.EncodeToString(hash[:]), ContentSize: int64(len(content)), Metadata: string(metadata), CreatedAt: time.Now()}
-	if _, err := db.Instance().InsertOne(document); err != nil {
+	if _, err := s.InsertOne(document); err != nil {
 		return 0, err
 	}
 	if len(result.Screenshot) > 0 && len(result.Screenshot) <= 10*1024*1024 {
 		assetHash := sha256.Sum256(result.Screenshot)
-		_, err := db.Instance().Exec(`INSERT INTO document_assets (document_id, asset_type, content_type, content, content_hash, content_size, metadata) VALUES (?, 'screenshot', 'image/png', ?, ?, ?, '{}'::jsonb) ON CONFLICT (document_id, asset_type) DO UPDATE SET content = EXCLUDED.content, content_hash = EXCLUDED.content_hash, content_size = EXCLUDED.content_size`, document.Id, result.Screenshot, hex.EncodeToString(assetHash[:]), len(result.Screenshot))
+		_, err := s.Exec(`INSERT INTO document_assets (document_id, asset_type, content_type, content, content_hash, content_size, metadata) VALUES (?, 'screenshot', 'image/png', ?, ?, ?, '{}'::jsonb) ON CONFLICT (document_id, asset_type) DO UPDATE SET content = EXCLUDED.content, content_hash = EXCLUDED.content_hash, content_size = EXCLUDED.content_size`, document.Id, result.Screenshot, hex.EncodeToString(assetHash[:]), len(result.Screenshot))
 		if err != nil {
 			return document.Id, err
 		}

@@ -5,20 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/nekoimi/scrapio/internal/crawlpolicy"
 )
 
 // Definition is the versioned, provider-neutral workflow document. Nodes are
 // deliberately represented as JSON objects so new node configuration can be
 // added without changing the database model or the browser protocol.
 type Definition struct {
-	Persistence  string            `json:"persistence,omitempty"`
-	Trigger      Trigger           `json:"trigger"`
-	Listing      *ListingOptions   `json:"listing,omitempty"`
-	Acquire      []Node            `json:"acquire,omitempty"`
-	Nodes        []Node            `json:"nodes"`
-	InputSchema  json.RawMessage   `json:"input_schema,omitempty"`
-	OutputSchema json.RawMessage   `json:"output_schema,omitempty"`
-	Credentials  map[string]string `json:"credentials,omitempty"`
+	Persistence  string              `json:"persistence,omitempty"`
+	Trigger      Trigger             `json:"trigger"`
+	Listing      *ListingOptions     `json:"listing,omitempty"`
+	Budget       *crawlpolicy.Budget `json:"budget,omitempty"`
+	Acquire      []Node              `json:"acquire,omitempty"`
+	Nodes        []Node              `json:"nodes"`
+	InputSchema  json.RawMessage     `json:"input_schema,omitempty"`
+	OutputSchema json.RawMessage     `json:"output_schema,omitempty"`
+	Credentials  map[string]string   `json:"credentials,omitempty"`
 }
 
 // ListingOptions bounds a list -> detail crawl. URLs stay on the entry host.
@@ -173,6 +176,13 @@ func (d Definition) ValidateExecutable() error {
 	}
 	if err := validateHTTPURL(d.Trigger.URL); err != nil {
 		return fmt.Errorf("trigger.url: %w", err)
+	}
+	budget := crawlpolicy.Defaults(d.Trigger.URL)
+	if d.Budget != nil {
+		budget = *d.Budget
+	}
+	if err := budget.Validate(d.Trigger.URL); err != nil {
+		return err
 	}
 	if err := validateFetchOptions(d.Trigger.Fetch); err != nil {
 		return fmt.Errorf("trigger.fetch: %w", err)

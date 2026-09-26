@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nekoimi/scrapio/internal/crawlpolicy"
 	"github.com/nekoimi/scrapio/internal/db"
 	"github.com/nekoimi/scrapio/internal/db/table"
 	"github.com/nekoimi/scrapio/internal/repo/record_repo"
@@ -391,6 +392,16 @@ func StartRun(workflowID int64, input string, createdBy *int64) (*table.Workflow
 		_ = s.Rollback()
 		return nil, nil, err
 	}
+	budget := crawlpolicy.Defaults(definition.Trigger.URL)
+	if definition.Budget != nil {
+		budget = *definition.Budget
+	}
+	budgetJSON, _ := json.Marshal(budget)
+	if _, err := s.Exec("UPDATE workflow_runs SET budget=CAST(? AS jsonb) WHERE id=?", string(budgetJSON), run.Id); err != nil {
+		_ = s.Rollback()
+		return nil, nil, err
+	}
+	run.Budget = string(budgetJSON)
 	task.RunId = run.Id
 	if _, err := s.Insert(task); err != nil {
 		_ = s.Rollback()

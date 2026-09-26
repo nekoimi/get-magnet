@@ -14,6 +14,7 @@ import (
 
 	"github.com/nekoimi/scrapio/internal/bean"
 	"github.com/nekoimi/scrapio/internal/config"
+	"github.com/nekoimi/scrapio/internal/crawlpolicy"
 	"github.com/nekoimi/scrapio/internal/db"
 	"github.com/nekoimi/scrapio/internal/db/table"
 	"github.com/nekoimi/scrapio/internal/repo/dataset_repo"
@@ -248,28 +249,31 @@ func TestDevA04Templates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 12; i++ {
-		var task table.CrawlTask
-		has, err := db.Instance().Where("run_id=? AND status=?", run.Id, task_repo.TaskQueued).Asc("id").Get(&task)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !has {
-			break
-		}
-		lease := time.Now().Add(time.Minute)
-		if _, err := db.Instance().ID(task.Id).Cols("status", "attempt_count", "lease_owner", "lease_until").Update(&table.CrawlTask{Status: task_repo.TaskRunning, AttemptCount: 1, LeaseOwner: "b01-test", LeaseUntil: &lease}); err != nil {
-			t.Fatal(err)
-		}
-		task.Status, task.AttemptCount, task.LeaseOwner, task.LeaseUntil = task_repo.TaskRunning, 1, "b01-test", &lease
-		attempt := table.TaskAttempt{TaskId: task.Id, AttemptNo: 1, WorkerId: "b01-test", Status: task_repo.TaskRunning, StartedAt: &now, RequestSnapshot: task.Input, ResponseSnapshot: "{}"}
-		if _, err := db.Instance().InsertOne(&attempt); err != nil {
-			t.Fatal(err)
-		}
-		if err := worker.execute(ctx, &task_repo.Claim{Task: task, Attempt: attempt}); err != nil {
-			t.Fatalf("listing task %s #%d: %v", task.StepName, task.Id, err)
+	drain := func(runID int64) {
+		for i := 0; i < 12; i++ {
+			var task table.CrawlTask
+			has, err := db.Instance().Where("run_id=? AND status=?", runID, task_repo.TaskQueued).Asc("id").Get(&task)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !has {
+				break
+			}
+			lease := time.Now().Add(time.Minute)
+			if _, err := db.Instance().ID(task.Id).Cols("status", "attempt_count", "lease_owner", "lease_until").Update(&table.CrawlTask{Status: task_repo.TaskRunning, AttemptCount: 1, LeaseOwner: "b01-test", LeaseUntil: &lease}); err != nil {
+				t.Fatal(err)
+			}
+			task.Status, task.AttemptCount, task.LeaseOwner, task.LeaseUntil = task_repo.TaskRunning, 1, "b01-test", &lease
+			attempt := table.TaskAttempt{TaskId: task.Id, AttemptNo: 1, WorkerId: "b01-test", Status: task_repo.TaskRunning, StartedAt: &now, RequestSnapshot: task.Input, ResponseSnapshot: "{}"}
+			if _, err := db.Instance().InsertOne(&attempt); err != nil {
+				t.Fatal(err)
+			}
+			if err := worker.execute(ctx, &task_repo.Claim{Task: task, Attempt: attempt}); err != nil {
+				t.Fatalf("listing task %s #%d: %v", task.StepName, task.Id, err)
+			}
 		}
 	}
+	drain(run.Id)
 	var queued, listTasks, detailTasks, distinctURLs int
 	if err := raw.QueryRow(`SELECT count(*) FILTER (WHERE status='queued'),count(*) FILTER (WHERE step_name IN ('trigger','list')),count(*) FILTER (WHERE step_name='detail'),count(DISTINCT input->>'url') FILTER (WHERE step_name='detail') FROM crawl_tasks WHERE run_id=$1`, run.Id).Scan(&queued, &listTasks, &detailTasks, &distinctURLs); err != nil {
 		t.Fatal(err)
@@ -290,6 +294,183 @@ func TestDevA04Templates(t *testing.T) {
 	}
 	if listingRecords != 3 || listingObservations != 3 || listingStatus != task_repo.RunSucceeded {
 		t.Fatalf("listing persistence: records=%d observations=%d status=%s", listingRecords, listingObservations, listingStatus)
+	}
+	limitedRun := &table.WorkflowRun{WorkflowId: owner.Id, WorkflowVersionId: version.Id, TriggerType: "manual", Status: task_repo.RunRunning, Input: "{}", Summary: "{}", CreatedAt: time.Now()}
+	if _, err := db.Instance().InsertOne(limitedRun); err != nil {
+		t.Fatal(err)
+	}
+	limit := crawlpolicy.Defaults(listing.Trigger.URL)
+	limit.MaxDiscoveredPerPage, limit.MaxTasks, limit.MaxPages = 1, 4, 4
+	budgetJSON, _ := json.Marshal(limit)
+	if _, err := raw.Exec("UPDATE workflow_runs SET budget=$1::jsonb WHERE id=$2", string(budgetJSON), limitedRun.Id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := task_repo.CreateTask(limitedRun.Id, 0, "trigger", workflowTaskType, "{}", 5); err != nil {
+		t.Fatal(err)
+	}
+	drain(limitedRun.Id)
+	var limitedStatus string
+	if err := raw.QueryRow("SELECT status FROM workflow_runs WHERE id=$1", limitedRun.Id).Scan(&limitedStatus); err != nil {
+		t.Fatal(err)
+	}
+	coverage, err := task_repo.RunCoverage(limitedRun.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	limitEvents, err := task_repo.LimitEvents(limitedRun.Id, 100)
+	if err != nil || len(limitEvents) < 2 {
+		t.Fatalf("limit events: %#v %v", limitEvents, err)
+	}
+	if limitedStatus != task_repo.RunLimited || coverage.Tasks != 4 || coverage.LimitReasons["max_discovered_per_page"] == 0 || coverage.LimitReasons["max_tasks"] == 0 || coverage.PagesReserved != 4 {
+		t.Fatalf("budget coverage: status=%s coverage=%+v", limitedStatus, coverage)
+	}
+	var observationsLimited int
+	if err := raw.QueryRow("SELECT count(*) FROM record_observations WHERE run_id=$1", limitedRun.Id).Scan(&observationsLimited); err != nil || observationsLimited != 2 {
+		t.Fatalf("limited run records=%d err=%v", observationsLimited, err)
+	}
+	// Recover an expired lease, then reject the old attempt's write and reuse
+	// the same task identity, reserved page and saved document.
+	recoveryRun := &table.WorkflowRun{WorkflowId: owner.Id, WorkflowVersionId: version.Id, TriggerType: "manual", Status: task_repo.RunRunning, Input: "{}", Summary: "{}", CreatedAt: time.Now()}
+	if _, err := db.Instance().InsertOne(recoveryRun); err != nil {
+		t.Fatal(err)
+	}
+	recoveryTask, err := task_repo.CreateTask(recoveryRun.Id, 0, "trigger", workflowTaskType, "{}", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var replayDocumentID int64
+	replayContent := `<a class="item" href="/detail/a">A</a><a class="next" href="?page=2">Next</a>`
+	if err := raw.QueryRow("INSERT INTO documents(task_id,document_type,content,content_size,metadata) VALUES($1,'html',$2,$3,$4::jsonb) RETURNING id", recoveryTask.Id, replayContent, len(replayContent), fmt.Sprintf(`{"final_url":%q}`, listing.Trigger.URL)).Scan(&replayDocumentID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := raw.Exec("UPDATE crawl_tasks SET output_document_id=$1 WHERE id=$2", replayDocumentID, recoveryTask.Id); err != nil {
+		t.Fatal(err)
+	}
+	oldLease := time.Now().Add(-time.Minute)
+	if _, err := raw.Exec("UPDATE crawl_tasks SET status='running',attempt_count=1,lease_owner='dead-worker',lease_until=$1 WHERE id=$2", oldLease, recoveryTask.Id); err != nil {
+		t.Fatal(err)
+	}
+	oldAttempt := &table.TaskAttempt{TaskId: recoveryTask.Id, AttemptNo: 1, WorkerId: "dead-worker", Status: task_repo.TaskRunning, StartedAt: &now, RequestSnapshot: "{}", ResponseSnapshot: "{}"}
+	if _, err := db.Instance().InsertOne(oldAttempt); err != nil {
+		t.Fatal(err)
+	}
+	if count, err := task_repo.RecoverExpiredLeases(); err != nil || count < 1 {
+		t.Fatalf("lease recovery: count=%d err=%v", count, err)
+	}
+	if err := task_repo.CheckAttempt(recoveryTask.Id, *oldAttempt); err == nil {
+		t.Fatal("expired attempt remains writable")
+	}
+	claimed, found, err := task_repo.ClaimNextType("replacement-worker", time.Minute, workflowTaskType)
+	if err != nil || !found || claimed.Task.Id != recoveryTask.Id || claimed.Attempt.AttemptNo != 2 {
+		t.Fatalf("reclaim: %#v found=%t err=%v", claimed, found, err)
+	}
+	if _, err := task_repo.CreateTaskForAttempt(&task_repo.Claim{Task: *recoveryTask, Attempt: *oldAttempt}, "detail", task_repo.TaskInput(server.URL+"/detail/stale", "")); err == nil {
+		t.Fatal("stale attempt created a detail task")
+	}
+	if err := worker.execute(ctx, claimed); err != nil {
+		t.Fatal("replayed task:", err)
+	}
+	var replayDocumentCount int
+	if err := raw.QueryRow("SELECT count(*) FROM documents WHERE task_id=$1", recoveryTask.Id).Scan(&replayDocumentCount); err != nil || replayDocumentCount != 1 {
+		t.Fatalf("replay fetched a second document: %d %v", replayDocumentCount, err)
+	}
+	drain(recoveryRun.Id)
+	if err := task_repo.CancelRun(recoveryRun.Id); err == nil {
+		t.Fatal("finished run was cancelled")
+	}
+	cancelRun := &table.WorkflowRun{WorkflowId: owner.Id, WorkflowVersionId: version.Id, TriggerType: "manual", Status: task_repo.RunQueued, Input: "{}", Summary: "{}", CreatedAt: time.Now()}
+	if _, err := db.Instance().InsertOne(cancelRun); err != nil {
+		t.Fatal(err)
+	}
+	cancelTask, err := task_repo.CreateTask(cancelRun.Id, 0, "trigger", workflowTaskType, "{}", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := task_repo.CancelRun(cancelRun.Id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := task_repo.CreateTask(cancelRun.Id, cancelTask.Id, "detail", workflowTaskType, task_repo.TaskInput(server.URL+"/detail/z", ""), 5); err == nil {
+		t.Fatal("cancelled run accepted child task")
+	}
+	cancelTreeRun := &table.WorkflowRun{WorkflowId: owner.Id, WorkflowVersionId: version.Id, TriggerType: "manual", Status: task_repo.RunRunning, Input: "{}", Summary: "{}", CreatedAt: time.Now()}
+	if _, err := db.Instance().InsertOne(cancelTreeRun); err != nil {
+		t.Fatal(err)
+	}
+	parentTask, err := task_repo.CreateTask(cancelTreeRun.Id, 0, "trigger", workflowTaskType, "{}", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease := time.Now().Add(time.Minute)
+	if _, err := raw.Exec("UPDATE crawl_tasks SET status='running',attempt_count=1,lease_owner='cancel-test',lease_until=$1 WHERE id=$2", lease, parentTask.Id); err != nil {
+		t.Fatal(err)
+	}
+	childTask, err := task_repo.CreateTask(cancelTreeRun.Id, parentTask.Id, "detail", workflowTaskType, task_repo.TaskInput(server.URL+"/detail/cancel", ""), 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := task_repo.CancelTask(parentTask.Id); err != nil {
+		t.Fatal(err)
+	}
+	var parentStatus, childStatus string
+	if err := raw.QueryRow("SELECT status FROM crawl_tasks WHERE id=$1", parentTask.Id).Scan(&parentStatus); err != nil {
+		t.Fatal(err)
+	}
+	if err := raw.QueryRow("SELECT status FROM crawl_tasks WHERE id=$1", childTask.Id).Scan(&childStatus); err != nil {
+		t.Fatal(err)
+	}
+	if parentStatus != task_repo.TaskCancelled || childStatus != task_repo.TaskCancelled {
+		t.Fatalf("cancelled subtree: parent=%s child=%s", parentStatus, childStatus)
+	}
+	if err := task_repo.RetryTask(parentTask.Id); err == nil {
+		t.Fatal("cancelled task was retried")
+	}
+	if err := task_repo.RetryTask(childTask.Id); err == nil {
+		t.Fatal("cancelled child was retried")
+	}
+	failedRun := &table.WorkflowRun{WorkflowId: owner.Id, WorkflowVersionId: version.Id, TriggerType: "manual", Status: task_repo.RunFailed, Input: "{}", Summary: "{}", CreatedAt: time.Now()}
+	if _, err := db.Instance().InsertOne(failedRun); err != nil {
+		t.Fatal(err)
+	}
+	failedTask := &table.CrawlTask{RunId: failedRun.Id, StepName: "trigger", TaskType: workflowTaskType, Input: "{}", Status: task_repo.TaskDeadLetter, AttemptCount: 5, MaxAttempts: 5, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	if _, err := db.Instance().InsertOne(failedTask); err != nil {
+		t.Fatal(err)
+	}
+	if err := task_repo.RetryTask(failedTask.Id); err != nil {
+		t.Fatal("retry failed task:", err)
+	}
+	var retryStatus string
+	if err := raw.QueryRow("SELECT status FROM crawl_tasks WHERE id=$1", failedTask.Id).Scan(&retryStatus); err != nil || retryStatus != task_repo.TaskQueued {
+		t.Fatalf("retry status=%s err=%v", retryStatus, err)
+	}
+	if err := task_repo.CancelRun(failedRun.Id); err != nil {
+		t.Fatal(err)
+	}
+	expiredRun := &table.WorkflowRun{WorkflowId: owner.Id, WorkflowVersionId: version.Id, TriggerType: "manual", Status: task_repo.RunQueued, Input: "{}", Summary: "{}", CreatedAt: time.Now().Add(-time.Minute)}
+	if _, err := db.Instance().InsertOne(expiredRun); err != nil {
+		t.Fatal(err)
+	}
+	expiredBudget := crawlpolicy.Defaults(listing.Trigger.URL)
+	expiredBudget.MaxDurationSeconds = 1
+	expiredJSON, _ := json.Marshal(expiredBudget)
+	if _, err := raw.Exec("UPDATE workflow_runs SET budget=$1::jsonb,created_at=$2 WHERE id=$3", string(expiredJSON), time.Now().Add(-time.Minute), expiredRun.Id); err != nil {
+		t.Fatal(err)
+	}
+	expiredTask, err := task_repo.CreateTask(expiredRun.Id, 0, "trigger", workflowTaskType, "{}", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := task_repo.ExpireBudgetRuns(); err != nil {
+		t.Fatal(err)
+	}
+	var expiredStatus, expiredTaskStatus string
+	if err := raw.QueryRow("SELECT status FROM workflow_runs WHERE id=$1", expiredRun.Id).Scan(&expiredStatus); err != nil {
+		t.Fatal(err)
+	}
+	if err := raw.QueryRow("SELECT status FROM crawl_tasks WHERE id=$1", expiredTask.Id).Scan(&expiredTaskStatus); err != nil {
+		t.Fatal(err)
+	}
+	if expiredStatus != task_repo.RunFailed || expiredTaskStatus != task_repo.TaskLimited {
+		t.Fatalf("expired empty run: run=%s task=%s", expiredStatus, expiredTaskStatus)
 	}
 	t.Log("HTTP HTML and JSON templates executed without browser; 2 records, 5 observations, 3 revisions; batch rollback and run summary passed")
 }

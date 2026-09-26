@@ -13,6 +13,7 @@ import (
 	"github.com/nekoimi/scrapio/internal/db"
 	"github.com/nekoimi/scrapio/internal/db/table"
 	"github.com/nekoimi/scrapio/internal/repo/resource_repo"
+	"xorm.io/xorm"
 )
 
 const (
@@ -31,6 +32,7 @@ const (
 	TaskFailed     = "failed"
 	TaskCancelled  = "cancelled"
 	TaskDeadLetter = "dead_letter"
+	TaskLimited    = "limited"
 )
 
 type TaskFilter struct {
@@ -77,6 +79,14 @@ func CreateRun(sourceCode, sourceName, triggerType, input string) (*table.Workfl
 }
 
 func CreateTask(runID, parentTaskID int64, stepName, taskType, input string, maxAttempts int) (*table.CrawlTask, error) {
+	return createTask(runID, parentTaskID, stepName, taskType, input, maxAttempts, nil)
+}
+
+func CreateTaskForAttempt(claim *Claim, stepName, input string) (*table.CrawlTask, error) {
+	return createTask(claim.Task.RunId, claim.Task.Id, stepName, "workflow", input, 5, &claim.Attempt)
+}
+
+func createTask(runID, parentTaskID int64, stepName, taskType, input string, maxAttempts int, attempt *table.TaskAttempt) (*table.CrawlTask, error) {
 	if runID <= 0 {
 		return nil, errors.New("run id is required")
 	}
@@ -106,6 +116,7 @@ func CreateTask(runID, parentTaskID int64, stepName, taskType, input string, max
 		_ = s.Rollback()
 		return nil, errors.New("workflow run is no longer active")
 	}
+	var parent table.CrawlTask
 	if parentTaskID > 0 {
 		parentRows, err := s.QueryString("SELECT status FROM crawl_tasks WHERE id = ? AND run_id = ? FOR UPDATE", parentTaskID, runID)
 		if err != nil {
@@ -113,6 +124,13 @@ func CreateTask(runID, parentTaskID int64, stepName, taskType, input string, max
 			return nil, err
 		}
 		if len(parentRows) == 0 || parentRows[0]["status"] != TaskRunning {
+			_ = s.Rollback()
+			return nil, ErrStaleAttempt
+		}
+		if _, err := s.ID(parentTaskID).Get(&parent); err != nil {
+			return nil, err
+		}
+		if attempt != nil && (parent.LeaseOwner != attempt.WorkerId || parent.AttemptCount != attempt.AttemptNo || parent.LeaseUntil == nil || !parent.LeaseUntil.After(time.Now())) {
 			_ = s.Rollback()
 			return nil, ErrStaleAttempt
 		}
@@ -140,6 +158,21 @@ func CreateTask(runID, parentTaskID int64, stepName, taskType, input string, max
 		if has {
 			_ = s.Rollback()
 			return &existing, nil
+		}
+		reason, err := childBudgetReason(s, task, &parent)
+		if err != nil {
+			_ = s.Rollback()
+			return nil, err
+		}
+		if reason != "" {
+			if err := limitEvent(s, runID, parentTaskID, stepName, taskInput.URL, reason); err != nil {
+				_ = s.Rollback()
+				return nil, err
+			}
+			if err := s.Commit(); err != nil {
+				return nil, err
+			}
+			return nil, &BudgetExceeded{reason}
 		}
 	}
 	if _, err := s.InsertOne(task); err != nil {
@@ -199,9 +232,33 @@ func claimNext(workerID string, lease time.Duration, taskType string) (*Claim, b
 		_ = s.Rollback()
 		return nil, false, err
 	}
+	rows, err := s.QueryString("SELECT status FROM workflow_runs WHERE id=? FOR NO KEY UPDATE", task.RunId)
+	if err != nil {
+		_ = s.Rollback()
+		return nil, false, err
+	}
+	if len(rows) == 0 || (rows[0]["status"] != RunQueued && rows[0]["status"] != RunRunning) {
+		_ = s.Rollback()
+		return nil, false, nil
+	}
+	rows, err = s.QueryString("SELECT id FROM crawl_tasks WHERE id=? FOR NO KEY UPDATE", task.Id)
+	if err != nil {
+		_ = s.Rollback()
+		return nil, false, err
+	}
+	// Refresh after acquiring the locks; another worker may already have claimed it.
+	has, err = s.ID(task.Id).Where(condition, args...).Get(&task)
+	if err != nil || !has {
+		_ = s.Rollback()
+		return nil, false, err
+	}
 	until := time.Now().Add(lease)
 	result, err := s.ID(task.Id).Cols("status", "attempt_count", "lease_owner", "lease_until", "updated_at").Where(condition, args...).Update(&table.CrawlTask{Status: TaskRunning, AttemptCount: task.AttemptCount + 1, LeaseOwner: workerID, LeaseUntil: &until, UpdatedAt: time.Now()})
 	if err != nil || result == 0 {
+		_ = s.Rollback()
+		return nil, false, err
+	}
+	if _, err := s.Where("task_id=? AND status=?", task.Id, TaskRunning).Cols("status", "finished_at", "error_message").Update(&table.TaskAttempt{Status: RunInterrupted, FinishedAt: ptrTime(time.Now()), ErrorMessage: "lease expired before reclaim"}); err != nil {
 		_ = s.Rollback()
 		return nil, false, err
 	}
@@ -210,12 +267,15 @@ func claimNext(workerID string, lease time.Duration, taskType string) (*Claim, b
 		_ = s.Rollback()
 		return nil, false, err
 	}
+	if _, err := s.ID(task.RunId).Cols("status", "started_at").Where("status=?", RunQueued).Update(&table.WorkflowRun{Status: RunRunning, StartedAt: ptrTime(time.Now())}); err != nil {
+		_ = s.Rollback()
+		return nil, false, err
+	}
 	if err := s.Commit(); err != nil {
 		return nil, false, err
 	}
 	// A run becomes running when its first durable task is claimed. This keeps
 	// queued runs meaningful even when execution is performed asynchronously.
-	_, _ = db.Instance().ID(task.RunId).Cols("status", "started_at").Where("status = ?", RunQueued).Update(&table.WorkflowRun{Status: RunRunning, StartedAt: ptrTime(time.Now())})
 	task.Status = TaskRunning
 	task.AttemptCount++
 	task.LeaseOwner = workerID
@@ -268,6 +328,10 @@ func StartAttempt(taskID int64, workerID string, input string) (*table.TaskAttem
 }
 
 func Complete(taskID, attemptID int64, response string) error {
+	return completeStatus(taskID, attemptID, response, TaskSucceeded)
+}
+
+func completeStatus(taskID, attemptID int64, response, status string) error {
 	now := time.Now()
 	attempt := new(table.TaskAttempt)
 	if has, err := db.Instance().ID(attemptID).Get(attempt); err != nil || !has {
@@ -285,7 +349,7 @@ func Complete(taskID, attemptID int64, response string) error {
 	if err := s.Begin(); err != nil {
 		return err
 	}
-	changed, err := s.ID(taskID).Where("status = ? AND lease_owner = ? AND attempt_count = ? AND lease_until > NOW()", TaskRunning, attempt.WorkerId, attempt.AttemptNo).Cols("status", "lease_owner", "lease_until", "updated_at", "finished_at").Update(&table.CrawlTask{Status: TaskSucceeded, LeaseOwner: "", LeaseUntil: nil, UpdatedAt: now, FinishedAt: &now})
+	changed, err := s.ID(taskID).Where("status = ? AND lease_owner = ? AND attempt_count = ? AND lease_until > NOW()", TaskRunning, attempt.WorkerId, attempt.AttemptNo).Cols("status", "lease_owner", "lease_until", "updated_at", "finished_at").Update(&table.CrawlTask{Status: status, LeaseOwner: "", LeaseUntil: nil, UpdatedAt: now, FinishedAt: &now})
 	if err != nil || changed != 1 {
 		_ = s.Rollback()
 		if err != nil {
@@ -293,7 +357,7 @@ func Complete(taskID, attemptID int64, response string) error {
 		}
 		return ErrStaleAttempt
 	}
-	changed, err = s.ID(attemptID).Where("status = ?", TaskRunning).Cols("status", "finished_at", "duration_ms", "response_snapshot").Update(&table.TaskAttempt{Status: TaskSucceeded, FinishedAt: &now, DurationMs: duration, ResponseSnapshot: fallbackJSON(response)})
+	changed, err = s.ID(attemptID).Where("status = ?", TaskRunning).Cols("status", "finished_at", "duration_ms", "response_snapshot").Update(&table.TaskAttempt{Status: status, FinishedAt: &now, DurationMs: duration, ResponseSnapshot: fallbackJSON(response)})
 	if err != nil || changed != 1 {
 		_ = s.Rollback()
 		if err != nil {
@@ -422,14 +486,41 @@ func CheckAttemptID(taskID, attemptID int64) error {
 // cancellation or reclaim must wait until the write finishes, then observes
 // the new task state before it can proceed.
 func WithActiveAttempt(taskID int64, attempt table.TaskAttempt, write func() error) error {
+	return withActiveAttemptSession(taskID, attempt, func(_ *xorm.Session) error { return write() })
+}
+
+func SaveAttemptDocument(claim *Claim, write func(*xorm.Session) (int64, error)) (int64, error) {
+	var documentID int64
+	err := withActiveAttemptSession(claim.Task.Id, claim.Attempt, func(s *xorm.Session) error {
+		var err error
+		documentID, err = write(s)
+		if err != nil {
+			return err
+		}
+		_, err = s.ID(claim.Task.Id).Cols("output_document_id").Update(&table.CrawlTask{OutputDocumentId: &documentID})
+		return err
+	})
+	return documentID, err
+}
+
+func withActiveAttemptSession(taskID int64, attempt table.TaskAttempt, write func(*xorm.Session) error) error {
 	s := db.Instance().NewSession()
 	defer s.Close()
 	if err := s.Begin(); err != nil {
 		return err
 	}
+	rows, err := s.QueryString("SELECT r.status FROM workflow_runs r JOIN crawl_tasks t ON t.run_id=r.id WHERE t.id=? FOR NO KEY UPDATE OF r", taskID)
+	if err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if len(rows) == 0 || (rows[0]["status"] != RunQueued && rows[0]["status"] != RunRunning) {
+		_ = s.Rollback()
+		return ErrStaleAttempt
+	}
 	// Permit foreign-key KEY SHARE locks from the evidence writer's transaction
 	// while still fencing cancellation/reclaim and other task state updates.
-	rows, err := s.QueryString("SELECT id FROM crawl_tasks WHERE id = ? AND status = ? AND lease_owner = ? AND attempt_count = ? AND lease_until > NOW() FOR NO KEY UPDATE", taskID, TaskRunning, attempt.WorkerId, attempt.AttemptNo)
+	rows, err = s.QueryString("SELECT id FROM crawl_tasks WHERE id = ? AND status = ? AND lease_owner = ? AND attempt_count = ? AND lease_until > NOW() FOR NO KEY UPDATE", taskID, TaskRunning, attempt.WorkerId, attempt.AttemptNo)
 	if err != nil {
 		_ = s.Rollback()
 		return err
@@ -438,7 +529,7 @@ func WithActiveAttempt(taskID int64, attempt table.TaskAttempt, write func() err
 		_ = s.Rollback()
 		return ErrStaleAttempt
 	}
-	if err := write(); err != nil {
+	if err := write(s); err != nil {
 		_ = s.Rollback()
 		return err
 	}
@@ -493,48 +584,113 @@ func RecoverExpiredLeases() (int64, error) {
 	if db.Instance() == nil {
 		return 0, errors.New("database is not initialized")
 	}
-	now := time.Now()
-	var exhausted []table.CrawlTask
-	if err := db.Instance().Where("status = ? AND lease_until < NOW() AND attempt_count >= max_attempts", TaskRunning).Find(&exhausted); err != nil {
+	var candidates []table.CrawlTask
+	if err := db.Instance().Where("status=? AND lease_until<NOW()", TaskRunning).Find(&candidates); err != nil {
 		return 0, err
 	}
-	for _, task := range exhausted {
-		changed, err := db.Instance().ID(task.Id).Where("status = ? AND lease_until < NOW() AND attempt_count >= max_attempts", TaskRunning).Cols("status", "lease_owner", "lease_until", "error_message", "updated_at", "finished_at").Update(&table.CrawlTask{Status: TaskDeadLetter, LeaseOwner: "", LeaseUntil: nil, ErrorMessage: "lease expired after maximum attempts", UpdatedAt: now, FinishedAt: &now})
+	var recovered int64
+	for _, candidate := range candidates {
+		changed, err := recoverExpiredTask(candidate)
 		if err != nil {
-			return 0, err
+			return recovered, err
 		}
-		if changed > 0 {
-			if err := tryFinishRun(task.Id); err != nil {
-				return 0, err
+		if changed {
+			recovered++
+			if err := tryFinishRun(candidate.Id); err != nil {
+				return recovered, err
 			}
 		}
 	}
-	result, err := db.Instance().Where("status = ? AND lease_until < NOW() AND attempt_count < max_attempts", TaskRunning).Cols("status", "next_retry_at", "lease_owner", "lease_until", "updated_at").Update(&table.CrawlTask{Status: TaskQueued, NextRetryAt: &now, LeaseOwner: "", LeaseUntil: nil, UpdatedAt: now})
-	if err != nil {
-		return 0, err
+	if err := ExpireBudgetRuns(); err != nil {
+		return recovered, err
 	}
-	_, err = db.Instance().Where("status = ? AND task_id IN (SELECT id FROM crawl_tasks WHERE status IN (?, ?) AND (lease_owner IS NULL OR lease_owner = ''))", TaskRunning, TaskQueued, TaskDeadLetter).Cols("status", "finished_at", "error_message").Update(&table.TaskAttempt{Status: RunInterrupted, FinishedAt: &now, ErrorMessage: "task lease expired"})
-	return result + int64(len(exhausted)), err
+	return recovered, nil
+}
+
+func recoverExpiredTask(candidate table.CrawlTask) (bool, error) {
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return false, err
+	}
+	defer s.Rollback()
+	if _, err := s.QueryString("SELECT id FROM workflow_runs WHERE id=? FOR NO KEY UPDATE", candidate.RunId); err != nil {
+		return false, err
+	}
+	if _, err := s.QueryString("SELECT id FROM crawl_tasks WHERE id=? FOR NO KEY UPDATE", candidate.Id); err != nil {
+		return false, err
+	}
+	var task table.CrawlTask
+	has, err := s.ID(candidate.Id).Where("status=? AND lease_until<NOW()", TaskRunning).Get(&task)
+	if err != nil || !has {
+		return false, err
+	}
+	now := time.Now()
+	status := TaskQueued
+	message := ""
+	if task.AttemptCount >= task.MaxAttempts {
+		status = TaskDeadLetter
+		message = "lease expired after maximum attempts"
+	}
+	update := &table.CrawlTask{Status: status, NextRetryAt: &now, LeaseOwner: "", LeaseUntil: nil, ErrorMessage: message, UpdatedAt: now}
+	columns := []string{"status", "next_retry_at", "lease_owner", "lease_until", "error_message", "updated_at"}
+	if status == TaskDeadLetter {
+		update.FinishedAt = &now
+		columns = append(columns, "finished_at")
+	}
+	if _, err := s.ID(task.Id).Cols(columns...).Update(update); err != nil {
+		return false, err
+	}
+	if _, err := s.Where("task_id=? AND status=?", task.Id, TaskRunning).Cols("status", "finished_at", "error_message").Update(&table.TaskAttempt{Status: RunInterrupted, FinishedAt: &now, ErrorMessage: "task lease expired"}); err != nil {
+		return false, err
+	}
+	return true, s.Commit()
 }
 
 func CancelTask(id int64) error {
 	if db.Instance() == nil {
 		return errors.New("database is not initialized")
 	}
+	var task table.CrawlTask
+	has, err := db.Instance().ID(id).Get(&task)
+	if err != nil {
+		return err
+	}
+	if !has {
+		return errors.New("task not found")
+	}
 	s := db.Instance().NewSession()
 	defer s.Close()
 	if err := s.Begin(); err != nil {
 		return err
 	}
-	now := time.Now()
-	changed, err := s.ID(id).Where("status IN (?, ?)", TaskQueued, TaskRunning).Cols("status", "lease_owner", "lease_until", "updated_at", "finished_at").Update(&table.CrawlTask{Status: TaskCancelled, LeaseOwner: "", LeaseUntil: nil, UpdatedAt: now, FinishedAt: &now})
-	if err != nil || changed == 0 {
-		_ = s.Rollback()
+	defer s.Rollback()
+	rows, err := s.QueryString("SELECT status FROM workflow_runs WHERE id=? FOR NO KEY UPDATE", task.RunId)
+	if err != nil {
 		return err
 	}
-	if _, err := s.Where("task_id = ? AND status = ?", id, TaskRunning).Cols("status", "finished_at").Update(&table.TaskAttempt{Status: TaskCancelled, FinishedAt: &now}); err != nil {
-		_ = s.Rollback()
+	if len(rows) == 0 || (rows[0]["status"] != RunQueued && rows[0]["status"] != RunRunning) {
+		return errors.New("run is no longer active")
+	}
+	rows, err = s.QueryString("SELECT status FROM crawl_tasks WHERE id=? FOR NO KEY UPDATE", id)
+	if err != nil {
 		return err
+	}
+	if len(rows) == 0 || (rows[0]["status"] != TaskQueued && rows[0]["status"] != TaskRunning) {
+		return errors.New("only active tasks can be cancelled; cancel the run to stop remaining tasks")
+	}
+	ids, err := s.QueryString(`WITH RECURSIVE descendants AS (SELECT id FROM crawl_tasks WHERE id=? UNION SELECT t.id FROM crawl_tasks t JOIN descendants d ON t.parent_task_id=d.id) SELECT id FROM descendants`, id)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	for _, row := range ids {
+		if _, err := s.Where("id=? AND status IN (?,?)", row["id"], TaskQueued, TaskRunning).Cols("status", "lease_owner", "lease_until", "updated_at", "finished_at", "error_message").Update(&table.CrawlTask{Status: TaskCancelled, LeaseOwner: "", LeaseUntil: nil, UpdatedAt: now, FinishedAt: &now, ErrorMessage: "cancelled by user with parent task"}); err != nil {
+			return err
+		}
+		if _, err := s.Where("task_id=? AND status=?", row["id"], TaskRunning).Cols("status", "finished_at", "error_message").Update(&table.TaskAttempt{Status: TaskCancelled, FinishedAt: &now, ErrorMessage: "cancelled by user"}); err != nil {
+			return err
+		}
 	}
 	if err := s.Commit(); err != nil {
 		return err
@@ -551,9 +707,12 @@ func CancelRun(id int64) error {
 	if err := s.Begin(); err != nil {
 		return err
 	}
-	if _, err := s.ID(id).Where("status IN (?, ?)", RunQueued, RunRunning).Cols("status", "finished_at").Update(&table.WorkflowRun{Status: RunCancelled, FinishedAt: ptrTime(time.Now())}); err != nil {
+	if changed, err := s.ID(id).Where("status IN (?, ?)", RunQueued, RunRunning).Cols("status", "finished_at").Update(&table.WorkflowRun{Status: RunCancelled, FinishedAt: ptrTime(time.Now())}); err != nil {
 		_ = s.Rollback()
 		return err
+	} else if changed == 0 {
+		_ = s.Rollback()
+		return errors.New("only active runs can be cancelled")
 	}
 	now := time.Now()
 	if _, err := s.Where("run_id = ? AND status IN (?, ?)", id, TaskQueued, TaskRunning).Cols("status", "lease_owner", "lease_until", "updated_at", "finished_at").Update(&table.CrawlTask{Status: TaskCancelled, LeaseOwner: "", LeaseUntil: nil, UpdatedAt: now, FinishedAt: &now}); err != nil {
@@ -601,18 +760,27 @@ func RetryTask(id int64) error {
 		_ = s.Rollback()
 		return errors.New("workflow run is no longer retryable")
 	}
+	_, deadline, enabled, err := budgetFromRun(s, task.RunId)
+	if err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if enabled && !time.Now().Before(deadline) {
+		_ = s.Rollback()
+		return errors.New("run duration budget expired; create a new run")
+	}
 	maxAttempts := task.MaxAttempts
 	if task.AttemptCount >= maxAttempts {
 		maxAttempts = task.AttemptCount + 5
 	}
-	changed, err := s.ID(id).Where("status IN (?, ?)", TaskDeadLetter, TaskCancelled).Cols("status", "max_attempts", "next_retry_at", "finished_at", "error_message", "updated_at").Update(&table.CrawlTask{Status: TaskQueued, MaxAttempts: maxAttempts, NextRetryAt: ptrTime(time.Now()), FinishedAt: nil, ErrorMessage: "", UpdatedAt: time.Now()})
+	changed, err := s.ID(id).Where("status IN (?, ?)", TaskDeadLetter, TaskFailed).Cols("status", "max_attempts", "next_retry_at", "finished_at", "error_message", "updated_at").Update(&table.CrawlTask{Status: TaskQueued, MaxAttempts: maxAttempts, NextRetryAt: ptrTime(time.Now()), FinishedAt: nil, ErrorMessage: "", UpdatedAt: time.Now()})
 	if err != nil {
 		_ = s.Rollback()
 		return err
 	}
 	if changed == 0 {
 		_ = s.Rollback()
-		return errors.New("only terminal tasks can be retried")
+		return errors.New("only failed tasks can be retried; cancelled and budget-limited tasks require a new run")
 	}
 	if _, err = s.ID(task.RunId).Where("status IN (?, ?, ?)", RunFailed, RunPartial, RunRunning).Cols("status", "finished_at").Update(&table.WorkflowRun{Status: RunRunning, FinishedAt: nil}); err != nil {
 		_ = s.Rollback()
@@ -644,7 +812,22 @@ func RerunRun(id int64) (*table.WorkflowRun, error) {
 		_ = s.Rollback()
 		return nil, err
 	}
-	if _, err := s.Insert(&table.CrawlTask{RunId: run.Id, StepName: "trigger", TaskType: "workflow", Input: fallbackJSON(original.Input), Status: TaskQueued, MaxAttempts: 5, CreatedAt: now, UpdatedAt: now}); err != nil {
+	if original.Budget != "" && original.Budget != "{}" {
+		if _, err := s.Exec("UPDATE workflow_runs SET budget=CAST(? AS jsonb) WHERE id=?", original.Budget, run.Id); err != nil {
+			_ = s.Rollback()
+			return nil, err
+		}
+		run.Budget = original.Budget
+	}
+	var root table.CrawlTask
+	if has, err := s.Where("run_id=? AND parent_task_id IS NULL", original.Id).Asc("id").Get(&root); err != nil {
+		_ = s.Rollback()
+		return nil, err
+	} else if !has {
+		_ = s.Rollback()
+		return nil, errors.New("original root task not found")
+	}
+	if _, err := s.Insert(&table.CrawlTask{RunId: run.Id, StepName: root.StepName, TaskType: root.TaskType, Input: root.Input, Status: TaskQueued, MaxAttempts: 5, CreatedAt: now, UpdatedAt: now}); err != nil {
 		_ = s.Rollback()
 		return nil, err
 	}
@@ -860,6 +1043,28 @@ FROM crawl_tasks t LEFT JOIN LATERAL (
 			workflowRun = true
 		}
 		summary.Add(row["status"], row["response_snapshot"])
+	}
+	if workflowRun {
+		var err error
+		summary.Coverage, err = coverage(s, task.RunId)
+		if err != nil {
+			_ = s.Rollback()
+			return err
+		}
+		// A worker can die after committing records but before completing its
+		// attempt. Count durable observations so that coverage keeps these writes.
+		counts, err := s.QueryString("SELECT count(*) AS records,count(*) FILTER(WHERE decision='created') AS created,count(*) FILTER(WHERE decision='updated') AS updated,count(*) FILTER(WHERE decision='unchanged') AS unchanged FROM record_observations WHERE run_id=?", task.RunId)
+		if err != nil {
+			_ = s.Rollback()
+			return err
+		}
+		if len(counts) > 0 && counts[0]["records"] != "0" {
+			r := counts[0]
+			_, _ = fmt.Sscan(r["records"], &summary.Records)
+			_, _ = fmt.Sscan(r["created"], &summary.Created)
+			_, _ = fmt.Sscan(r["updated"], &summary.Updated)
+			_, _ = fmt.Sscan(r["unchanged"], &summary.Unchanged)
+		}
 	}
 	status := aggregateRunStatus(summary.Failed > 0, summary.Cancelled > 0)
 	if workflowRun {

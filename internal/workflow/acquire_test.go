@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/nekoimi/scrapio/internal/drission_rod"
@@ -14,6 +15,26 @@ import (
 type fakeBrowser struct {
 	called bool
 	job    drission_rod.BrowserJob
+}
+
+func TestFetchRedirectChecksBudgetBeforeSecondRequest(t *testing.T) {
+	var forbiddenHits atomic.Int32
+	forbidden := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		forbiddenHits.Add(1)
+		_, _ = w.Write([]byte("forbidden"))
+	}))
+	defer forbidden.Close()
+	entry := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, forbidden.URL, http.StatusFound) }))
+	defer entry.Close()
+	_, err := (Fetcher{AllowURL: func(raw string) error {
+		if strings.HasPrefix(raw, forbidden.URL) {
+			return errors.New("domain budget reached")
+		}
+		return nil
+	}}).Fetch(context.Background(), entry.URL, FetchOptions{})
+	if err == nil || forbiddenHits.Load() != 0 {
+		t.Fatalf("redirect escaped budget: hits=%d err=%v", forbiddenHits.Load(), err)
+	}
 }
 
 func (f *fakeBrowser) Execute(_ context.Context, job drission_rod.BrowserJob) (drission_rod.BrowserResult, error) {

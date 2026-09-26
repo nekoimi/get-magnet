@@ -5,17 +5,18 @@ import "encoding/json"
 // RunSummary is rebuilt from durable task attempts when a run finishes.
 // A worker never overwrites the whole run with the last page's output.
 type RunSummary struct {
-	Pages      int `json:"pages"`
-	Succeeded  int `json:"succeeded"`
-	Failed     int `json:"failed"`
-	Cancelled  int `json:"cancelled"`
-	Limited    int `json:"limited"`
-	Discovered int `json:"discovered"`
-	Resources  int `json:"resources"`
-	Records    int `json:"records"`
-	Created    int `json:"created"`
-	Updated    int `json:"updated"`
-	Unchanged  int `json:"unchanged"`
+	Pages      int      `json:"pages"`
+	Succeeded  int      `json:"succeeded"`
+	Failed     int      `json:"failed"`
+	Cancelled  int      `json:"cancelled"`
+	Limited    int      `json:"limited"`
+	Discovered int      `json:"discovered"`
+	Resources  int      `json:"resources"`
+	Records    int      `json:"records"`
+	Created    int      `json:"created"`
+	Updated    int      `json:"updated"`
+	Unchanged  int      `json:"unchanged"`
+	Coverage   Coverage `json:"coverage"`
 }
 
 func (s *RunSummary) Add(status, response string) {
@@ -27,6 +28,8 @@ func (s *RunSummary) Add(status, response string) {
 		s.Failed++
 	case TaskCancelled:
 		s.Cancelled++
+	case TaskLimited:
+		s.Limited++
 	}
 	if status != TaskSucceeded {
 		return
@@ -73,7 +76,7 @@ func (s RunSummary) Status() string {
 	if s.Resources == 0 && s.Records == 0 {
 		return RunFailed
 	}
-	if s.Limited > 0 {
+	if s.Limited > 0 || len(s.Coverage.LimitReasons) > 0 {
 		return RunLimited
 	}
 	if s.Failed > 0 {

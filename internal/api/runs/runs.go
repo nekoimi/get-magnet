@@ -65,7 +65,17 @@ func Detail(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, err)
 		return
 	}
-	respond.Ok(w, map[string]any{"run": run, "tasks": tasks})
+	limits, err := task_repo.LimitEvents(id, 100)
+	if err != nil {
+		respond.Error(w, err)
+		return
+	}
+	coverage, err := task_repo.RunCoverage(id)
+	if err != nil {
+		respond.Error(w, err)
+		return
+	}
+	respond.Ok(w, map[string]any{"run": run, "tasks": tasks, "limit_events": limits, "coverage": coverage})
 }
 
 func Tasks(w http.ResponseWriter, r *http.Request) {

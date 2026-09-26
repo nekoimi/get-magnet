@@ -70,6 +70,7 @@ type WorkflowRun struct {
 	Status            string     `json:"status"`
 	Input             string     `xorm:"jsonb" json:"input"`
 	Summary           string     `xorm:"jsonb" json:"summary"`
+	Budget            string     `xorm:"<- jsonb" json:"budget"`
 	StartedAt         *time.Time `xorm:"started_at" json:"started_at,omitempty"`
 	FinishedAt        *time.Time `xorm:"finished_at" json:"finished_at,omitempty"`
 	CreatedBy         *int64     `xorm:"created_by" json:"created_by,omitempty"`
@@ -85,6 +86,9 @@ type CrawlTask struct {
 	StepName         string     `xorm:"step_name" json:"step_name"`
 	TaskType         string     `xorm:"task_type" json:"task_type"`
 	Input            string     `xorm:"jsonb" json:"input"`
+	Depth            int        `json:"depth"`
+	PageReserved     bool       `xorm:"page_reserved" json:"page_reserved"`
+	PageHost         string     `xorm:"page_host" json:"page_host"`
 	Status           string     `json:"status"`
 	AttemptCount     int        `xorm:"attempt_count" json:"attempt_count"`
 	MaxAttempts      int        `xorm:"max_attempts" json:"max_attempts"`
