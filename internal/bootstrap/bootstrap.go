@@ -24,6 +24,7 @@ func BeanLifecycle() *bean.LifecycleManager {
 	bean.MustRegister[bean.Lifecycle](ctx, db.NewDBLifecycle())
 	// 定时任务
 	bean.MustRegister[job.CronScheduler](ctx, job.NewCronScheduler())
+	bean.MustRegister[bean.Lifecycle](ctx, job.NewWorkflowScheduler())
 	// drission_rod
 	bean.MustRegisterPtr[drission_rod.DrissionRod](ctx, drission_rod.NewDrissionRod())
 	pluginRegistry := plugin.NewRegistry()

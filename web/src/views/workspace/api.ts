@@ -12,7 +12,9 @@ export interface Template { code:string; name:string; description:string; record
 export interface Sample { id:number; workflow_version_id:number; source:string; page_role:string; content_type:string; content_hash:string; note:string; page_url:string; created_at:string }
 export interface Preview { dry_run:boolean; passed:boolean; fetched_live:boolean; sample_id?:number; version_id:number; page_role:string; discovered_urls?:string[]; next_url?:string; steps:Array<{candidate:number;node:string;type:string;values:Record<string,any>}>; decisions:Array<{index:number;decision:string;canonical_key?:string;values?:Record<string,any>;changed_fields?:string[];reason?:string}>; error?:string }
 export interface RecordRow { id:number; dataset_id:number; canonical_key:string; normalized:string|Record<string,any>; last_seen_at:string }
-export interface Run { id:number; workflow_id:number; workflow_version_id:number; status:string; created_at:string; started_at?:string; finished_at?:string; summary:string }
+export interface Run { id:number; workflow_id:number; workflow_version_id:number; trigger_type:string; status:string; created_at:string; started_at?:string; finished_at?:string; summary:string }
+export interface Schedule { workflow_id:number; cron:string; timezone:string; enabled:boolean; concurrency_policy:'skip'|'queue'; next_run_at?:string; last_run_at?:string }
+export interface ScheduleEvent { id:number; scheduled_at:string; status:string; run_id?:number; reason:string }
 export interface Task { id:number; run_id:number; parent_task_id?:number; step_name:string; status:string; output_document_id?:number; error_message?:string; input:string }
 
 async function get<T>(url:string, params?:Record<string,any>):Promise<T> { const response:any=await request({url,method:'get',params}); return response.data as T; }
@@ -39,6 +41,8 @@ export const api={
  sampleCheck:(id:number)=>post<{passed:boolean;checks:Preview[];error?:string}>('/api/v2/workflows/versions/check-samples',{id}),
  publish:(id:number)=>post<void>('/api/v2/workflows/versions/publish',{id}),
  run:(workflow_id:number)=>post<{run_id:number;task_id:number}>('/api/v2/workflows/run',{workflow_id}),
+ schedule:(workflow_id:number)=>get<{schedule:Schedule|null;events:ScheduleEvent[]}>('/api/v2/workflows/schedule',{workflow_id}),
+ saveSchedule:(data:Pick<Schedule,'workflow_id'|'cron'|'timezone'|'enabled'|'concurrency_policy'>)=>post<Schedule>('/api/v2/workflows/schedule/save',data),
  runs:(page=1,project_id?:number)=>get<{list:Run[];total:number}>('/api/v2/runs/list',{page,size:20,project_id}),
  workflowRuns:(workflow_id:number)=>get<{list:Run[];total:number}>('/api/v2/runs/list',{workflow_id,page:1,size:20}),
 	runDetail:(id:number)=>get<{run:Run;tasks:Task[];coverage?:Record<string,any>;limit_events?:Array<{task_id:number;page_role:string;url:string;reason:string}>}>('/api/v2/runs/detail',{id}),

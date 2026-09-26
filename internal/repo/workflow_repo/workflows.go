@@ -331,14 +331,64 @@ func Stop(id int64) error {
 		}
 		return errors.New("workflow not found")
 	}
-	_, err := db.Instance().ID(id).Cols("enabled", "updated_at").Update(&table.Workflow{Enabled: false, UpdatedAt: time.Now()})
-	return err
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return err
+	}
+	if _, err := s.QueryString("SELECT workflow_id FROM workflow_schedules WHERE workflow_id=? FOR UPDATE", id); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if _, err := s.ID(id).Cols("enabled", "updated_at").Update(&table.Workflow{Enabled: false, UpdatedAt: time.Now()}); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if _, err := s.Exec("UPDATE workflow_schedules SET enabled=false,next_run_at=NULL,updated_at=NOW() WHERE workflow_id=?", id); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	if _, err := s.Exec("UPDATE workflow_schedule_events SET status='skipped',reason='workflow stopped' WHERE workflow_id=? AND status='pending'", id); err != nil {
+		_ = s.Rollback()
+		return err
+	}
+	return s.Commit()
 }
 
 // StartRun creates a durable run and its root task. Execution is deliberately
 // decoupled from this API so a later worker can claim the same task record.
 func StartRun(workflowID int64, input string, createdBy *int64) (*table.WorkflowRun, *table.CrawlTask, error) {
-	row, has, err := Get(workflowID)
+	return StartRunWithTrigger(workflowID, input, createdBy, "manual")
+}
+
+func StartRunWithTrigger(workflowID int64, input string, createdBy *int64, trigger string) (*table.WorkflowRun, *table.CrawlTask, error) {
+	if trigger != "manual" && trigger != "api" && trigger != "cron" {
+		return nil, nil, errors.New("unsupported trigger type")
+	}
+	s := db.Instance().NewSession()
+	defer s.Close()
+	if err := s.Begin(); err != nil {
+		return nil, nil, err
+	}
+	run, task, err := startRunTx(s, workflowID, input, createdBy, trigger)
+	if err != nil {
+		_ = s.Rollback()
+		return nil, nil, err
+	}
+	if err := s.Commit(); err != nil {
+		return nil, nil, err
+	}
+	return run, task, nil
+}
+
+// startRunTx is shared with the durable scheduler so an event and its run commit together.
+func startRunTx(s *xorm.Session, workflowID int64, input string, createdBy *int64, trigger string) (*table.WorkflowRun, *table.CrawlTask, error) {
+	// Serialize run creation and the scheduler's concurrency decision per workflow.
+	if _, err := s.QueryString("SELECT id FROM workflows WHERE id=? FOR UPDATE", workflowID); err != nil {
+		return nil, nil, err
+	}
+	row := new(table.Workflow)
+	has, err := s.ID(workflowID).Get(row)
 	if err != nil || !has {
 		if err != nil {
 			return nil, nil, err
@@ -366,7 +416,7 @@ func StartRun(workflowID int64, input string, createdBy *int64) (*table.Workflow
 		return nil, nil, errors.New("run input cannot override the published entry URL")
 	}
 	now := time.Now()
-	run := &table.WorkflowRun{WorkflowId: workflowID, WorkflowVersionId: *row.PublishedVersionId, TriggerType: "manual", Status: task_repo.RunQueued, Input: input, Summary: "{}", CreatedBy: createdBy, CreatedAt: now}
+	run := &table.WorkflowRun{WorkflowId: workflowID, WorkflowVersionId: *row.PublishedVersionId, TriggerType: trigger, Status: task_repo.RunQueued, Input: input, Summary: "{}", CreatedBy: createdBy, CreatedAt: now}
 	task := &table.CrawlTask{StepName: "trigger", TaskType: "workflow", Input: input, Status: task_repo.TaskQueued, MaxAttempts: 5, CreatedAt: now, UpdatedAt: now}
 	version, has, err := GetVersion(*row.PublishedVersionId)
 	if err != nil || !has {
@@ -383,13 +433,7 @@ func StartRun(workflowID int64, input string, createdBy *int64) (*table.Workflow
 		encoded, _ := json.Marshal(value)
 		task.Input = string(encoded)
 	}
-	s := db.Instance().NewSession()
-	defer s.Close()
-	if err := s.Begin(); err != nil {
-		return nil, nil, err
-	}
 	if _, err := s.Insert(run); err != nil {
-		_ = s.Rollback()
 		return nil, nil, err
 	}
 	budget := crawlpolicy.Defaults(definition.Trigger.URL)
@@ -398,16 +442,11 @@ func StartRun(workflowID int64, input string, createdBy *int64) (*table.Workflow
 	}
 	budgetJSON, _ := json.Marshal(budget)
 	if _, err := s.Exec("UPDATE workflow_runs SET budget=CAST(? AS jsonb) WHERE id=?", string(budgetJSON), run.Id); err != nil {
-		_ = s.Rollback()
 		return nil, nil, err
 	}
 	run.Budget = string(budgetJSON)
 	task.RunId = run.Id
 	if _, err := s.Insert(task); err != nil {
-		_ = s.Rollback()
-		return nil, nil, err
-	}
-	if err := s.Commit(); err != nil {
 		return nil, nil, err
 	}
 	return run, task, nil
