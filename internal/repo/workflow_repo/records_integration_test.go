@@ -12,6 +12,7 @@ import (
 	"github.com/nekoimi/scrapio/internal/bean"
 	"github.com/nekoimi/scrapio/internal/config"
 	"github.com/nekoimi/scrapio/internal/db"
+	"github.com/nekoimi/scrapio/internal/repo/task_repo"
 	"github.com/nekoimi/scrapio/internal/workflow"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -130,6 +131,14 @@ func TestDevRecordTemplatePublication(t *testing.T) {
 		run, task, err := StartRun(owner.Id, "{}", nil)
 		if err != nil || run == nil || task == nil {
 			t.Fatalf("start published template: %v", err)
+		}
+		filtered, _, err := task_repo.ListRuns(task_repo.RunFilter{ProjectID: projectID, WorkflowID: owner.Id, Page: 1, Size: 20})
+		if err != nil || len(filtered) != 1 || filtered[0].Id != run.Id {
+			t.Fatalf("project workflow run filter: %#v %v", filtered, err)
+		}
+		otherProject, _, err := task_repo.ListRuns(task_repo.RunFilter{ProjectID: projectID + 1000000, WorkflowID: owner.Id, Page: 1, Size: 20})
+		if err != nil || len(otherProject) != 0 {
+			t.Fatalf("run leaked into another project: %#v %v", otherProject, err)
 		}
 		validDraft, err := CreateDraft(owner.Id, string(encoded), nil)
 		if err != nil {

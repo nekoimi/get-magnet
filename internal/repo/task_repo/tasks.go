@@ -41,9 +41,11 @@ type TaskFilter struct {
 }
 
 type RunFilter struct {
-	Status string
-	Page   int
-	Size   int
+	Status     string
+	ProjectID  int64
+	WorkflowID int64
+	Page       int
+	Size       int
 }
 
 type Claim struct {
@@ -649,6 +651,12 @@ func ListRuns(filter RunFilter) ([]table.WorkflowRun, int64, error) {
 	if filter.Status != "" {
 		s.Where("status = ?", filter.Status)
 	}
+	if filter.ProjectID > 0 {
+		s.Where("workflow_id IN (SELECT id FROM workflows WHERE project_id = ?)", filter.ProjectID)
+	}
+	if filter.WorkflowID > 0 {
+		s.Where("workflow_id = ?", filter.WorkflowID)
+	}
 	total, err := s.Count(new(table.WorkflowRun))
 	if err != nil {
 		return nil, 0, err
@@ -658,6 +666,12 @@ func ListRuns(filter RunFilter) ([]table.WorkflowRun, int64, error) {
 	defer s.Close()
 	if filter.Status != "" {
 		s.Where("status = ?", filter.Status)
+	}
+	if filter.ProjectID > 0 {
+		s.Where("workflow_id IN (SELECT id FROM workflows WHERE project_id = ?)", filter.ProjectID)
+	}
+	if filter.WorkflowID > 0 {
+		s.Where("workflow_id = ?", filter.WorkflowID)
 	}
 	err = s.Desc("created_at").Limit(filter.Size, (filter.Page-1)*filter.Size).Find(&rows)
 	return rows, total, err

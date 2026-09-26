@@ -42,14 +42,18 @@ export const dynamicRoutes: Array<RouteRecordRaw> = [
 		path: '/',
 		name: '/',
 		component: () => import('/@/layout/index.vue'),
-		redirect: '/home',
+		redirect: '/workspace/projects',
 		meta: {
 			isKeepAlive: true,
 		},
 		children: [
+			{ path:'/workspace/projects', name:'workspaceProjects', component:()=>import('/@/views/workspace/projects.vue'), meta:{title:'项目',isHide:false,isKeepAlive:false,roles:['admin','common'],icon:'ele-FolderOpened'} },
+			{ path:'/workspace/data', name:'workspaceData', component:()=>import('/@/views/workspace/data.vue'), meta:{title:'数据',isHide:false,isKeepAlive:false,roles:['admin','common'],icon:'ele-DataBoard'} },
+			{ path:'/workspace/collectors', name:'workspaceCollectors', component:()=>import('/@/views/workspace/collectors.vue'), meta:{title:'采集器',isHide:false,isKeepAlive:false,roles:['admin','common'],icon:'ele-Connection'} },
+			{ path:'/workspace/runs', name:'workspaceRuns', component:()=>import('/@/views/workspace/runs.vue'), meta:{title:'运行',isHide:false,isKeepAlive:false,roles:['admin','common'],icon:'ele-VideoPlay'} },
 			{
 				path: '/projects', name: 'projects', component: () => import('/@/views/projects/index.vue'),
-				meta: { title: '项目与数据集', isHide: false, isKeepAlive: true, roles: ['admin', 'common'], icon: 'ele-FolderOpened' },
+				meta: { title: '旧项目管理', isHide: true, isKeepAlive: true, roles: ['admin', 'common'], icon: 'ele-FolderOpened' },
 			},
 			{
 				path: '/home',

@@ -153,6 +153,16 @@ func TestDevA04Templates(t *testing.T) {
 	if records != 2 || observations != 5 || revisions != 3 {
 		t.Fatalf("records=%d observations=%d revisions=%d", records, observations, revisions)
 	}
+	var recordID, observedRun, documentID, versionID, taskID int64
+	if err := raw.QueryRow(`SELECT rec.id,ob.run_id,ob.document_id,ob.workflow_version_id,ob.task_id
+		FROM records rec JOIN record_observations ob ON ob.record_id=rec.id
+		WHERE rec.dataset_id=$1 AND ob.run_id=$2 ORDER BY ob.id LIMIT 1`, dataset.Id, jsonRun).Scan(&recordID, &observedRun, &documentID, &versionID, &taskID); err != nil {
+		t.Fatal("record provenance:", err)
+	}
+	var storedType string
+	if err := raw.QueryRow("SELECT document_type FROM documents WHERE id=$1 AND task_id=$2", documentID, taskID).Scan(&storedType); err != nil || storedType != "json" || observedRun != jsonRun || versionID == 0 || recordID == 0 {
+		t.Fatalf("record provenance mismatch: record=%d run=%d document=%d version=%d type=%q error=%v", recordID, observedRun, documentID, versionID, storedType, err)
+	}
 	var summary string
 	if err := raw.QueryRow("SELECT summary::text FROM workflow_runs WHERE id=$1", jsonRun).Scan(&summary); err != nil {
 		t.Fatal(err)

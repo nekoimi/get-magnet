@@ -1,5 +1,6 @@
 <template>
-	<component :is="layouts[themeConfig.layout]" />
+	<WorkspaceLayout v-if="route.path.startsWith('/workspace')" />
+	<component :is="layouts[themeConfig.layout]" v-else />
 </template>
 
 <script setup lang="ts" name="layout">
@@ -8,6 +9,8 @@ import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '/@/stores/themeConfig';
 import { Local } from '/@/utils/storage';
 import mittBus from '/@/utils/mitt';
+import { useRoute } from 'vue-router';
+import WorkspaceLayout from '/@/views/workspace/layout.vue';
 
 // 引入组件
 const layouts: any = {
@@ -19,6 +22,7 @@ const layouts: any = {
 
 // 定义变量内容
 const storesThemeConfig = useThemeConfig();
+const route=useRoute();
 const { themeConfig } = storeToRefs(storesThemeConfig);
 
 // 窗口大小改变时(适配移动端)

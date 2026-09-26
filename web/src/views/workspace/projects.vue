@@ -1,0 +1,33 @@
+<template>
+ <div class="v21-stack">
+  <header class="v21-header"><div><div class="v21-eyebrow">Workspace / 项目</div><h1>{{current?.name||'开始你的采集项目'}}</h1><p>{{current?.goal||'先创建项目，再定义目标数据集并添加来源。'}}</p></div><div class="v21-actions"><el-button @click="showProject=true">新建项目</el-button><el-button type="primary" :disabled="!current" @click="$router.push({path:'/workspace/collectors',query:{create:'1'}})">添加来源</el-button></div></header>
+  <p v-if="error" class="v21-error" role="alert">{{error}}</p>
+  <div v-if="loading" class="v21-empty">正在加载项目…</div>
+  <div v-else-if="!projects.length" class="v21-empty"><h2>还没有采集项目</h2><p>新建项目后，可定义要收集的数据并从第一个 URL 开始。</p><el-button type="primary" @click="showProject=true">创建项目</el-button></div>
+  <template v-else>
+   <div class="v21-grid"><div class="v21-card v21-metric"><span>目标数据集</span><strong>{{datasets.length}}</strong><small class="v21-muted">同一数据集可接收多个来源</small></div><div class="v21-card v21-metric"><span>采集器</span><strong>{{workflows.length}}</strong><small class="v21-muted">{{workflows.filter(x=>x.published_version_id).length}} 个已发布</small></div><div class="v21-card v21-metric"><span>最近运行</span><strong>{{projectRuns.length}}</strong><small class="v21-muted">当前加载的最近运行</small></div></div>
+   <div class="v21-grid two"><section class="v21-card"><div class="section-head"><h2>数据概况</h2><router-link class="v21-link" to="/workspace/data">全部数据 →</router-link></div><div v-if="!datasets.length" class="v21-empty">还没有数据集。先定义字段和唯一键。<br><router-link class="v21-link" to="/workspace/data">新建数据集 →</router-link></div><div v-for="dataset in datasets" :key="dataset.id" class="v21-row"><div><strong>{{dataset.name}}</strong><small>{{dataset.record_type}} · Schema v{{dataset.schema_version}}</small></div><router-link class="v21-link" :to="{path:'/workspace/data',query:{dataset:String(dataset.id)}}">查看记录 →</router-link></div></section>
+    <section class="v21-card"><div class="section-head"><h2>来源与采集器</h2><router-link class="v21-link" to="/workspace/collectors">全部采集器 →</router-link></div><div v-if="!workflows.length" class="v21-empty">还没有来源。添加一个页面或 JSON 接口开始采集。</div><div v-for="item in workflows.slice(0,5)" :key="item.id" class="v21-row"><div><strong>{{item.name}}</strong><small>{{datasetName(item.dataset_id)}} · {{item.code}}</small></div><router-link class="v21-link" :to="{path:'/workspace/collectors',query:{id:String(item.id)}}">配置与预览 →</router-link></div></section></div>
+   <section class="v21-card"><div class="section-head"><h2>最近运行</h2><router-link class="v21-link" to="/workspace/runs">查看运行 →</router-link></div><div v-if="!projectRuns.length" class="v21-empty">暂无运行记录。发布采集器后可手动执行。</div><div v-for="run in projectRuns.slice(0,5)" :key="run.id" class="v21-row"><div><strong>{{workflowName(run.workflow_id)}}</strong><small>{{new Date(run.created_at).toLocaleString()}} · 发布版本 #{{run.workflow_version_id}}</small></div><router-link class="v21-link" :to="{path:'/workspace/runs',query:{id:String(run.id)}}">{{run.status}} →</router-link></div></section>
+  </template>
+  <el-dialog v-model="showProject" title="新建采集项目" width="min(520px,94vw)"><div class="v21-field"><label for="project-name">项目名称</label><input id="project-name" v-model="form.name" placeholder="例如：行业资讯" /></div><div class="v21-field"><label for="project-code">项目标识</label><input id="project-code" v-model="form.code" placeholder="例如：industry_news" /></div><div class="v21-field"><label for="project-goal">采集目标</label><textarea id="project-goal" v-model="form.goal" placeholder="希望持续掌握哪些数据？" /></div><template #footer><el-button @click="showProject=false">取消</el-button><el-button type="primary" :loading="saving" @click="save">创建项目</el-button></template></el-dialog>
+ </div>
+</template>
+<script setup lang="ts">
+import { computed,onMounted,reactive,ref,watch } from 'vue';
+import { ElMessage } from 'element-plus';
+import { api,errorText,workflowPages,type Dataset,type Project,type Run,type Workflow } from './api';
+import { projectId,refreshProjects,selectProject } from './state';
+const projects=ref<Project[]>([]),allDatasets=ref<Dataset[]>([]),allWorkflows=ref<Workflow[]>([]),runs=ref<Run[]>([]),loading=ref(false),saving=ref(false),showProject=ref(false),error=ref('');
+const form=reactive({name:'',code:'',goal:'',owner:''});
+const current=computed(()=>projects.value.find(p=>p.id===projectId.value));
+const datasets=computed(()=>allDatasets.value.filter(d=>d.project_id===projectId.value));
+const workflows=computed(()=>allWorkflows.value.filter(w=>w.project_id===projectId.value));
+const projectRuns=computed(()=>runs.value.filter(r=>workflows.value.some(w=>w.id===r.workflow_id)));
+function datasetName(id?:number){return datasets.value.find(d=>d.id===id)?.name||'未关联数据集';}
+function workflowName(id:number){return workflows.value.find(w=>w.id===id)?.name||`采集器 #${id}`;}
+async function load(){loading.value=true;error.value='';try{const [p,d]=await Promise.all([api.projects(),api.datasets()]);projects.value=p||[];allDatasets.value=d||[];if(!projects.value.some(p=>p.id===projectId.value))selectProject(projects.value[0]?.id||0);const [w,r]=await Promise.all([projectId.value?workflowPages(projectId.value):Promise.resolve([]),api.runs(1,projectId.value)]);allWorkflows.value=w;runs.value=r.list||[];}catch(e){error.value=errorText(e);}finally{loading.value=false;}}
+async function save(){if(!form.name.trim()||!form.code.trim()){ElMessage.warning('请填写项目名称和标识');return;}saving.value=true;try{const item=await api.createProject(form);showProject.value=false;selectProject(item.id);refreshProjects();await load();ElMessage.success('项目已创建');}catch(e){ElMessage.error(errorText(e));}finally{saving.value=false;}}
+watch(projectId,async id=>{try{const [w,r]=await Promise.all([id?workflowPages(id):Promise.resolve([]),api.runs(1,id)]);allWorkflows.value=w;runs.value=r.list||[];}catch(e){error.value=errorText(e);}});onMounted(load);
+</script>
+<style scoped>.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.section-head h2{margin:0 0 8px}</style>

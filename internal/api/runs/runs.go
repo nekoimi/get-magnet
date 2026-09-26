@@ -21,12 +21,14 @@ type PageResponse[T any] struct {
 }
 
 type ListRequest struct {
-	Page     int    `json:"page,omitempty"`
-	Size     int    `json:"size,omitempty"`
-	PageNum  int    `json:"page_num,omitempty"`
-	PageSize int    `json:"page_size,omitempty"`
-	Status   string `json:"status,omitempty"`
-	RunID    int64  `json:"run_id,omitempty"`
+	ProjectID  int64  `json:"project_id,omitempty"`
+	WorkflowID int64  `json:"workflow_id,omitempty"`
+	Page       int    `json:"page,omitempty"`
+	Size       int    `json:"size,omitempty"`
+	PageNum    int    `json:"page_num,omitempty"`
+	PageSize   int    `json:"page_size,omitempty"`
+	Status     string `json:"status,omitempty"`
+	RunID      int64  `json:"run_id,omitempty"`
 }
 type IDRequest struct {
 	ID int64 `json:"id"`
@@ -34,7 +36,7 @@ type IDRequest struct {
 
 func List(w http.ResponseWriter, r *http.Request) {
 	input := parseListRequest(r)
-	rows, total, err := task_repo.ListRuns(task_repo.RunFilter{Status: input.Status, Page: page(input), Size: size(input)})
+	rows, total, err := task_repo.ListRuns(task_repo.RunFilter{Status: input.Status, ProjectID: input.ProjectID, WorkflowID: input.WorkflowID, Page: page(input), Size: size(input)})
 	if err != nil {
 		respond.Error(w, err)
 		return
@@ -145,6 +147,12 @@ func parseListRequest(r *http.Request) ListRequest {
 	}
 	if input.RunID == 0 {
 		input.RunID, _ = strconv.ParseInt(query.Get("run_id"), 10, 64)
+	}
+	if input.ProjectID == 0 {
+		input.ProjectID, _ = strconv.ParseInt(query.Get("project_id"), 10, 64)
+	}
+	if input.WorkflowID == 0 {
+		input.WorkflowID, _ = strconv.ParseInt(query.Get("workflow_id"), 10, 64)
 	}
 	return input
 }
