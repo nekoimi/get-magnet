@@ -13,6 +13,7 @@ import (
 	"github.com/nekoimi/scrapio/internal/pkg/request"
 	"github.com/nekoimi/scrapio/internal/pkg/respond"
 	"github.com/nekoimi/scrapio/internal/repo/audit_repo"
+	"github.com/nekoimi/scrapio/internal/repo/record_repo"
 	"github.com/nekoimi/scrapio/internal/repo/resource_repo"
 )
 
@@ -163,6 +164,12 @@ func Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if resource.ResourceType == "magnet" {
+		if _, err := record_repo.ImportLegacyResource(resource.Id); err != nil {
+			respond.Error(w, err)
+			return
+		}
+	}
 	_ = audit_repo.Record(middleware.RequestID(r.Context()), "resource.created", "resource", &resource.Id, map[string]any{"resource_type": resource.ResourceType})
 	respond.Ok(w, resource)
 }
@@ -186,6 +193,12 @@ func Update(w http.ResponseWriter, r *http.Request) {
 	if err := resource_repo.Update(resource, input.Links); err != nil {
 		respond.Error(w, err)
 		return
+	}
+	if resource.ResourceType == "magnet" {
+		if _, err := record_repo.ImportLegacyResource(resource.Id); err != nil {
+			respond.Error(w, err)
+			return
+		}
 	}
 	_ = audit_repo.Record(middleware.RequestID(r.Context()), "resource.updated", "resource", &resource.Id, map[string]any{"status": resource.Status, "title_changed": current.Title != resource.Title, "attributes_changed": current.Attributes != resource.Attributes, "links_changed": input.Links != nil})
 	respond.Ok(w, resource)

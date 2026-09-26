@@ -68,3 +68,9 @@ func InvalidDefinition(w http.ResponseWriter, path, reason string) {
 		Data: map[string]any{"issues": []map[string]string{{"path": path, "reason": reason}}},
 	})
 }
+
+func InvalidRecord(w http.ResponseWriter, reason string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusUnprocessableEntity)
+	sendJsonResponse(w, JsonResponse{Code: http.StatusUnprocessableEntity, Msg: "record candidate is invalid", Data: map[string]any{"reason": reason}})
+}

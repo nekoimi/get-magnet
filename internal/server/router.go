@@ -15,6 +15,7 @@ import (
 	"github.com/nekoimi/scrapio/internal/api/middleware"
 	"github.com/nekoimi/scrapio/internal/api/ops"
 	"github.com/nekoimi/scrapio/internal/api/plugins"
+	"github.com/nekoimi/scrapio/internal/api/records"
 	"github.com/nekoimi/scrapio/internal/api/resources"
 	"github.com/nekoimi/scrapio/internal/api/runs"
 	"github.com/nekoimi/scrapio/internal/api/settings"
@@ -98,6 +99,10 @@ func newRouter(ctx context.Context, cfg *config.Config) *mux.Router {
 			v2Api.HandleFunc("/datasets/detail", datasets.Detail).Methods("GET")
 			v2Api.HandleFunc("/datasets/create", datasets.Create).Methods("POST")
 			v2Api.HandleFunc("/datasets/schema/update", datasets.UpdateSchema).Methods("POST")
+			v2Api.HandleFunc("/records/list", records.List).Methods("GET")
+			v2Api.HandleFunc("/records/detail", records.Detail).Methods("GET")
+			v2Api.HandleFunc("/records/create", records.Create).Methods("POST")
+			v2Api.HandleFunc("/records/legacy/reconcile", records.ReconcileLegacy).Methods("POST")
 			v2Api.HandleFunc("/workflows/list", workflows.List).Methods("GET", "POST")
 			v2Api.HandleFunc("/workflows/detail", workflows.Detail).Methods("GET", "POST")
 			v2Api.HandleFunc("/workflows/create", workflows.Create).Methods("POST")

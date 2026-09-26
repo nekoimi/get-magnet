@@ -20,6 +20,7 @@ import (
 	"github.com/nekoimi/scrapio/internal/db"
 	"github.com/nekoimi/scrapio/internal/db/table"
 	"github.com/nekoimi/scrapio/internal/drission_rod"
+	"github.com/nekoimi/scrapio/internal/repo/record_repo"
 	"github.com/nekoimi/scrapio/internal/repo/resource_repo"
 	"github.com/nekoimi/scrapio/internal/repo/task_repo"
 	"github.com/nekoimi/scrapio/internal/script"
@@ -306,6 +307,11 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	})
 	if err != nil {
 		return err
+	}
+	if resourceID > 0 {
+		if _, err := record_repo.ObserveLegacyWorkflowResource(resourceID, run.WorkflowVersionId, run.Id, claim.Task.Id, documentID); err != nil {
+			return fmt.Errorf("write workflow record observation: %w", err)
+		}
 	}
 	if resourceID == 0 && len(discoveredURLs) == 0 {
 		return errors.New("workflow produced no persisted resource or discovered pages")

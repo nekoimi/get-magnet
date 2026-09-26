@@ -13,6 +13,7 @@ import (
 
 	"github.com/nekoimi/scrapio/internal/db"
 	"github.com/nekoimi/scrapio/internal/db/table"
+	"github.com/nekoimi/scrapio/internal/repo/record_repo"
 	log "github.com/sirupsen/logrus"
 	"xorm.io/xorm"
 )
@@ -82,6 +83,9 @@ func SaveCollected(origin, title, number, actress, rawURLHost, rawURLPath string
 			return resource, err
 		}
 		_ = RecordEvent(resource.Id, "duplicate", "采集结果已存在", fmt.Sprintf(`{"origin":%q}`, origin))
+		if _, err := record_repo.ImportLegacyResource(resource.Id); err != nil {
+			return resource, fmt.Errorf("sync legacy resource %d: %w", resource.Id, err)
+		}
 		return resource, nil
 	}
 
@@ -110,6 +114,9 @@ func SaveCollected(origin, title, number, actress, rawURLHost, rawURLPath string
 	}
 	if err := RecordEvent(resource.Id, "created", "资源已采集", "{}"); err != nil {
 		return resource, err
+	}
+	if _, err := record_repo.ImportLegacyResource(resource.Id); err != nil {
+		return resource, fmt.Errorf("sync legacy resource %d: %w", resource.Id, err)
 	}
 	return resource, nil
 }
