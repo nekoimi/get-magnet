@@ -20,12 +20,27 @@ type Definition struct {
 }
 
 type Trigger struct {
-	Type        string `json:"type"`
-	Cron        string `json:"cron,omitempty"`
-	URL         string `json:"url,omitempty"`
-	Input       string `json:"input,omitempty"`
-	ProfileID   string `json:"profile_id,omitempty"`
-	Concurrency int    `json:"concurrency,omitempty"`
+	Type        string       `json:"type"`
+	Cron        string       `json:"cron,omitempty"`
+	URL         string       `json:"url,omitempty"`
+	Input       string       `json:"input,omitempty"`
+	ProfileID   string       `json:"profile_id,omitempty"`
+	Concurrency int          `json:"concurrency,omitempty"`
+	Fetch       FetchOptions `json:"fetch,omitempty"`
+}
+
+type FetchOptions struct {
+	Mode      string        `json:"mode,omitempty"`
+	TimeoutMS int           `json:"timeout_ms,omitempty"`
+	Actions   []FetchAction `json:"actions,omitempty"`
+}
+
+type FetchAction struct {
+	Type      string `json:"type"`
+	Selector  string `json:"selector,omitempty"`
+	Value     string `json:"value,omitempty"`
+	TimeoutMS int    `json:"timeout_ms,omitempty"`
+	RunOn     string `json:"run_on,omitempty"`
 }
 
 type Node struct {
@@ -145,6 +160,9 @@ func (d Definition) ValidateExecutable() error {
 	}
 	if err := validateHTTPURL(d.Trigger.URL); err != nil {
 		return fmt.Errorf("trigger.url: %w", err)
+	}
+	if err := validateFetchOptions(d.Trigger.Fetch); err != nil {
+		return fmt.Errorf("trigger.fetch: %w", err)
 	}
 	hasExtract := false
 	hasDiscover := false

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/andybalholm/cascadia"
@@ -23,6 +24,48 @@ func validateHTTPURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
 		return fmt.Errorf("must be an absolute http(s) URL")
+	}
+	return nil
+}
+
+func validateFetchOptions(options FetchOptions) error {
+	if options.Mode != "" && options.Mode != "http" && options.Mode != "browser" {
+		return fmt.Errorf("mode: only http or browser is supported")
+	}
+	if options.TimeoutMS < 0 || options.TimeoutMS > 120000 {
+		return fmt.Errorf("timeout_ms: must be between 0 and 120000")
+	}
+	if len(options.Actions) > 0 && options.Mode != "browser" {
+		return fmt.Errorf("actions: browser mode is required")
+	}
+	if len(options.Actions) > 32 {
+		return fmt.Errorf("actions: at most 32 actions are supported")
+	}
+	for i, action := range options.Actions {
+		path := fmt.Sprintf("actions[%d]", i)
+		if action.RunOn != "" && action.RunOn != "trigger" && action.RunOn != "detail" {
+			return fmt.Errorf("%s.run_on: only trigger or detail is supported", path)
+		}
+		if action.TimeoutMS < 0 || action.TimeoutMS > 60000 {
+			return fmt.Errorf("%s.timeout_ms: must be between 0 and 60000", path)
+		}
+		switch action.Type {
+		case "navigate":
+			if err := validateHTTPURL(action.Value); err != nil {
+				return fmt.Errorf("%s.value: %w", path, err)
+			}
+		case "wait", "click", "input":
+			if strings.TrimSpace(action.Selector) == "" {
+				return fmt.Errorf("%s.selector: required", path)
+			}
+		case "scroll":
+			pixels, err := strconv.Atoi(action.Value)
+			if err != nil || pixels < -100000 || pixels > 100000 {
+				return fmt.Errorf("%s.value: expected pixels between -100000 and 100000", path)
+			}
+		default:
+			return fmt.Errorf("%s.type: unsupported browser action", path)
+		}
 	}
 	return nil
 }

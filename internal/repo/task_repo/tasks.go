@@ -334,7 +334,16 @@ func Fail(taskID, attemptID int64, cause error, retryable bool) (bool, error) {
 		}
 		return false, ErrStaleAttempt
 	}
-	changed, err = s.ID(attemptID).Where("status = ?", TaskRunning).Cols("status", "finished_at", "error_message").Update(&table.TaskAttempt{Status: TaskFailed, FinishedAt: &now, ErrorMessage: message})
+	failure := &table.TaskAttempt{Status: TaskFailed, FinishedAt: &now, ErrorMessage: message}
+	columns := []string{"status", "finished_at", "error_message"}
+	var evidence interface{ FailureSnapshot() any }
+	if errors.As(cause, &evidence) {
+		if encoded, marshalErr := json.Marshal(evidence.FailureSnapshot()); marshalErr == nil {
+			failure.ResponseSnapshot = string(encoded)
+			columns = append(columns, "response_snapshot")
+		}
+	}
+	changed, err = s.ID(attemptID).Where("status = ?", TaskRunning).Cols(columns...).Update(failure)
 	if err != nil || changed != 1 {
 		_ = s.Rollback()
 		if err != nil {

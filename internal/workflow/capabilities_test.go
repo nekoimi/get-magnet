@@ -4,8 +4,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/nekoimi/scrapio/internal/drission_rod"
 )
 
 func TestPublishBoundaryRejectsUnexecutedCapabilities(t *testing.T) {
@@ -52,7 +50,7 @@ func TestFixedDocumentContracts(t *testing.T) {
 		return string(b)
 	}
 	// The browser and ordinary HTTP adapters both feed the same extractor.
-	browser := drission_rod.BrowserResult{HTML: read("detail.html")}
+	browser := FetchResult{HTML: read("detail.html")}
 	values, err := extractNodeValues(Node{Config: map[string]any{"fields": []any{
 		map[string]any{"name": "number", "selector": "article", "attribute": "data-code"},
 		map[string]any{"name": "title", "selector": "article h1"},

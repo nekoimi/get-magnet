@@ -36,22 +36,36 @@ type BrowserJob struct {
 }
 
 type BrowserResult struct {
-	RequestID  string
-	HTML       string
-	Text       string
-	JSON       string
-	Screenshot []byte
-	Cookies    []*pb.BrowserCookie
-	Duration   time.Duration
-	DocumentID int64
+	RequestID     string
+	FinalURL      string
+	StatusCode    int
+	ContentType   string
+	ActionResults []BrowserActionResult
+	HTML          string
+	Text          string
+	JSON          string
+	Screenshot    []byte
+	Cookies       []*pb.BrowserCookie
+	Duration      time.Duration
+	DocumentID    int64
+}
+
+type BrowserActionResult struct {
+	Index      int    `json:"index"`
+	Type       string `json:"type"`
+	Success    bool   `json:"success"`
+	DurationMs int64  `json:"duration_ms"`
+	Error      string `json:"error,omitempty"`
 }
 
 type BrowserError struct {
-	Code      string
-	RequestID string
-	Retryable bool
-	Message   string
-	Cause     error
+	Code          string
+	RequestID     string
+	Retryable     bool
+	Message       string
+	Cause         error
+	ActionResults []BrowserActionResult
+	FinalURL      string
 }
 
 func (e *BrowserError) Error() string {
@@ -68,6 +82,9 @@ func (e *BrowserError) Unwrap() error { return e.Cause }
 func (d *DrissionRod) Execute(ctx context.Context, job BrowserJob) (BrowserResult, error) {
 	if strings.TrimSpace(job.URL) == "" {
 		return BrowserResult{}, &BrowserError{Code: "INVALID_JOB", Message: "url is required"}
+	}
+	if job.Profile != "" || len(job.Headers) > 0 {
+		return BrowserResult{}, &BrowserError{Code: "UNSUPPORTED_OPTION", Message: "profile and headers are not supported by the browser executor"}
 	}
 	if job.RequestID == "" {
 		if requestID, ok := ctx.Value("request_id").(string); ok && strings.TrimSpace(requestID) != "" {
@@ -108,7 +125,7 @@ func (d *DrissionRod) Execute(ctx context.Context, job BrowserJob) (BrowserResul
 			continue
 		}
 		if !response.Success {
-			be := &BrowserError{Code: response.ErrorCode, RequestID: response.RequestId, Message: response.Error}
+			be := &BrowserError{Code: response.ErrorCode, RequestID: response.RequestId, Message: response.Error, ActionResults: actionResults(response.ActionResults), FinalURL: response.FinalUrl}
 			if be.Code == "" {
 				be.Code = "EXECUTION_FAILED"
 			}
@@ -122,9 +139,17 @@ func (d *DrissionRod) Execute(ctx context.Context, job BrowserJob) (BrowserResul
 			}
 			return BrowserResult{}, be
 		}
-		return BrowserResult{RequestID: response.RequestId, HTML: response.Html, Text: response.Text, JSON: response.Json, Screenshot: response.Screenshot, Cookies: response.Cookies, Duration: time.Duration(response.DurationMs) * time.Millisecond}, nil
+		return BrowserResult{RequestID: response.RequestId, FinalURL: response.FinalUrl, StatusCode: int(response.StatusCode), ContentType: response.ContentType, ActionResults: actionResults(response.ActionResults), HTML: response.Html, Text: response.Text, JSON: response.Json, Screenshot: response.Screenshot, Cookies: response.Cookies, Duration: time.Duration(response.DurationMs) * time.Millisecond}, nil
 	}
 	return BrowserResult{}, classifyRPCError(job.RequestID, last)
+}
+
+func actionResults(rows []*pb.BrowserActionResult) []BrowserActionResult {
+	results := make([]BrowserActionResult, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, BrowserActionResult{Index: int(row.Index), Type: row.Type, Success: row.Success, DurationMs: row.DurationMs, Error: row.Error})
+	}
+	return results
 }
 
 func waitRetry(ctx context.Context, delay time.Duration) bool {

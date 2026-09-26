@@ -130,6 +130,10 @@ func (w *Worker) loop(ctx context.Context, index int) {
 			if errors.As(err, &browserErr) {
 				retryable = browserErr.Retryable
 			}
+			var fetchErr *FetchError
+			if errors.As(err, &fetchErr) {
+				retryable = fetchErr.Retryable
+			}
 			if _, failErr := task_repo.Fail(claim.Task.Id, claim.Attempt.Id, err, retryable); failErr != nil && !errors.Is(failErr, task_repo.ErrStaleAttempt) {
 				log.Errorf("回写 workflow 失败状态异常: %s", failErr)
 			}
@@ -150,9 +154,6 @@ func waitWorkflow(ctx context.Context, delay time.Duration) bool {
 }
 
 func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
-	if w.browser == nil {
-		return &drission_rod.BrowserError{Code: "BROWSER_UNAVAILABLE", Retryable: true, Message: "browser worker is unavailable"}
-	}
 	run := new(table.WorkflowRun)
 	has, err := db.Instance().ID(claim.Task.RunId).Get(run)
 	if err != nil || !has {
@@ -192,23 +193,21 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	if pageURL == "" {
 		return errors.New("workflow entry url is required")
 	}
-	profile := definition.Trigger.ProfileID
-	recipe := ""
-	for _, node := range append(append([]Node{}, definition.Acquire...), definition.Nodes...) {
-		if value := stringValue(node.Config["profile"]); value != "" {
-			profile = value
+	fetchOptions := definition.Trigger.Fetch
+	if len(fetchOptions.Actions) > 0 {
+		actions := make([]FetchAction, 0, len(fetchOptions.Actions))
+		for _, action := range fetchOptions.Actions {
+			if action.RunOn == "" || action.RunOn == claim.Task.StepName {
+				actions = append(actions, action)
+			}
 		}
-		if value := stringValue(node.Config["recipe"]); value != "" {
-			recipe = value
-		}
+		fetchOptions.Actions = actions
 	}
-	result, err := w.browser.Execute(ctx, drission_rod.BrowserJob{
-		URL: pageURL, Profile: profile, Recipe: recipe, Timeout: 60 * time.Second,
-		Outputs: []string{"html", "json", "screenshot"}, ClosePage: true,
-	})
+	result, err := (Fetcher{Browser: w.browser}).Fetch(ctx, pageURL, fetchOptions)
 	if err != nil {
 		return err
 	}
+	pageURL = result.FinalURL
 	var documentID int64
 	err = task_repo.WithActiveAttempt(claim.Task.Id, claim.Attempt, func() error {
 		var writeErr error
@@ -316,7 +315,8 @@ func (w *Worker) execute(ctx context.Context, claim *task_repo.Claim) error {
 	if resourceID == 0 && len(discoveredURLs) == 0 {
 		return errors.New("workflow produced no persisted resource or discovered pages")
 	}
-	output := map[string]any{"document_id": documentID, "values": values, "discovered_count": len(discoveredURLs)}
+	output := map[string]any{"document_id": documentID, "values": values, "discovered_count": len(discoveredURLs),
+		"fetch": map[string]any{"adapter": result.Adapter, "final_url": result.FinalURL, "status_code": result.StatusCode, "content_type": result.ContentType, "action_results": result.Actions}}
 	if resourceID > 0 {
 		output["resource_id"] = resourceID
 	} else {
@@ -338,17 +338,17 @@ func fieldRules(raw any) ([]FieldRule, error) {
 	return fields, nil
 }
 
-func extractNodeValues(node Node, result drission_rod.BrowserResult) (map[string]any, error) {
+func extractNodeValues(node Node, result FetchResult) (map[string]any, error) {
 	fields, err := fieldRules(node.Config["fields"])
 	if err != nil {
 		return nil, err
 	}
 	content, contentType := result.HTML, "html"
-	if strings.EqualFold(stringValue(node.Config["content_type"]), "json") || (content == "" && result.JSON != "") || (usesJSONPath(fields) && result.JSON != "") {
+	if strings.EqualFold(stringValue(node.Config["content_type"]), "json") || (content == "" && result.JSON != "") || usesJSONPath(fields) {
 		content, contentType = result.JSON, "json"
 	}
 	if content == "" {
-		return nil, errors.New("browser returned no extractable document")
+		return nil, errors.New("fetch returned no extractable document")
 	}
 	return Extract(ExtractRequest{ContentType: contentType, Content: content, Fields: fields})
 }
@@ -419,7 +419,7 @@ func nodeApplies(node Node, step string) bool {
 	}
 }
 
-func saveDocument(taskID int64, pageURL string, result drission_rod.BrowserResult) (int64, error) {
+func saveDocument(taskID int64, pageURL string, result FetchResult) (int64, error) {
 	if db.Instance() == nil {
 		return 0, errors.New("database is not initialized")
 	}
@@ -428,10 +428,10 @@ func saveDocument(taskID int64, pageURL string, result drission_rod.BrowserResul
 		content, documentType = result.JSON, "json"
 	}
 	if content == "" {
-		return 0, errors.New("browser returned empty document")
+		return 0, errors.New("fetch returned empty document")
 	}
 	hash := sha256.Sum256([]byte(content))
-	metadata, _ := json.Marshal(map[string]any{"url": pageURL, "request_id": result.RequestID, "duration_ms": result.Duration.Milliseconds()})
+	metadata, _ := json.Marshal(map[string]any{"url": pageURL, "requested_url": result.RequestedURL, "final_url": result.FinalURL, "adapter": result.Adapter, "status_code": result.StatusCode, "content_type": result.ContentType, "request_id": result.RequestID, "duration_ms": result.Duration.Milliseconds(), "action_results": result.Actions})
 	document := &table.Document{TaskId: &taskID, DocumentType: documentType, Content: content, ContentHash: hex.EncodeToString(hash[:]), ContentSize: int64(len(content)), Metadata: string(metadata), CreatedAt: time.Now()}
 	if _, err := db.Instance().InsertOne(document); err != nil {
 		return 0, err
